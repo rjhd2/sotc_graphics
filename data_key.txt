@@ -1,0 +1,30 @@
+ABD - Surface Albedo
+AGL - Alpine Glaciers
+ASL - Aerosols (Biomass Burning, Dust, Total)
+AT  - Apparent Transmission
+BOB - Biomass Burning (CO2)
+CLD - Cloudiness
+CMO - Carbon Monoxide
+DGT - Drought
+FPR - FAPAR
+HUM - Humidity (q, RH)
+LKT - Lake Temperatures
+LST - Lower Stratospheric Temperatures
+LTT - Lower Tropospheric Temperatures
+PCP - Precipitation
+RDC - River Discharge (Runoff)
+SAT - Surface (Air) Temperature
+SLP - Sea Level Pressure
+SMS - Soil Moisture
+SNW - Snow
+SOZ - Stratospheric Ozone
+SWV - Stratospheric Water Vapour
+TCO - Tropospheric Ozone
+TCW - Total Column Water vapour
+TEX - Temperature Extremes
+THM - Upper Tropospheric Humidity (UTH)
+TWS - Terrestrial Water Storage
+UWD - Upper Air Wind (UAW)
+WND - Winds
+WNL - Land Surface Wind
+WDO - Ocean Wind
