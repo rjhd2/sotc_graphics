@@ -6,16 +6,15 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -56,7 +55,7 @@ def read_snow(filename):
                 
     #             indata += [[int(f) for f in fields]]
             
-    indata = np.genfromtxt(filename, skip_header = 1)
+    indata = np.genfromtxt(filename, skip_header = 1, delimiter = ",")
 
     indata = np.ma.array(indata)
     indata = np.ma.masked_where(indata == 0, indata)
@@ -68,9 +67,9 @@ def read_snow(filename):
     times = years + (months - 1)/12.
 
     # make timeseries objects
-    NH = utils.Timeseries("N Hemisphere", times, indata[:,2]/SCALE)
-    Eurasia = utils.Timeseries("Eurasia", times, indata[:,3]/SCALE)
-    NAmer = utils.Timeseries("N America", times, indata[:,4]/SCALE)
+    NH = utils.Timeseries("N Hemisphere", times, indata[:,3]/SCALE)
+    Eurasia = utils.Timeseries("Eurasia", times, indata[:,5]/SCALE)
+    NAmer = utils.Timeseries("N America", times, indata[:,7]/SCALE)
    
     return NH, Eurasia, NAmer # read_snow
 
@@ -80,7 +79,7 @@ def run_all_plots():
     #************************************************************************
     # Snow cover figure
 
-    NH, Eurasia, NAmer = read_snow(data_loc + "robinson_SCE_anomalies{}12_rd.csv".format(settings.YEAR))
+    NH, Eurasia, NAmer = read_snow(data_loc + "rutgers-sce-anom12-31-{}_rd.csv".format(settings.YEAR))
 
 
     fig = plt.figure(figsize = (10,6))
@@ -93,7 +92,6 @@ def run_all_plots():
     plt.xlim([1966,int(settings.YEAR)+1])
     plt.ylim([-1.9,3.3])
     ax.set_ylabel("Anomaly (Million km"+r'$^2$'+")", fontsize = settings.FONTSIZE)
-
 
     for tick in ax.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE) 

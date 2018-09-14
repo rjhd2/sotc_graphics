@@ -6,16 +6,15 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -23,6 +22,8 @@ import matplotlib as mpl
 import iris
 import iris.quickplot as qplt
 import cartopy.crs as ccrs
+
+import os
 
 import utils # RJHD utilities
 import settings
@@ -35,6 +36,8 @@ image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
 
 CLIMSTART=1981
 CLIMEND=2010
+
+DECIMAL_MONTHS = np.arange(12)/12.
 
 LEGEND_LOC = 'lower right'
 
@@ -54,14 +57,64 @@ def read_csv(filename):
     unsw = utils.Timeseries("UNSW v1.0", indata[:,0], indata[:,4])
 
     UAH = utils.Timeseries("UAH v6.0", indata[:,0], indata[:,5])
-    rss = utils.Timeseries("RSS v3.3", indata[:,0], indata[:,6])
+    rss = utils.Timeseries("RSS v4.0", indata[:,0], indata[:,6])
+    avg_sat = utils.Timeseries("Av. Satellite", indata[:,0], indata[:,7])
 
-    era = utils.Timeseries("ERA-Interim", indata[:,0], indata[:,7])
-    jra = utils.Timeseries("JRA-55", indata[:,0], indata[:,8])
-    merra = utils.Timeseries("MERRA-2", indata[:,0], indata[:,9])
+    era = utils.Timeseries("ERA-Interim", indata[:,0], indata[:,8])
+    jra = utils.Timeseries("JRA-55", indata[:,0], indata[:,9])
+    merra = utils.Timeseries("MERRA-2", indata[:,0], indata[:,10])
     
     return raobcore, rich, ratpac, unsw, UAH, rss, era, jra, merra # read_csv
 
+#************************************************************************
+def read_mei(filename):
+    """
+    Read MEI file into Timeseries object
+
+    http://www.esrl.noaa.gov/psd/enso/mei/table.html
+
+    :param str filename: input file to read
+
+    :returns: Timeseries
+
+    """
+
+    with open(filename, "r") as infile:
+
+        all_data = []
+
+        for lc, line in enumerate(infile):
+            # issues with np.genfromtxt for html, so do long way around
+            if lc <= 12:
+                continue
+
+            elif line.strip() == "":
+                break
+
+            else:
+                all_data += [line.split()]
+
+    all_data = np.array(all_data).astype(float)
+
+    years = all_data[:, 0]
+
+    # create the times
+    times = []
+    year = years[0]
+    while year <= years[-1]:
+
+        times += list(year + DECIMAL_MONTHS)
+        year += 1
+
+    # unravel the data
+    data = all_data[:, 1:]
+    data = data.reshape(-1)   
+
+    assert len(times) == len(data)
+
+    mei = utils.Timeseries("MEI", np.array(times), data)
+
+    return mei # read_mei
 
 
 #************************************************************************
@@ -73,7 +126,7 @@ def run_all_plots():
     for region in ["global"]:
 
         if region == "global":
-            raobcore, rich, ratpac, unsw, UAH, rss, era, merra, jra = read_csv(data_loc + "TLT_GL_{}_RD_v2.csv".format(settings.YEAR))
+            raobcore, rich, ratpac, unsw, UAH, rss, era, merra, jra = read_csv(data_loc + "SOC_LT_Fig_1_data_180212.csv".format(settings.YEAR))
 
         plt.clf()
         fig, (ax1, ax2, ax3) = plt.subplots(3, figsize = (10,12), sharex=True)
@@ -90,7 +143,7 @@ def run_all_plots():
         # reanalyses
         if region == "global":
             jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_MSUch2LT_global_ts.txt", "temperature")
-            merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann.dat", LT = True)
+            merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LT = True)
 
             utils.plot_ts_panel(ax3, [era, jra_anoms, merra_anoms], "-", "temperature", loc = LEGEND_LOC)
         else:
@@ -133,7 +186,9 @@ def run_all_plots():
     cube.coord('latitude').guess_bounds()
     cube.coord('longitude').guess_bounds()
 
-    bounds=[-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
+    bounds = np.array([-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100])
+    bounds = np.array([-100, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 100])
+
     cmap=settings.COLOURMAP_DICT["temperature"]
     utils.plot_smooth_map_iris(image_loc + "LTT_{}_anoms_era".format(settings.YEAR), cube[0][0], cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)")
     utils.plot_smooth_map_iris(image_loc + "p2.1_LTT_{}_anoms_era".format(settings.YEAR), cube[0][0], cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", figtext = "(e) Lower Tropospheric Temperature")
@@ -144,6 +199,7 @@ def run_all_plots():
     times, latitudes, data = utils.era_2dts_read(reanalysis_loc, "ltt")
 
     bounds = np.array([-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100])
+    bounds = np.array([-100, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 100])
 
     # sort the time axis
     start = (times[0] - 101)/10000.
@@ -178,7 +234,15 @@ def run_all_plots():
     data = data.reshape(-1, data.shape[-1])
     new_times = new_times.reshape(-1)
 
-    utils.plot_hovmuller(image_loc + "LTT_hovmuller_era", new_times, latitudes, data.T, settings.COLOURMAP_DICT["temperature"], bounds, "Anomaly ("+r'$^{\circ}$'+"C)")
+    utils.plot_hovmuller(image_loc + "LTT_hovmuller_era", new_times, latitudes, data.T, settings.COLOURMAP_DICT["temperature"], bounds, "Anomaly ("+r'$^{\circ}$'+"C)", cosine = True)
+
+
+    # version with MEI on top
+    mei = read_mei(os.path.join(data_loc, "MEI.dat"))
+
+
+    utils.plot_hovmuller(image_loc + "LTT_hovmuller_era_MEI", new_times, latitudes, data.T, settings.COLOURMAP_DICT["temperature"], bounds, "Anomaly ("+r'$^{\circ}$'+"C)", cosine = True, extra_ts = mei)
+
 
     return # run_all_plots
 

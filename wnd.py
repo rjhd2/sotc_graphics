@@ -6,16 +6,15 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 23                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -58,13 +57,17 @@ def combine_arrays(tup):
     
 
 #************************************************************************
-def read_australia(filename):
+def read_australia(filename, mean_then_clim = True):
     """
     Read in the Australian data from Tim McVicar
 
     Resaved .xls as .csv and removed some rows and columns
 
+    :param str filename: full path and name of input file
+    :param bool mean_then_clim: how to calculate the anomalies
+
     :returns: lat, lon, anomalies and trends
+
     """
 
     print "save .xls as .csv from LibreOffice using fixed space format.\n Ignore station name column\n change trend calculation dates if necessary"
@@ -79,15 +82,30 @@ def read_australia(filename):
     aus_clim_8810 = np.array([float(x) for x in indata[:,-2]])
     aus_trend_79_pres = np.array([float(x) for x in indata[:,-6]])
 
-    for_timeseries = np.array(indata[:, 5:-6], dtype=np.float)
+    all_timeseries = np.array(indata[:, 5:-6], dtype=np.float)
 
-    timeseries = np.mean(for_timeseries, axis=0)
 
     years = np.arange(1974, int(settings.YEAR) + 1, 1)
+    clim_start, = np.where(years == 1981)
+    clim_end, = np.where(years == 2010+1)
+
+    # two methods of calculating regional anomalies
+    if mean_then_clim:
+        # take mean of all station series to form regional actuals
+        # then subtract climatology taken from regional mean series
+        mean_timeseries = np.mean(all_timeseries, axis=0)
+        anomalies = mean_timeseries - (np.mean(mean_timeseries[clim_start[0] : clim_end[0]]))
+
+    else:
+        # calculate climatology for each station, get anomalies for each station
+        # then calculate the mean
+        clims = np.mean(all_timeseries[:, clim_start : clim_end], axis = 1)
+        all_anomalies = all_timeseries - np.tile(clims, (all_timeseries.shape[1], 1)).transpose()
+        anomalies = np.mean(all_anomalies, axis = 0)
 
     return  aus_lat, aus_lon, np.ma.array(aus_anom_8110, mask = np.zeros(len(aus_anom_8110))), \
         np.ma.array(aus_trend_79_pres, mask = np.zeros(len(aus_trend_79_pres))), \
-        years, timeseries, aus_clim_8110# read_australia
+        years, anomalies, aus_clim_8110 # read_australia
 
 #************************************************************************
 def read_hadisd_annual_anomalies(region):
@@ -258,7 +276,7 @@ def run_all_plots():
 
     #************************************************************************
     # Read in Australian Data
-    aus_lat, aus_lon, aus_anom_8110, aus_trend_79_pres, aus_years, aus_timeseries, aus_clim_8110 = read_australia("{}/u_Extracted_ANN_1974_{}.csv".format(data_loc, settings.YEAR))
+    aus_lat, aus_lon, aus_anom_8110, aus_trend_79_pres, aus_years, aus_anomalies, aus_clim_8110 = read_australia("{}/u_Extracted_ANN_1974_{}_RD.csv".format(data_loc, settings.YEAR))
 
     # Timeseries figure
 
@@ -267,9 +285,9 @@ def run_all_plots():
 
     land_era_clim, land_era_anoms = utils.calculate_climatology_and_anomalies_1d(era_land, 1981, 2010)
 
-    land_merra_anoms = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "wind", "L", anomalies = True)
+    land_merra_anoms = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "wind", "L", anomalies = True)
 
-    # jra55 = utils.read_jra55(reanalysis_loc + "JRA-55_ws10m_globalland_ts.txt", "windspeed")
+    jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_ws10m_globalland_ts.txt", "windspeed")
 
     # Plot timeseries figure
     fig, (ax1, ax2, ax3) = plt.subplots(3, figsize = (10,12), sharex=True)
@@ -278,14 +296,12 @@ def run_all_plots():
     for region in all_regions:
 
         if region.name == "Australia":
-            # read in the australian data
+            # use the Australian data
+ 
             years = aus_years
-            anomalies = aus_timeseries
+            anomalies = aus_anomalies
 
-            clim_start, = np.where(years == 1981)
-            clim_end, = np.where(years == 2010+1)
-
-            anomalies = aus_timeseries - (np.mean(aus_timeseries[clim_start : clim_end]))
+            print anomalies
 
             region.nstat = len(aus_lat)
             region.slope = np.mean(aus_trend_79_pres) # just do the mean of all station slopes
@@ -304,14 +320,22 @@ def run_all_plots():
         print "{} highest {} lowest".format(len(ranks) - ranks[-1], ranks[-1])
 
         # plot data
-        ax1.plot(years, anomalies, c = region.color, label = region.name, lw = 2)
-        if region.name != "Australia":
+        if region.fname == "GlobalNoOz":
+            ax1.plot(years, anomalies, c = region.color, label = region.name, lw = 3)
+        else:
+            ax1.plot(years, anomalies, c = region.color, label = region.name, lw = 2)
+
+        if region.fname == "GlobalNoOz":
+            ax2.plot(years, m3, c = region.color, lw = 3)
+            ax3.plot(years, m10, c = region.color, lw = 3)
+        elif region.name != "Australia":
             ax2.plot(years, m3, c = region.color, lw = 2)
             ax3.plot(years, m10, c = region.color, lw = 2)
 
         if region.fname == "GlobalNoOz":
-            ax1.plot(land_era_anoms.times, land_era_anoms.data, c = settings.COLOURS["circulation"]["ERA-Interim"], label = "ERA-Interim Land", lw = 2)
-            ax1.plot(land_merra_anoms.times, land_merra_anoms.data, c = settings.COLOURS["circulation"]["MERRA-2"], label = "MERRA-2 Land", lw = 2)
+            ax1.plot(land_era_anoms.times, land_era_anoms.data, c = settings.COLOURS["circulation"]["ERA-Interim"], label = "ERA-Interim (land only)", lw = 2)
+            ax1.plot(land_merra_anoms.times, land_merra_anoms.data, c = settings.COLOURS["circulation"]["MERRA-2"], label = "MERRA-2 (land only)", lw = 2)
+            ax1.plot(jra_anoms.times, jra_anoms.data, c = settings.COLOURS["circulation"]["JRA-55"], label = "JRA-55 (land only)", lw = 2)
 
     # finish off plot
     ax1.axhline(0, c = '0.5', ls = '--')
@@ -339,6 +363,9 @@ def run_all_plots():
         ax.xaxis.set_minor_locator(minorLocator)
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
+        ax.yaxis.set_ticks_position('left')
+
+    plt.xlim([1970,int(settings.YEAR)+1])
 
     plt.savefig(image_loc+"WND_land_ts{}".format(settings.OUTFMT))
     plt.close()
@@ -409,7 +436,7 @@ def run_all_plots():
     bounds=[-4, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 4]
 
     utils.plot_smooth_map_iris(image_loc + "WND_{}_merra_obs_anomaly".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from 1981-2010 (m s"+r'$^{-1}$)', scatter = (lons, lats, anom))
-    utils.plot_smooth_map_iris(image_loc + "p2.1_WND_{}_merra_obs_anomaly".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from 1981-2010 (m s"+r'$^{-1}$)', figtext = "(u) Surface Winds", scatter = (lons, lats, anom))
+    utils.plot_smooth_map_iris(image_loc + "p2.1_WND_{}_merra_obs_anomaly".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from 1981-2010 (m s"+r'$^{-1}$)', figtext = "(v) Surface Winds", scatter = (lons, lats, anom))
     utils.plot_smooth_map_iris(image_loc + "WND_{}_merra_anomaly".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from 1981-2010 (m s"+r'$^{-1}$)')
 
     #************************************************************************
@@ -434,30 +461,31 @@ def run_all_plots():
 
     satellite = read_radiometer(data_loc + "wind_data_for_global_ocean_time_series.annual.txt")
 
-    print "NO IN SITU OCEAN DATA FOR 2016, using 2015 data"
-    nocs = read_ts_cube(data_loc + "NOCSv2.0_oceanW_5by5_8110anoms_areaTS_FEB2016.nc", "Globally Average 70S-70N", "NOCSv2.0")
+#    print "NO IN SITU OCEAN DATA FOR 2016, using 2015 data"
+#    nocs = read_ts_cube(data_loc + "NOCSv2.0_oceanW_5by5_8110anoms_areaTS_FEB2016.nc", "Globally Average 70S-70N", "NOCSv2.0")
 
-    WASwind = read_ts_cube(data_loc + "waswind_v1_0_1.monthly_areaTS_19502011.nc","Globally Averaged Anomalies 70S-70N", "WASwind")
+#    WASwind = read_ts_cube(data_loc + "waswind_v1_0_1.monthly_areaTS_19502011.nc","Globally Averaged Anomalies 70S-70N", "WASwind")
 
-    print "FIXING WASWIND TIMES - DATAFILE HAS WRONG DESCRIPTOR"
-    WASwind.times = WASwind.times - (1973-1950)
+#    print "FIXING WASWIND TIMES - DATAFILE HAS WRONG DESCRIPTOR"
+#    WASwind.times = WASwind.times - (1973-1950)
 
     jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_ws10m_globalocean_ts.txt", "wind")
 
     era_globe, era_ocean, era_land, eratropics = utils.era_ts_read(reanalysis_loc, "wnd", annual = True)
     ocean_era_clim, ocean_era_anoms = utils.calculate_climatology_and_anomalies_1d(era_ocean, 1981, 2010)
 
-    merra_anoms = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "wind", "O", anomalies = True)
+    merra_anoms = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "wind", "O", anomalies = True)
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, figsize = (10,12), sharex=True)
+#    fig, (ax1, ax2, ax3) = plt.subplots(3, figsize = (10,12), sharex=True)
+    fig, (ax1, ax3) = plt.subplots(2, figsize = (10,8), sharex=True)
 
     # Satellite
     utils.plot_ts_panel(ax1, [satellite], "-", "circulation", loc = LEGEND_LOC, bbox = BBOX)
 
     # In Situ
-    utils.plot_ts_panel(ax2, [nocs, WASwind], "-", "circulation", loc = LEGEND_LOC, bbox = BBOX)
+#    utils.plot_ts_panel(ax2, [nocs, WASwind], "-", "circulation", loc = LEGEND_LOC, bbox = BBOX)
 
-    ax2.set_ylabel("Anomaly (m s"+r'$^{-1}$'+")", fontsize = settings.FONTSIZE)
+#    ax2.set_ylabel("Anomaly (m s"+r'$^{-1}$'+")", fontsize = settings.FONTSIZE)
 
     # Reanalyses
     utils.plot_ts_panel(ax3, [ocean_era_anoms, jra_anoms, merra_anoms], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
@@ -470,16 +498,18 @@ def run_all_plots():
 
     for tick in ax3.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE) 
-    for ax in [ax1, ax2, ax3]:
+#    for ax in [ax1, ax2, ax3]:
+    for ax in [ax1, ax3]:
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
         ax.set_ylim(YLIM)
         ax.yaxis.set_ticks([-0.2,0,0.2,0.4])
+        ax.yaxis.set_ticks_position('left')
 
     # sort labelling
     ax1.text(0.02, 0.9, "(a) Satellites", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    ax2.text(0.02, 0.9, "(b) In Situ", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    ax3.text(0.02, 0.9, "(c) Reanalyses", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
+#    ax2.text(0.02, 0.9, "(b) In Situ", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
+    ax3.text(0.02, 0.9, "(b) Reanalyses", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
 
     fig.subplots_adjust(right = 0.95, top = 0.95, hspace = 0.001)
 
@@ -498,23 +528,16 @@ def run_all_plots():
 
 
     #************************************************************************
-    # RSS ocean + HadISD Trend figure
+    # MERRA/RSS ocean + HadISD Trend figure
 
-    # Read in RSS anomalies
+    # Read in MERRA/RSS anomalies
 
-    ncfile = ncdf.Dataset(data_loc + "wind_v07r00_198801_{}12.trend.nc".format(settings.YEAR))
-
-    var=ncfile.variables["trend_wind_speed"][:] # this is a masked array
-    nlons = ncfile.variables["longitude"][:]
-    nlats = ncfile.variables["latitude"][:]
-
-    cube = utils.make_iris_cube_2d(var, nlats, nlons, "wind_trend", "m/s")
-
+    anoms = read_map_data(data_loc + "data_for_1988_{}_wind_trend_map.rss_ocean_merra2_land.txt".format(settings.YEAR))
 
     bounds=[-4, -0.8, -0.4, -0.2, -0.1, 0, 0.1, 0.2, 0.4, 0.8, 4]
     bounds=[-100, -0.4, -0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2, 0.4, 100]
-    utils.plot_smooth_map_iris(image_loc + "WND_{}_rss_trend".format(settings.YEAR), cube, settings.COLOURMAP_DICT["circulation_r"], bounds, "Trend from 1988-{} (m s".format(settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)')
-    utils.plot_smooth_map_iris(image_loc + "WND_{}_rss_obs_trend".format(settings.YEAR), cube, settings.COLOURMAP_DICT["circulation_r"], bounds, "Trend from 1988-{} (ocean) and 1979-{} (land) (m s".format(settings.YEAR, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)', scatter = (lons, lats, trend))
+    utils.plot_smooth_map_iris(image_loc + "WND_{}_merra-rss_trend".format(settings.YEAR), anoms, settings.COLOURMAP_DICT["circulation_r"], bounds, "Trend from 1988-{} (m s".format(settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)')
+    utils.plot_smooth_map_iris(image_loc + "WND_{}_merra-rss_obs_trend".format(settings.YEAR), anoms, settings.COLOURMAP_DICT["circulation_r"], bounds, "Trend from 1988-{} (land/ice and ocean) and 1979-{} (land, points) (m s".format(settings.YEAR, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)', scatter = (lons, lats, trend))
 
     #*******************************************************
     # twin plot

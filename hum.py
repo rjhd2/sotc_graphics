@@ -6,16 +6,15 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -46,26 +45,32 @@ def read_ts(filename, var, domain):
         if var == "q":
             off = 0
         elif var == "rh":
-            off = 19
+            off = 22
 
         hadisdh = utils.Timeseries("HadISDH", years, indata[:,1+off])
         hadcruh = utils.Timeseries("HadCRUH", years, indata[:,2+off])
         hadcruhext = utils.Timeseries("HadCRUHExt", years, indata[:,3+off])
         dai = utils.Timeseries("Dai", years, indata[:,4+off])
-        era = utils.Timeseries("ERA-Interim", years, indata[:,5+off])
-        merra = utils.Timeseries("MERRA-2", years, indata[:,6+off])
-#        ncep = utils.Timeseries("NCEP", years, indata[:,7+off])
-        jra = utils.Timeseries("JRA-55", years, indata[:,8+off])
-#        cr20 = utils.Timeseries("20CR", years, indata[:,9+off])
+        era_msk = utils.Timeseries("ERA-Interim mask", years, indata[:,5+off])
+        merra_msk = utils.Timeseries("MERRA-2 mask", years, indata[:,6+off])
+        jra_msk = utils.Timeseries("JRA-55 mask", years, indata[:,7+off])
+        era = utils.Timeseries("ERA-Interim", years, indata[:,8+off])
+        merra = utils.Timeseries("MERRA-2", years, indata[:,9+off])
+#        ncep = utils.Timeseries("NCEP", years, indata[:,10+off])
+        jra = utils.Timeseries("JRA-55", years, indata[:,11+off])
+#        cr20 = utils.Timeseries("20CR", years, indata[:,12+off])
 
         hadcruhext.ls = "--"
+        era_msk.ls = "--"
+        merra_msk.ls = "--"
+        jra_msk.ls = "--"
 
     elif domain == "M":
         if var == "q":
-            off = 9
+            off = 12
             extra = 2
         elif var == "rh":
-            off = 28
+            off = 34
             extra = 0
 
         hadisdh = utils.Timeseries("HadISDH", years, indata[:,1+off])
@@ -85,7 +90,7 @@ def read_ts(filename, var, domain):
 
 
     if domain == "L":
-        return [hadisdh, hadcruh, hadcruhext, dai, era, merra, jra] # read_ts
+        return [hadisdh, hadcruh, hadcruhext, dai, era, merra, jra, era_msk, merra_msk] # read_ts
     elif domain == "M":
         return [hadisdh, hadcruh, dai, nocs, hoaps, era, merra, jra] # read_ts
 
@@ -123,10 +128,10 @@ def run_all_plots():
     #*********************************************
     # Timeseries plot
 
-    land_q = read_ts(data_loc + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "q", "L")
-    marine_q = read_ts(data_loc + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "q", "M")
-    land_rh = read_ts(data_loc + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "rh", "L")
-    marine_rh = read_ts(data_loc + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "rh", "M")
+    land_q = read_ts(data_loc + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "q", "L")
+    marine_q = read_ts(data_loc + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "q", "M")
+    land_rh = read_ts(data_loc + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "rh", "L")
+    marine_rh = read_ts(data_loc + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "rh", "M")
 
 
     COLOURS = settings.COLOURS["hydrological"]
@@ -144,24 +149,26 @@ def run_all_plots():
     ax7 = plt.axes([0.50-w,0.99-(4*h),w,h],sharex=ax1)
     ax8 = plt.axes([0.50,  0.99-(4*h),w,h],sharex=ax2)
 
-    utils.plot_ts_panel(ax1, land_q[:4], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
+    # in situ
+    utils.plot_ts_panel(ax1, [land_q[0], land_q[1], land_q[2], land_q[3], land_q[7], land_q[8]], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
     utils.plot_ts_panel(ax3, [marine_q[1],marine_q[2],marine_q[3],marine_q[4]], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
-    utils.plot_ts_panel(ax5, land_rh[:4], "-", "hydrological", loc = "")
+    utils.plot_ts_panel(ax5, [land_rh[0], land_rh[1], land_rh[2], land_rh[3], land_rh[7]], "-", "hydrological", loc = "")
     utils.plot_ts_panel(ax7, [marine_rh[1],marine_rh[2]], "-", "hydrological", loc = "")
 
-    utils.plot_ts_panel(ax2, land_q[-3:], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
+    # reanalyses
+    utils.plot_ts_panel(ax2, land_q[4:7], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
     utils.plot_ts_panel(ax4, marine_q[-3:], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
-    utils.plot_ts_panel(ax6, land_rh[-3:], "-", "hydrological", loc = "")
-    utils.plot_ts_panel(ax8, marine_rh[-3:], "-", "hydrological", loc = "")
+    utils.plot_ts_panel(ax6, [land_rh[4], land_rh[6]], "-", "hydrological", loc = "")
+    utils.plot_ts_panel(ax8, [marine_rh[-3], marine_rh[-1]], "-", "hydrological", loc = "")
 
     # prettify
     ax1.set_xlim([1958,2019])
     ax2.set_xlim([1958,2019])
 
     for ax in [ax1, ax2, ax3, ax4]:
-        ax.set_ylim([-0.5,0.5])
+        ax.set_ylim([-0.39,0.8])
     for ax in [ax5, ax6, ax7, ax8]:
-        ax.set_ylim([-1.5, 1.5])
+        ax.set_ylim([-1.8, 1.5])
 
     for ax in [ax1, ax3, ax5, ax7]:
         for tick in ax.yaxis.get_major_ticks():
@@ -196,11 +203,12 @@ def run_all_plots():
     plt.savefig(image_loc + "HUM_ts{}".format(settings.OUTFMT))
     plt.close()
 
+
     #*********************************************
     # Map plots
 
     # RH HadISDH
-    cube = read_maps(data_loc + "HUMrh_anomalymap_HADISDHland{}.txt".format(settings.YEAR), "HadISDH RH", None, footer = False)
+    cube = read_maps(data_loc + "HUMrh_anomalymap_HADISDHland{}.txt".format(settings.YEAR), "HadISDH RH", None, footer = True)
 
     bounds = [-20., -4, -3, -2, -1, 0, 1, 2, 3, 4, 20]
 
@@ -210,15 +218,20 @@ def run_all_plots():
     cube = read_maps(data_loc + "HUMrh_anomalymap_ERAI{}.txt".format(settings.YEAR), "ERA-I RH", None, footer = True)
 
     utils.plot_smooth_map_iris(image_loc + "HUM_RH_era", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (%rh)", figtext = "", title = "")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_HUM_RH_era", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (%rh)", figtext = "(m) Surface Relative Humidity", title = "")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_HUM_RH_era", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (%rh)", figtext = "(o) Surface Relative Humidity", title = "")
+
+    # RH MERRA 
+    cube = read_maps(data_loc + "HUMrh_anomalymap_MERRA2{}.txt".format(settings.YEAR), "MERRA2 RH", None, footer = True)
+
+    utils.plot_smooth_map_iris(image_loc + "HUM_RH_merra", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (%rh)", figtext = "", title = "")
 
     # q HadISDH
-    cube = read_maps(data_loc + "HUMq_anomalymap_HADISDHland{}.txt".format(settings.YEAR), "HadISDH q", "g/kg", footer = False)
+    cube = read_maps(data_loc + "HUMq_anomalymap_HADISDHland{}.txt".format(settings.YEAR), "HadISDH q", "g/kg", footer = True)
 
     bounds = [-20., -1.2, -0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9, 1.2, 20]
 
     utils.plot_smooth_map_iris(image_loc + "HUM_q_hadisdh_land", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (g kg"+r'$^{-1}$'+")", figtext = "", title = "")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_HUM_q_hadisdh_land", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (g kg"+r'$^{-1}$'+")", figtext = "(l) Surface Specific Humidity", title = "")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_HUM_q_hadisdh_land", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (g kg"+r'$^{-1}$'+")", figtext = "(n) Surface Specific Humidity", title = "")
 
     # q ERA
     cube = read_maps(data_loc + "HUMq_anomalymap_ERAI{}.txt".format(settings.YEAR), "ERA-I q", "g/kg", footer = True)
@@ -226,6 +239,9 @@ def run_all_plots():
     utils.plot_smooth_map_iris(image_loc + "HUM_q_era", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (g kg"+r'$^{-1}$'+")", figtext = "", title = "")
 
     # MERRA?
+    cube = read_maps(data_loc + "HUMq_anomalymap_MERRA2{}.txt".format(settings.YEAR), "MERRA2 q", "g/kg", footer = True)
+
+    utils.plot_smooth_map_iris(image_loc + "HUM_q_merra", cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (g kg"+r'$^{-1}$'+")", figtext = "", title = "")
 
 
 

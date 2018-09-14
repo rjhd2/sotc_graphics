@@ -6,15 +6,14 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -42,12 +41,13 @@ def read_land(filename):
     indata = np.ma.masked_where(indata == -999.9999, indata)
 
     ghcn = utils.Timeseries("GHCN", indata[:,0], indata[:,1])
-    gpcc = utils.Timeseries("GPCC", indata[:,0], indata[:,2])
-    gpcp = utils.Timeseries("GPCPv23", indata[:,0], indata[:,3])
-    ghcn2 = utils.Timeseries("GHCNv2", indata[:,0], indata[:,4])
+    gpcc = utils.Timeseries("GPCC", indata[:,0], indata[:,3])
+    gpcp = utils.Timeseries("GPCPv23", indata[:,0], indata[:,4])
+    ghcn2 = utils.Timeseries("GHCNv2", indata[:,0], indata[:,2])
 
     return ghcn, gpcc, gpcp, ghcn2 # read_land
 
+#************************************************************************
 def read_map(filename):
 
     resolution = 2.5
@@ -86,7 +86,7 @@ def run_all_plots():
     #************************************************************************
     # Precipitation Timeseries
 
-    ghcn, gpcc, gpcp, ghcn2 = read_land(data_loc + "Fig2.1h_land_in_situ.dat")
+    ghcn, gpcc, gpcp, ghcn2 = read_land(data_loc + "Land_insitu_timeseries.dat")
 
     fig = plt.figure(figsize = (10,6))
 
@@ -96,7 +96,7 @@ def run_all_plots():
     utils.plot_ts_panel(ax1, [ghcn, gpcc, gpcp, ghcn2], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
 
     ax1.set_ylim([-60,100])
-    ax1.yaxis.set_ticks([-50,0,50,100])
+    ax1.yaxis.set_ticks([-50,-25,0,25,50,75,100])
     ax1.set_ylabel("Anomaly (mm)", fontsize = settings.FONTSIZE)
 
     for tick in ax1.yaxis.get_major_ticks():

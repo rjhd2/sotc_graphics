@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -33,14 +33,15 @@ image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
 LEGEND_LOC = 'upper left'
 
 START = dt.datetime(2002,8,1)
-END = dt.datetime(2015,9,1)
+END = dt.datetime(2017,12,1)
 MDI = -999.9
 
 NOGRACE = [dt.datetime(2002,6,15), dt.datetime(2002,7,15), dt.datetime(2003,6,15), dt.datetime(2011,1,15),\
                dt.datetime(2011,6,15), dt.datetime(2012,5,15), dt.datetime(2012,10,15), dt.datetime(2013,3,15),\
                dt.datetime(2013,8,15), dt.datetime(2013,9,15), dt.datetime(2014,2,15), dt.datetime(2014,7,15),\
                dt.datetime(2014,12,15), dt.datetime(2015,6,15), dt.datetime(2015,10,15), dt.datetime(2015,11,15),\
-               dt.datetime(2016,4,15), dt.datetime(2016,9,15), dt.datetime(2016,10,15)]
+               dt.datetime(2016,4,15), dt.datetime(2016,9,15), dt.datetime(2016,10,15), dt.datetime(2016,11,3),\
+               dt.datetime(2017,2,28)]
 
 #************************************************************************
 def decimal_to_dt(date):
@@ -175,6 +176,7 @@ def read_hovmuller(data_loc):
     print "SORT MISSING MONTHS IN HOVMULLER - ACCOUNT FOR SATELLITE DRIFT"
 
     for filename in infiles:
+        print filename
 
         # convert to decimal years
         year = filename.split("/")[-1].split(".")[0].split("_")[-1]
@@ -242,8 +244,8 @@ def read_map_data(filename):
     
     grace = np.genfromtxt(filename, dtype = (float))
 
-    lats = grace[:,1]
-    lons = grace[:,0]
+    lats = grace[:,0]
+    lons = grace[:,1]
     anoms = grace[:,2]
 
     longitudes = np.unique(lons)
@@ -258,6 +260,8 @@ def read_map_data(filename):
         yloc, = np.where(latitudes == lats[v])
 
         data[yloc[0], xloc[0]] = val     
+
+    data = np.ma.masked_where(data == -9999.0, data)
 
     cube = utils.make_iris_cube_2d(data, latitudes, longitudes, "TWS_anom", "mm")
 
@@ -307,7 +311,7 @@ def run_all_plots():
     #************************************************************************
     # Difference Map
 
-    cube = read_map_data(data_loc + "JPLM05_2016-2015.txt")
+    cube = read_map_data(data_loc + "twschanges{}{}_masked.txt".format(settings.YEAR, int(settings.YEAR)-1))
 
     utils.plot_smooth_map_iris(image_loc + "p2.1_TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between 2016 and 2015 Equivalent Depth of Water (cm)", figtext = "(h) Terrestrial Water Storage")
     utils.plot_smooth_map_iris(image_loc + "TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between 2016 and 2015 Equivalent Depth of Water (cm)")

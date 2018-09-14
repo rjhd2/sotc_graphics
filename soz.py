@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -87,7 +87,7 @@ def run_all_plots():
 
     utils.plot_smooth_map_iris(image_loc + "SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)")
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext = "(s) Stratospheric (Total Column) Ozone")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext = "(y) Stratospheric (Total Column) Ozone")
 
 
     #************************************************************************
@@ -109,7 +109,7 @@ def run_all_plots():
     plt.title("Polar Ozone")
 
     plt.legend()
-    plt.savfig(image_loc + "SOZ_ts{}".format(settings.OUTFMT))
+    plt.savefig(image_loc + "SOZ_ts{}".format(settings.OUTFMT))
 
     return # run_all_plots
 

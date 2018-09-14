@@ -5,9 +5,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 23                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -87,7 +87,7 @@ def scatter_plot_map(outname, data, lons, lats, cmap, bounds, cb_label, title = 
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
 
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
+#    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
@@ -190,9 +190,9 @@ def era_2dts_read(data_loc , variable):
 
     n_grids = data.shape[1]
     grid_cell = 180. / (n_grids - 1)
-    print "presuming -90 - 90"
+    print "presuming 90 - -90 - swapped Feb2018"
 
-    latitudes = np.arange(-90. , 90. + grid_cell, grid_cell)
+    latitudes = np.arange(90. , -90. - grid_cell, -grid_cell)
 
 
     return times, latitudes, data # era_2dts_read
@@ -210,10 +210,14 @@ def calculate_climatology_and_anomalies_1d(indata, start, end):
     '''
     # find range to use
     start_loc, = np.where(indata.times == start)
-    end_loc, = np.where(indata.times == end)
+    end_loc, = np.where(indata.times == end + 1)
 
     # get the mean and subtract to get anomalies
-    climatology = np.mean(indata.data[start_loc : end_loc + 1]) # include last year
+    try:
+        climatology = np.mean(indata.data[start_loc : end_loc]) # include last year
+    except TypeError:
+        climatology = np.mean(indata.data[start_loc[0] : end_loc[0]]) # include last year
+        
 
     outdata = Timeseries(indata.name, indata.times, indata.data - climatology)
    
@@ -319,6 +323,7 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter = [], fi
     :param obj cmap: colourmap to use
     :param array bounds: bounds for discrete colormap
     :param str cb_label: colorbar label
+    :param str save_netcdf_filename: filename to save the output plot to a cube.
     '''
 
     norm=mpl.cm.colors.BoundaryNorm(bounds,cmap.N)
@@ -341,7 +346,7 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter = [], fi
 
         """
         gaussian_filter doesn't work with masked arrays
-        As this messes up things next to masked values
+        As this messes up things next to masked values,
         go through each value in the array, if it is masked
         replace with mean of surrounding 8 values, as long 
         as this itself is not masked
@@ -351,7 +356,7 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter = [], fi
 
         try:
             new_data = copy.deepcopy(con_cube.data)
-            orig_mask = con_cube.data.mask
+            orig_mask = copy.deepcopy(con_cube.data.mask)
 
             # spin through each grid-cell
             for lt in range(con_cube.data.shape[0]):
@@ -378,42 +383,43 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter = [], fi
 
         if save_netcdf_filename != "":
             save_cube_as_netcdf(con_cube, save_netcdf_filename)
-            raw_input("stop")
 
     else:
         if settings.OUTFMT in [".eps", ".pdf"]:
             if cube.coord("latitude").points.shape[0] > 180 or cube.coord("longitude").points.shape[0] > 360:
-                print "Regridding cube for {} output to 1.0 degree resolution".format(settings.OUTFMT)
+                regrid_size = 1.0
+                print "Regridding cube for {} output to {} degree resolution".format(settings.OUTFMT, regrid_size)
                 print "Old Shape {}".format(cube.data.shape)
-                plot_cube = regrid_cube(cube, 1.0, 1.0)
+                plot_cube = regrid_cube(cube, regrid_size, regrid_size)
                 print "New Shape {}".format(plot_cube.data.shape)
             else:
                 plot_cube = copy.deepcopy(cube)
         else:
             plot_cube = copy.deepcopy(cube)
 
+        
         mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm = norm)
+           
 
         if save_netcdf_filename != "":           
             save_cube_as_netcdf(plot_cube, save_netcdf_filename)
-            raw_input("stop")
 
     if len(scatter) > 0:
 
         lons, lats, data = scatter
 
         plt.scatter(lons, lats, c = data, cmap = cmap, norm = norm, s=25, \
-                        transform = cartopy.crs.Geodetic(), edgecolor = '0.5', linewidth='0.5')
+                        transform = cartopy.crs.Geodetic(), edgecolor = '0.2', linewidth='0.5')
 
 
     cb=plt.colorbar(mesh, orientation = 'horizontal', pad = 0.05, fraction = 0.05, \
                         aspect = 30, ticks = bounds[1:-1], label = cb_label, drawedges=True)
 
-
     # thicken border of colorbar and the dividers
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
+
+#    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
@@ -522,7 +528,7 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
     # thicken border of colorbar and the dividers
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
+#    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
@@ -562,6 +568,8 @@ def read_merra(filename, variable, domain, anomalies = True):
 
     if anomalies:
         col += "a"
+    else:
+        col += "m"
 
     if domain == "L":
         col += "L"
@@ -707,6 +715,8 @@ def plot_ts_panel(ax, datasets, ls, section, loc = "lower right", bbox = (), min
             ax.legend(loc = loc, ncol = ncol, frameon = False, prop = {'size':settings.LEGEND_FONTSIZE}, labelspacing = 0.1, columnspacing = 0.5)
 
     ax.xaxis.set_minor_locator(minorLocator)
+    # turn of RHS y ticks
+    ax.yaxis.set_ticks_position('left')
 
     thicken_panel_border(ax)
 
@@ -798,7 +808,7 @@ def make_iris_cube_3d(data, times, time_units, lons, lats, name, units):
     return cube # make_iris_cube_3d
 
 #************************************************************************
-def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figtext = "", title = ""):
+def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figtext = "", title = "", cosine = False, extra_ts = Timeseries("BLANK", [0], [0]), background = ""):
     '''
     Plot a Hovmuller plot (latitude versus time).
 
@@ -809,42 +819,91 @@ def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figt
     :param obj cmap: colourmap to use
     :param array bounds: bounds for discrete colormap
     :param str cb_label: colorbar label
+    :param bool cosine: cosine scale the latitudes
+    :param Timeseries extra_ts: plot extra TS on top
     '''
+
+
     minorLocator = MultipleLocator(1)
     
-    print "sort grey/white for missing/small values in 2017"
-
     # set up the figure
-    fig = plt.figure(figsize = (8, 6))
-    plt.clf()
-    ax = plt.axes([0.10, 0.10, 0.87, 0.87])
+
+    if extra_ts.name == "BLANK":
+        fig = plt.figure(figsize = (8, 6))
+        plt.clf()
+        ax1 = plt.axes([0.10, 0.10, 0.87, 0.87])
+    else:
+        fig = plt.figure(figsize = (8, 8))
+        plt.clf()
+        ax1 = plt.axes([0.10, 0.10, 0.87, 0.67])
+
     
+    if cosine:
+        latitudes = np.sin(np.deg2rad(latitudes))
+
+
+    # add background to show data coverage
+    if background != "":
+        ax1.patch.set_facecolor(background)
     # make the basic contour plot
-    contour = plt.contourf(times, latitudes, data, bounds, cmap = cmap, vmax = bounds[-2], vmin = bounds[1])
+    norm = mpl.cm.colors.BoundaryNorm(bounds,cmap.N)
+
+    contour = plt.contourf(times, latitudes, data, bounds, cmap = cmap, vmax = bounds[-2], vmin = bounds[1], norm = norm)
 
     # colourbar and prettify
     cb = plt.colorbar(orientation = 'horizontal', pad = 0.05, fraction = 0.05, aspect = 30, ticks = bounds[1:-1], label = cb_label, drawedges=True)
 
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
+#    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
 
+
+    # plot the timeseries above if needed
+    if extra_ts.name != "BLANK":
+        # add axis afterwards to make sure original plot works
+        ax2 = fig.add_axes([0.10, 0.80, 0.87, 0.17])
+        
+        ax2.plot(extra_ts.times, extra_ts.data, c = "k", ls = "-", label = extra_ts.name, lw = 2)
+        ax2.axhline(0, ls = ":", lw = 1, c = "k")
+#        ax2.set_ylim([-2.5, 2.5])
+        ax2.set_xticklabels([""])
+        ax2.set_ylabel(extra_ts.name)
+        ax2.yaxis.set_ticks_position('left')
+        # if two axes, need to add labels
+        ax2.text(-0.11, 1.0, "(a)", fontsize = settings.FONTSIZE * 0.8, transform=ax2.transAxes)
+
+        ax1.text(-0.11, 1.0, "(b)", fontsize = settings.FONTSIZE * 0.8, transform=ax1.transAxes)
+
+    else:
+        # to make the prettifying easier
+        ax2 = fig.add_axes([0.99, 0.99, 0.00, 0.00])
+        ax2.set_axis_off()
+
+
     # prettify the plot
-    ax.set_ylim([-90,90])
+    for ax in [ax1, ax2]:
+        try:
+            ax.set_xlim([int(times.compressed()[0]-0.5), int(times.compressed()[-1]+1.5)])
+        except AttributeError:
+            ax.set_xlim([int(times[0]-0.5), int(times[-1]+1.5)])
 
-    try:
-        ax.set_xlim([int(times.compressed()[0]), int(times.compressed()[-1]+1)])
-    except AttributeError:
-        ax.set_xlim([int(times[0]), int(times[-1]+1)])
-    ax.set_yticks([-60, -30 ,0, 30, 60])
-    ax.set_yticklabels(["-60"+r'$^{\circ}$'+"S", "-30"+r'$^{\circ}$'+"S" ,"0"+r'$^{\circ}$'+"", "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N"])
+        ax.xaxis.set_minor_locator(minorLocator)
+        thicken_panel_border(ax)
 
-    ax.xaxis.set_minor_locator(minorLocator)
+    for ax in [ax1]:
+        if cosine:
+            ax.set_ylim(np.sin(np.deg2rad(np.array([-90,90]))))
+            ax.set_yticks(np.sin(np.deg2rad(np.array([-90, -60, -30 ,0, 30, 60, 90]))))
+            ax.set_yticklabels(["-90"+r'$^{\circ}$'+"S","-60"+r'$^{\circ}$'+"S", "-30"+r'$^{\circ}$'+"S" ,"0"+r'$^{\circ}$'+"", "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N","90"+r'$^{\circ}$'+"N"])
+        else:
+            ax.set_ylim([-90,90])
+            ax.set_yticks([-60, -30 ,0, 30, 60])
+            ax.set_yticklabels(["-60"+r'$^{\circ}$'+"S", "-30"+r'$^{\circ}$'+"S" ,"0"+r'$^{\circ}$'+"", "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N"])
 
-    thicken_panel_border(ax)
 
+    # finish off
     plt.title(title)
     fig.text(0.03, 0.95, figtext, fontsize = settings.FONTSIZE * 0.8)
 

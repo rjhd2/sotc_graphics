@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -39,8 +39,8 @@ print "faking time axis - 16 day period"
 # http://modis-atmos.gsfc.nasa.gov/ALBEDO/
 
 start = dt.datetime(2003,1,1)
-# get difference in days, 16 day period, and add a couple.
-DURATION = int(round(((dt.datetime(int(settings.YEAR),12,31) - start).days)/16.))+2
+# get difference in days, 16 day period, and add a few.
+DURATION = int(round(((dt.datetime(int(settings.YEAR),12,31) - start).days)/16.))+3
 
 dates=[start + dt.timedelta(days=i*16) for i in range(DURATION)]
 
@@ -98,13 +98,13 @@ def run_all_plots():
     #************************************************************************
     # Timeseries
 
-    IRdata = read_binary_ts(data_loc + "TimeseriesBHRNIRpost_{}.bin".format(int(settings.YEAR)+1))
-    Vdata = read_binary_ts(data_loc + "TimeseriesBHRVpost_{}.bin".format(int(settings.YEAR)+1))
+    IRdata = read_binary_ts(data_loc + "TimeseriesBHRNIRpost_C6_v{}.bin".format(int(settings.YEAR)+1))
+    Vdata = read_binary_ts(data_loc + "TimeseriesBHRVpost_C6_v{}.bin".format(int(settings.YEAR)+1))
 
     fig, (ax1, ax2) = plt.subplots(2, figsize = (10, 8), sharex=True)
     COLOURS = settings.COLOURS["land_surface"]
 
-    for dataset in Vdata:
+    for dataset in IRdata:
         print dataset.name
         locs, = np.where(dataset.data != 0) # remove zero bits (mainly for smoothed)
         ls = "--"
@@ -117,7 +117,7 @@ def run_all_plots():
     ax1.axhline(0, c = '0.5', ls = '--')
     utils.thicken_panel_border(ax1)
 
-    for dataset in IRdata:
+    for dataset in Vdata:
         print dataset.name
         locs, = np.where(dataset.data != 0)
         ls = "--"
@@ -136,12 +136,14 @@ def run_all_plots():
 
     fig.text(0.01, 0.5, "Normalised Anomalies (%)", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
-    plt.xlim([2003,2017])
+    plt.xlim([2002.5,int(settings.YEAR)+1.5])
 
     for ax in [ax1, ax2]:
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE)
         ax.xaxis.set_minor_locator(minorLocator)
+        ax.set_yticks(ax.get_yticks()[1:-1])
+        ax.yaxis.set_ticks_position('left')
     for tick in ax2.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
 
@@ -155,8 +157,8 @@ def run_all_plots():
 
     #************************************************************************
     # Hovmullers
-    IRdata = read_binary(data_loc + "HovMullerBHRNIRpost_v{}.bin".format(int(settings.YEAR)+1))
-    Vdata = read_binary(data_loc + "HovMullerBHRVpost_v{}.bin".format(int(settings.YEAR)+1))
+    IRdata = read_binary(data_loc + "HovMullerBHRNIRpost_C6_v{}.bin".format(int(settings.YEAR)+1))
+    Vdata = read_binary(data_loc + "HovMullerBHRVpost_C6_v{}.bin".format(int(settings.YEAR)+1))
 
     # reshape - from Readme
     IRdata = IRdata.reshape(360, DURATION)
@@ -173,16 +175,17 @@ def run_all_plots():
     Vdata.mask[:, locs] = True
     times.mask[locs] = True
 
-    bounds = [-100, -20, -15, -10, -5, -3, 3, 5, 10, 15, 20, 100]
-    utils.plot_hovmuller(image_loc + "ABD_NIR_hovmuller", times, lats, IRdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext = "(b)")
-    utils.plot_hovmuller(image_loc + "ABD_V_hovmuller", times, lats, Vdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext = "(a)")
+    # cant use "cmap.set_bad" for contour as ignored when contouring
 
-    print "Still need to combine into single file output"
+    bounds = [-100, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 100]
+    utils.plot_hovmuller(image_loc + "ABD_NIR_hovmuller", times, lats, IRdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext = "(b)", background = "0.9")
+    utils.plot_hovmuller(image_loc + "ABD_V_hovmuller", times, lats, Vdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext = "(a)", background = "0.9")
+
 
     #************************************************************************
     # Anomalies
-    IRdata = read_binary(data_loc + "Annual_BHRNIRpost_v{}.bin".format(int(settings.YEAR)+1))
-    Vdata = read_binary(data_loc + "Annual_BHRVpost_v{}.bin".format(int(settings.YEAR)+1))
+    IRdata = read_binary(data_loc + "Annual_BHRNIRpost_C6_v{}.bin".format(int(settings.YEAR)+1))
+    Vdata = read_binary(data_loc + "Annual_BHRVpost_C6_v{}.bin".format(int(settings.YEAR)+1))
 
     # reshape - from Readme
     IRdata = IRdata.reshape(360, 720)
@@ -198,17 +201,12 @@ def run_all_plots():
     ir_cube = utils.make_iris_cube_2d(IRdata, lats, lons, "IR Albedo", "%")
     v_cube = utils.make_iris_cube_2d(Vdata, lats, lons, "V Albedo", "%")
 
-    bounds = [-100, -20, -15, -10, -5, -3, 3, 5, 10, 15, 20, 100]
+    bounds = [-100, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 100]
 
-#   Section to show masks - for future reference if required.
-#    import copy
-#    this_cmap = copy.copy(settings.COLOURMAP_DICT["land_surface_r"])
-#    this_cmap.set_bad("0.5", 1.)
-
-    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR), figtext = "(ab) Land Surface Albedo in the Visible")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR), figtext = "(ac) Land Surface Albedo in the Visible")
     utils.plot_smooth_map_iris(image_loc + "ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR))
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR), figtext = "(ac) Land Surface Albedo in the Near Infrared")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR), figtext = "(ad) Land Surface Albedo in the Near Infrared")
     utils.plot_smooth_map_iris(image_loc + "ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR))
 
     return # run_all_plots

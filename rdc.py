@@ -6,15 +6,14 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -46,7 +45,7 @@ def fix_coords(cube):
 #************************************************************************
 # Discharge Map
 
-cube_list = iris.load(data_loc + "discharge0.5.anomaly{}.SOC15.JRA55_GPCCLW90.1958-{}.nc".format(settings.YEAR, settings.YEAR))
+cube_list = iris.load(data_loc + "discharge.{}.nc".format(settings.YEAR, settings.YEAR))
 
 cube = fix_coords(cube_list[0])
 
@@ -55,13 +54,13 @@ mask = cube.data.mask
 
 bounds = [-10000, -1000, -500, -100, -50, -25, 25, 50, 100, 500, 1000, 10000]
 
-utils.plot_smooth_map_iris(image_loc + "RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-2015 (m"+r'$^{3}$'+" s"+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-2015 (m"+r'$^{3}$'+" s"+r'$^{-1}$'+")", figtext = "(k) River Discharge")
+utils.plot_smooth_map_iris(image_loc + "RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")")
+utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")", figtext = "(m) River Discharge")
 
 #************************************************************************
 # Runoff Map
 
-cube_list = iris.load(data_loc + "runoff.anomaly{}.SOC15.JRA55_GPCCLW90.1958-{}.nc".format(settings.YEAR, settings.YEAR))
+cube_list = iris.load(data_loc + "runoff.{}.nc".format(settings.YEAR, settings.YEAR))
 
 cube = fix_coords(cube_list[0])
 cube.data = np.ma.array(cube.data)
@@ -69,8 +68,8 @@ cube.data.mask= mask
 
 bounds = [-10000, -500, -250, -100, -50, -25, 25, 50, 100, 250, 500, 10000]
 
-utils.plot_smooth_map_iris(image_loc + "RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-2015 (mm yr"+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-2015 (mm yr"+r'$^{-1}$'+")", figtext = "(j) Runoff")
+utils.plot_smooth_map_iris(image_loc + "RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")")
+utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")", figtext = "(l) Runoff")
 
 
 #************************************************************************

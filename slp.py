@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 23                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -41,12 +41,13 @@ LW = 2
 
 # data sources:
 # AAO Obtained at PSD http://www.esrl.noaa.gov/psd/data/correlation/aao.data
-# or http://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/aao/shtml
+# or http://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/aao/aao.shtml
 # AO http://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/ao.shtml
 # NAO https://climatedataguide.ucar.edu/climate-data/hurrell-north-atlantic-oscillation-nao-index-station-based
-# SOI BOM ftp://ftp.bom.gov.au/anon/home/ncc/www/sco/soi/soiplaintext.html
+# SOI BOM ftp://ftp.bom.gov.au/anon/home/ncc/www/sco/soi/soiplaintext.html <- manually fix header
 
 # Winter NAO data calculated using IDL SLP_specialNAOtimeseries.pro script
+# uses TIDL, give three-month range to cover last 3 winters.
 # HadSLP from www.metoffice.gov.uk/hadobs/hadslp2
 
 #************************************************************************
@@ -141,7 +142,7 @@ def read_snao(filename):
     all_data = np.genfromtxt(filename, dtype = (float), skip_header = 0)
 
     years = all_data[:,0]
-    data = all_data[:,2]
+    data = all_data[:,1]
 
     return utils.Timeseries("SNAO", years, data) # read_snao
 
@@ -179,8 +180,8 @@ def plt_bars(ax, ts, text, w = 1./12., invert = False, label = True):
         plus = ts.data > 0.0
         minus = ts.data<=0.0
 
-    ax.bar(ts.times[plus], ts.data[plus], color = 'r', ec = "r", width = w)
-    ax.bar(ts.times[minus], ts.data[minus], color = 'b', ec = "b", width = w)
+    ax.bar(ts.times[plus], ts.data[plus], color = 'r', ec = "r", width = w, align = "center")
+    ax.bar(ts.times[minus], ts.data[minus], color = 'b', ec = "b", width = w, align = "center")
     ax.axhline(0, c = '0.5', ls = '--')
     if label:
         ax.text(0.02, 0.8, "{} {}".format(text, ts.name), transform = ax.transAxes, fontsize = settings.FONTSIZE*0.7)
@@ -226,7 +227,7 @@ def run_all_plots():
 
     # tried minor locator
 
-    YEARS = ["2014","2015", "2016"]
+    YEARS = ["2015", "2016", "2017"]
     plot_data, smoothed_data = read_winter_nao(data_loc, YEARS)
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, figsize = (10, 8))
@@ -240,7 +241,7 @@ def run_all_plots():
         ax.xaxis.set_ticks([dt.datetime(year,12,1), dt.datetime(year+1,1,1), dt.datetime(year+1,2,1), dt.datetime(year+1,3,1)])
 
         ax.plot(plot_data[a].times+dt.timedelta(hours=12), smoothed_data[a], "k-", lw = LW)
-        ax.set_xlim([dt.datetime(year,12,1), dt.datetime(year+1,2,1)+dt.timedelta(days=30)])
+        ax.set_xlim([dt.datetime(year,11,29), dt.datetime(year+1,2,1)+dt.timedelta(days=30)])
 
     ax3.xaxis.set_ticklabels(["Dec","Jan","Feb","Mar"], fontsize = settings.FONTSIZE*0.8)
     ax2.set_ylabel("Winter NAO Index (hPa)", fontsize = settings.FONTSIZE)
@@ -249,7 +250,8 @@ def run_all_plots():
     plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 
     for ax in [ax1, ax2, ax3]:
-        ax.set_ylim([-59,99])
+        ax.set_ylim([-69,99])
+        ax.yaxis.set_ticks_position('left')
 
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE*0.8)
@@ -263,10 +265,9 @@ def run_all_plots():
     SOI = read_soi(data_loc + "soiplaintext.html")
     AO = read_a_ao(data_loc + "monthly.ao.index.b50.current.ascii", "AO", 3)
     AAO = read_a_ao(data_loc + "monthly.aao.index.b79.current.ascii", "AAO", 5)
-    SNAO = read_snao(data_loc + "emslpncep_to{}_ja_pc1_2mnth_jam.txt".format(settings.YEAR)) # from Chris Folland
+    SNAO = read_snao(data_loc + "JA STANDARDISED SNAO.txt") # from Chris Folland
     NAO = read_nao(data_loc + "nao_station_seasonal.txt")
 
-    print "note for 2017 - align bars and ticks so tick at bar centre, not in between"
     fig = plt.figure(figsize = (10,7))
 
     # manually set up the 10 axes
@@ -308,6 +309,7 @@ def run_all_plots():
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE*0.8)
         utils.thicken_panel_border(ax)
+        ax.yaxis.set_ticks_position('left')
 
     for ax in [ax2, ax4, ax6, ax8, ax10]:
         for tick in ax.xaxis.get_major_ticks():
@@ -381,7 +383,7 @@ def run_all_plots():
     bounds = [-100, -8, -4, -2, -1, 0, 1, 2, 4, 8, 100]
 
     utils.plot_smooth_map_iris(image_loc + "SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)", figtext = "(v) Sea Level Pressure")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)", figtext = "(u) Sea Level Pressure")
 
     plt.close()
 
@@ -398,17 +400,17 @@ def run_all_plots():
 
     anoms.data = anoms.data - climatology[0:anoms.data.shape[0], :, :]
 
-    bounds = [-100, -8, -4, -2, -1, 0, 1, 2, 4, 8, 100]
+    bounds = [-100, -8, -4, -2, -1, -0.5, 0.5, 1, 2, 4, 8, 100]
 
     # set up a 1 x 3 set of axes
-    fig = plt.figure(figsize = (5,12))
+    fig = plt.figure(figsize = (5,13))
     plt.clf()
 
     # set up plot settings
     cmap = settings.COLOURMAP_DICT["circulation"]
     norm=mpl.cm.colors.BoundaryNorm(bounds,cmap.N)
-    PLOTYEARS = [2014, 2015, 2016]
-    PLOTLABELS = ["(a) 2014/15", "(b) 2015/16", "(c) 2016/17"]
+    PLOTYEARS = [2015, 2016, 2017]
+    PLOTLABELS = ["(a) 2015/16", "(b) 2016/17", "(c) 2017/18"]
 
     # boundary circle
     theta = np.linspace(0, 2*np.pi, 100)
@@ -428,8 +430,8 @@ def run_all_plots():
         date_constraint = utils.periodConstraint(anoms, dt.datetime(PLOTYEARS[a],12,1),dt.datetime(PLOTYEARS[a]+1,3,1)) 
         plot_cube = plot_cube.extract(date_constraint)
 
-        # plot down to equator
-        lat_constraint = utils.latConstraint([3,90]) 
+        # plot down to (almost) equator
+        lat_constraint = utils.latConstraint([3,80]) 
         plot_cube = plot_cube.extract(lat_constraint)
 
         # take the mean
@@ -452,18 +454,17 @@ def run_all_plots():
         ax.text(-0.05, 1.0, PLOTLABELS[a], fontsize = settings.FONTSIZE * 0.8, transform=ax.transAxes)
 
     # add a colourbar for the figure
-    cbar_ax = fig.add_axes([0.87, 0.07, 0.04, 0.9])
+    cbar_ax = fig.add_axes([0.82, 0.07, 0.04, 0.9])
     cb=plt.colorbar(mesh, cax = cbar_ax, orientation = 'vertical', ticks = bounds[1:-1], label = "Anomaly (hPa)", drawedges=True)
 
     # prettify
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
 
 
-    fig.subplots_adjust(bottom=0.05, top=0.95, left=0.04, right=0.95, wspace=0.02)
+    fig.subplots_adjust(bottom=0.01, top=0.98, left=0.01, right=0.8, wspace=0.02)
 
     plt.title("")
     fig.text(0.03, 0.95, "", fontsize = settings.FONTSIZE * 0.8)
@@ -508,7 +509,6 @@ def run_all_plots():
 
     # prettify
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
@@ -516,10 +516,9 @@ def run_all_plots():
     # and the timeseries
     ax = plt.axes(axes[1])
 
-    snao = np.genfromtxt(data_loc+"emslpncep_to{}_ja_pc1_daily_jam.data".format(settings.YEAR), dtype = (float))
+    snao = np.genfromtxt(data_loc+"{} DAILY SNAO.txt".format(settings.YEAR), dtype = (float))
 
-    loc, = np.where(snao[:,0] == int(settings.YEAR))
-    data = snao[loc,1:][0]
+    data = snao[:,1]
     times = np.array([dt.datetime(int(settings.YEAR),7,1)+dt.timedelta(days=i) for i in range(len(data))])
 
     SNAO = utils.Timeseries("Summer NAO Index", times, data)
@@ -588,7 +587,6 @@ def run_all_plots():
 
     # prettify
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
     cb.dividers.set_linewidth(2)
@@ -596,10 +594,9 @@ def run_all_plots():
     # and the timeseries
     ax3 = plt.axes(axes[2])
 
-    snao = np.genfromtxt(data_loc+"emslpncep_to{}_ja_pc1_daily_jam.data".format(settings.YEAR), dtype = (float))
+    snao = np.genfromtxt(data_loc+"{} DAILY SNAO.txt".format(settings.YEAR), dtype = (float))
 
-    loc, = np.where(snao[:,0] == int(settings.YEAR))
-    data = snao[loc,1:][0]
+    data = snao[:,1]
     times = np.array([dt.datetime(int(settings.YEAR),7,1)+dt.timedelta(days=i) for i in range(len(data))])
 
     SNAO = utils.Timeseries("Summer NAO Index", times, data)
@@ -613,6 +610,7 @@ def run_all_plots():
     ax3.xaxis.set_ticklabels([dt.datetime.strftime(t, "%d %b %Y") for t in ticks])
     minorLocator = MultipleLocator(1)
     ax3.xaxis.set_minor_locator(minorLocator)
+    ax3.yaxis.set_ticks_position('left')
 
     utils.thicken_panel_border(ax3)
 

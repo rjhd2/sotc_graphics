@@ -6,16 +6,15 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 23                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -38,7 +37,7 @@ def read_glacier(filename):
     Read user supplied CSV for AGL into Timeseries object
     """
 
-    indata = np.genfromtxt(filename, dtype=(int), skip_header = 1)
+    indata = np.genfromtxt(filename, delimiter = ",", dtype=(int), skip_header = 1)
    
 
     balance = utils.Timeseries("Balance", indata[:,0], indata[:,3]/SCALE)
@@ -53,7 +52,7 @@ def run_all_plots():
     #************************************************************************
     # Glaciers figure
 
-    balance, cumul_balance = read_glacier(data_loc + "globalbn2014.csv")
+    balance, cumul_balance = read_glacier(data_loc + "globalbn2017.csv")
 
     fig = plt.figure(figsize = (10,6))
     plt.clf()

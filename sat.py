@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 23                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -183,8 +183,8 @@ def read_hadcrut_crutem(filename, adjust_clim = False):
         upper = indata[:,-1]
         name = "HadSST"
     elif "hadcrut4" in filename:
-        lower = indata[:,-2]
-        upper = indata[:,-1]
+        lower = indata[:,-3]
+        upper = indata[:,-2]
         name = "HadCRUT4"
 
     if adjust_clim:
@@ -224,9 +224,9 @@ def run_all_plots():
 
     #*******************
     # in situ L+O
-    noaa, nasa, jma = read_global_t(data_loc + "globalTemperatures_LO.csv")
+    noaa, nasa, jma = read_global_t(data_loc + "BAMSDatasets-1981-2010bp_LO.csv")
 
-    hadcrut = read_hadcrut_crutem(data_loc+"hadcrut4.1981-2010.csv")
+    hadcrut = read_hadcrut_crutem(data_loc+"global_series.1981-2010.hadcrut4.csv")
 
     p0 = ax1.plot(noaa.times, noaa.data, c = COLOURS[noaa.name], ls = '-', label = noaa.name, lw = LW)
     p1 = ax1.plot(nasa.times, nasa.data, c = COLOURS[nasa.name], ls = '-', label = nasa.name, lw = LW)
@@ -242,11 +242,12 @@ def run_all_plots():
     ax1.text(0.02, 0.9, "(a) In Situ Land and Ocean", transform = ax1.transAxes, fontsize = settings.FONTSIZE)
 
     utils.thicken_panel_border(ax1)
+    ax1.yaxis.set_ticks_position('left')
 
     #*******************
     # reanalysis L+O
 
-    merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "temperature", "LO")
+    merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "temperature", "LO")
     jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_tmp2m_global_ts.txt", "temperature")
 
     utils.plot_ts_panel(ax2, [merra, jra_anoms, global_era_anoms], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
@@ -256,29 +257,30 @@ def run_all_plots():
     #*******************
     # in situ L
 
-    noaa, nasa, jma, berkeley = read_global_t(data_loc +"globalTemperatures_L.csv")
+    noaa, nasa, jma = read_global_t(data_loc +"BAMSDatasets-1981-2010bp_L.csv")
     crutem = read_hadcrut_crutem(data_loc+"crutem4_new_logo.1981-2010.csv")
 
     p0 = ax3.plot(noaa.times, noaa.data, ls = '-', c = COLOURS[noaa.name], label = noaa.name, lw = LW)
     p1 = ax3.plot(nasa.times, nasa.data, ls = '-', c = COLOURS[nasa.name],  label = nasa.name, lw = LW)
     p2 = ax3.plot(jma.times, jma.data, ls = '-', c = COLOURS[jma.name],  label = jma.name, lw = LW)
-    p3 = ax3.plot(berkeley.times, berkeley.data, ls = '-', c = COLOURS[berkeley.name], label = berkeley.name, lw = LW)
+#    p3 = ax3.plot(berkeley.times, berkeley.data, ls = '-', c = COLOURS[berkeley.name], label = berkeley.name, lw = LW)
     p4 = ax3.plot(crutem.times, crutem.data, ls = '-', c = COLOURS[crutem.name], label = crutem.name, lw = LW)
     ax3.fill_between(crutem.times, crutem.lower, crutem.upper, where=crutem.upper>crutem.lower, color = '0.5', alpha = 0.5)
     p5 = ax1.fill(np.NaN, np.NaN, '0.5', alpha=0.5)
 
     ax3.axhline(0, c = '0.5', ls = '--')
 
-    ax3.legend([p0[0], p1[0], p2[0], p3[0], (p4[0], p5[0])], [noaa.name, nasa.name, jma.name, berkeley.name, crutem.name], loc = LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, labelspacing=0.1, columnspacing=0.5, bbox_to_anchor = BBOX)
+    ax3.legend([p0[0], p1[0], p2[0], (p4[0], p5[0])], [noaa.name, nasa.name, jma.name, crutem.name], loc = LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, labelspacing=0.1, columnspacing=0.5, bbox_to_anchor = BBOX)
 
     ax3.text(0.02, 0.9, "(c) In Situ Land only", transform = ax3.transAxes, fontsize = settings.FONTSIZE)
 
     utils.thicken_panel_border(ax3)
+    ax3.yaxis.set_ticks_position('left')
 
     #*******************
     # reanalysis L
 
-    merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "temperature", "L")
+    merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "temperature", "L")
     jra_actual, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_tmp2m_globalland_ts.txt", "temperature")
 
     utils.plot_ts_panel(ax4, [merra, jra_anoms, land_era_anoms], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
@@ -288,7 +290,7 @@ def run_all_plots():
     #*******************
     # in situ O
 
-    noaa, nasa, jma = read_global_t(data_loc +"globalTemperatures_O.csv")
+    noaa, nasa, jma = read_global_t(data_loc +"BAMSDatasets-1981-2010bp_O.csv")
     hadsst = read_hadcrut_crutem(data_loc+"hadsst3_new_logo.1981-2010.csv")
 
     p0 = ax5.plot(noaa.times, noaa.data, ls = '-', c = COLOURS[noaa.name], label = noaa.name, lw = LW)
@@ -305,11 +307,12 @@ def run_all_plots():
     ax5.text(0.02, 0.9, "(e) In Situ Ocean only", transform = ax5.transAxes, fontsize = settings.FONTSIZE)
 
     utils.thicken_panel_border(ax5)
+    ax5.yaxis.set_ticks_position('left')
 
     #*******************
     # reanalysis O
 
-    merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "temperature", "O")
+    merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "temperature", "O")
     jra_actual, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_tmp2m_globalocean_ts.txt", "temperature")
 
     utils.plot_ts_panel(ax6, [merra, jra_anoms, ocean_era_anoms], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
@@ -322,7 +325,7 @@ def run_all_plots():
     fig.text(0.03, 0.5, "Anomalies ("+r'$^{\circ}$'+"C)", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
 
-    plt.xlim([1900,2016])
+    plt.xlim([1900,int(settings.YEAR)+1])
 
     for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
         ax.set_ylim(YLIM)
@@ -351,9 +354,24 @@ def run_all_plots():
     utils.plot_smooth_map_iris(image_loc + "SAT_{}_anoms_era".format(settings.YEAR), cube[0][0], settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title = "ERA-Interim")
 
     #************************************************************************
+    # MERRA2 Anomaly figure
+    cube_list = iris.load(reanalysis_loc + "MERRA-2_SfcAnom_{}.nc".format(settings.YEAR))
+    
+    for cube in cube_list:
+        if cube.var_name == "t2ma": break
+    
+    cube.coord('latitude').guess_bounds()
+    cube.coord('longitude').guess_bounds()
+
+    bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
+
+    utils.plot_smooth_map_iris(image_loc + "SAT_{}_anoms_merra".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title = "MERRA-2")
+
+
+    #************************************************************************
     # HadCRUT4 Anomaly figure
 
-    cube_list = iris.load(data_loc + "HadCRUT.4.5.0.0.median.nc")
+    cube_list = iris.load(data_loc + "HadCRUT.4.6.0.0.median.nc")
 
     cube = cube_list[0]
     cube.coord('latitude').guess_bounds()
@@ -387,7 +405,7 @@ def run_all_plots():
 
     bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
-    utils.plot_smooth_map_iris(image_loc + "SAT_{}_anoms_hadcrut4".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title = "HadCRUT 4.5")
+    utils.plot_smooth_map_iris(image_loc + "SAT_{}_anoms_hadcrut4".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title = "HadCRUT 4.6")
 
     #************************************************************************
     # NOAA data Anomaly figure - incl plate 2.1
@@ -397,7 +415,7 @@ def run_all_plots():
     bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
     utils.plot_smooth_map_iris(image_loc + "p2.1_SAT_{}_anoms_noaa".format(settings.YEAR), cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", figtext = "(a) Surface Temperature", save_netcdf_filename = "{}MLOST_for_NOAA_{}.nc".format(data_loc, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
-    utils.plot_smooth_map_iris(image_loc + "SAT_{}_anoms_noaa".format(settings.YEAR), cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title = "NOAA-MLOST")
+    utils.plot_smooth_map_iris(image_loc + "SAT_{}_anoms_noaa".format(settings.YEAR), cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title = "NOAAGlobalTemp")
 
     #************************************************************************
     # NASA GISS Anomaly figure

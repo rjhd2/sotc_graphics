@@ -6,15 +6,14 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 
 import matplotlib.cm as mpl_cm
 import matplotlib as mpl
@@ -137,7 +136,7 @@ def run_all_plots():
     fig.text(0.02, 0.5, "Anomalies (% rh)", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
     plt.ylim([-1.5,1.5])
-    plt.xlim([1979, int(settings.YEAR)+1])
+    plt.xlim([1979, int(settings.YEAR)+1.5])
 
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
@@ -166,7 +165,7 @@ def run_all_plots():
     bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
     utils.plot_smooth_map_iris(image_loc + "UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext = "(o) Upper Tropospheric Humidity")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext = "(q) Upper Tropospheric Humidity")
 
     return # run_all_plots
 

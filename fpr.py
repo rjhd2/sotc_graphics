@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 22                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -82,6 +82,8 @@ def read_binary_ts(filename):
     north = utils.Timeseries("N. Hemisphere", times, north)
     south = utils.Timeseries("S. Hemisphere", times, south)
 
+    aver = np.ma.masked_where(aver == 0, aver) # remove first/last bits and line should span any inadvertent gaps
+
     globe_sm = utils.Timeseries("Globe Smoothed", times, aver[0,:])
     north_sm = utils.Timeseries("N. Hemisphere Smoothed", times, aver[1,:])
     south_sm = utils.Timeseries("S. Hemisphere Smoothed", times, aver[2,:])
@@ -93,7 +95,7 @@ def run_all_plots():
     #************************************************************************
     # Timeseries
 
-    data = read_binary_ts(data_loc + "TimeSeries_faparanomaliesglobal_{}_bams_v{}.bin".format(settings.YEAR, int(settings.YEAR)+1))
+    data = read_binary_ts(data_loc + "TimeSeries_faparanomaliesglobal_{}_bams_v{}_C6.bin".format(int(settings.YEAR)-1, settings.YEAR))
 
     fig = plt.figure(figsize = (10,6))
     ax = plt.axes([0.13, 0.07, 0.75, 0.86])
@@ -117,7 +119,7 @@ def run_all_plots():
 
     fig.text(0.01, 0.5, "Anomaly (FAPAR)", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
-    plt.xlim([1998,2017])
+    plt.xlim([1998,int(settings.YEAR)+1])
 
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
@@ -130,7 +132,7 @@ def run_all_plots():
 
     #************************************************************************
     # Hovmullers
-    data = read_binary(data_loc + "Hovmuller_FAPAR_v{}.bin".format(int(settings.YEAR)+1))
+    data = read_binary(data_loc + "Hovmuller_Global_lat_fapar1998_{}_bams_trois_C6.bin".format(settings.YEAR))
 
     # reshape - from Readme
     data = data.reshape(360, DURATION)
@@ -145,7 +147,7 @@ def run_all_plots():
 
     #************************************************************************
     # Anomalies
-    data = read_binary(data_loc + "Figure1fapar_v{}.bin".format(int(settings.YEAR) + 1))
+    data = read_binary(data_loc + "DataXFigure1fapar1998_{}_bams.bin".format(settings.YEAR))
     data = data.reshape(360, 720)
 
     data = np.ma.masked_where(data == -100, data) # land/ocean mask
@@ -157,7 +159,7 @@ def run_all_plots():
     cube = utils.make_iris_cube_2d(data, lats, lons, "FAPAR", "%")
 
     bounds = [-20, -0.04, -0.03, -0.02, -0.01, -0.005, 0.005, 0.01, 0.02 ,0.03, 0.04, 20]
-    utils.plot_smooth_map_iris(image_loc + "p2.1_FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 1998-{} (FAPAR)".format(settings.YEAR), figtext = "(aa) Fraction of Absorbed Photosynthetically Active Radiation")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 1998-{} (FAPAR)".format(settings.YEAR), figtext = "(ae) Fraction of Absorbed Photosynthetically Active Radiation")
     utils.plot_smooth_map_iris(image_loc + "FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 1998-{} (FAPAR)".format(settings.YEAR))
 
 

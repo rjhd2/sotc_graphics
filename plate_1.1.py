@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev::                                          $:  Revision of last commit
-# $Author::                                       $:  Author of last commit
-# $Date::                                         $:  Date of last commit
+# $Rev:: 23                                       $:  Revision of last commit
+# $Author:: rdunn                                 $:  Author of last commit
+# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -107,25 +107,27 @@ def read_ohc(filename):
     csiro = utils.Timeseries("OHC", indata[:,0], indata[:,3])
     pmel = utils.Timeseries("OHC", indata[:,0], indata[:,5])
     ncei = utils.Timeseries("OHC", indata[:,0], indata[:,7])
-    jma = utils.Timeseries("OHC", indata[:,0], indata[:,9])
+    mri = utils.Timeseries("OHC", indata[:,0], indata[:,9])
+    iap = utils.Timeseries("OHC", indata[:,0], indata[:,9])
 
     # reapply updated climatology
     dummy, hadley = utils.calculate_climatology_and_anomalies_1d(hadley, 1993, 2016)
     dummy, csiro = utils.calculate_climatology_and_anomalies_1d(csiro, 1993, 2016)
     dummy, pmel = utils.calculate_climatology_and_anomalies_1d(pmel, 1993, 2016)
     dummy, ncei = utils.calculate_climatology_and_anomalies_1d(ncei, 1993, 2016)
-    dummy, jma = utils.calculate_climatology_and_anomalies_1d(jma, 1993, 2016)
+    dummy, mri = utils.calculate_climatology_and_anomalies_1d(mri, 1993, 2016)
+    dummy, iap = utils.calculate_climatology_and_anomalies_1d(iap, 1993, 2016)
 
-    return hadley, csiro, pmel, ncei, jma # read_ohc
+    return hadley, csiro, pmel, ncei, mri, iap # read_ohc
 
 #************************************************************************
 def read_slr(filename):
 
     indata = np.genfromtxt(filename, dtype=(float))
      
-    swv = utils.Timeseries("SLR", indata[:,0], indata[:,1])
+    slr = utils.Timeseries("SLR", indata[:,0], indata[:,1])
 
-    return swv # read_SWV
+    return slr # read_SLR
 
 #************************************************************************
 def read_swv(filename):
@@ -137,18 +139,15 @@ def read_swv(filename):
     return swv # read_SWV
 
 #************************************************************************
-def read_tco(filename):
+def read_arct(filename):
+    """ Read the Arctic Temperatures"""
 
-    indata = np.genfromtxt(filename, dtype=(float), delimiter = ",", skip_header = 3)
+    indata = np.genfromtxt(filename, delimiter = ",", skip_header = 1)
 
-    year = indata[:,0]
-    month = indata[:,1]
+    arct = utils.Timeseries("ARCT",  indata[:,0], indata[:,1])
 
-    time = year + (month-1)/12.
-     
-    tco = utils.Timeseries("TCO", time, indata[:,2])
+    return arct # read_arct
 
-    return tco # read_tco
 
 #************************************************************************
 def toYearFraction(date):
@@ -190,7 +189,6 @@ def annual_from_monthly(indata):
             annuals += [np.ma.mean(indata.data[locs])]
 
             year += 1
-
 
         return utils.Timeseries(indata.name, times, annuals) # annual_from_monthly
 
@@ -270,29 +268,34 @@ make_plot(ax_b, [sh], insitu, plot_label = "(b) S. Hemisphere Polar Stratospheri
 
 #***************************
 # C - APPARENT TRANSMISSION
-print "Apparent Transmission"
+print "Apparent Transmission - missing in 2017"
 
-import at
-at = at.read_csv(data_loc + "{}/apparentTransmissionMLO_monthly.txt".format("AT"))
-annuals = annual_from_monthly(at)
+#import at
+#at = at.read_csv(data_loc + "{}/apparentTransmissionMLO_monthly.txt".format("AT"))
+#annuals = annual_from_monthly(at)
 
-make_plot(ax_c, [annuals], insitu, plot_label = "(c) Apparent Transmission (Mauna Loa)\n(actual values)", ylabel = "AT", ylim = [0.81,0.99])
+#make_plot(ax_c, [annuals], insitu, plot_label = "(c) Apparent Transmission (Mauna Loa)\n(actual values)", ylabel = "AT", ylim = [0.81,0.99])
 
+print "Using Arctic Temperature"
+
+arctic = read_arct(data_loc + "{}/arctic-60N-temps.txt".format("PLT1_1"))
+
+make_plot(ax_c, [arctic], insitu, plot_label = "(c) Arctic Temperature (60-90N)\n(1981-2010)", ylabel = '$^{\circ}$'+"C", ylim = [-1.9,2.4])
 #***************************
 # D - SURFACE TEMPERATURE
 print "Surface Air Temperature"
 
 import sat
 # in situ
-noaa, nasa, jma = sat.read_global_t(data_loc + "{}/globalTemperatures_LO.csv".format("SAT"))
-hadcrut = sat.read_hadcrut_crutem(data_loc+"{}/hadcrut4.1981-2010.csv".format("SAT"))
+noaa, nasa, jma = sat.read_global_t(data_loc + "{}/BAMSDatasets-1981-2010bp_LO.csv".format("SAT"))
+hadcrut = sat.read_hadcrut_crutem(data_loc+"{}/global_series.1981-2010.hadcrut4.csv".format("SAT"))
 
 make_plot(ax_d, [noaa, nasa, jma, hadcrut], insitu)
 
 # reanalyses
 era_globe, era_ocean, era_land, eratropics = utils.era_ts_read(reanalysis_loc, "sat", annual = True)
 global_era_clim, global_era_anoms = utils.calculate_climatology_and_anomalies_1d(era_globe, 1981, 2010)
-merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "temperature", "LO")
+merra = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "temperature", "LO")
 jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_tmp2m_global_ts.txt", "temperature")
 
 make_plot(ax_d, [era_globe, merra, jra_anoms], reanalyses, plot_label = "(d) Surface Temperature\n(1981-2010)", ylabel = '$^{\circ}$'+"C", ylim = [-0.9,1.2])
@@ -303,7 +306,7 @@ print "Lower Tropospheric Temperature"
 
 import ltt
 
-raobcore, rich, ratpac, unsw, UAH, rss, era, merra, jra = ltt.read_csv(data_loc + "{}/TLT_GL_{}_RD_v2.csv".format("LTT", settings.YEAR))
+raobcore, rich, ratpac, unsw, UAH, rss, era, merra, jra = ltt.read_csv(data_loc + "{}/SOC_LT_Fig_1_data_180212.csv".format("LTT"))
 
 # in situ
 make_plot(ax_e, [raobcore, rich, ratpac, unsw], insitu)
@@ -311,7 +314,7 @@ make_plot(ax_e, [raobcore, rich, ratpac, unsw], insitu)
 make_plot(ax_e, [UAH, rss], satellite)
 
 jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_MSUch2LT_global_ts.txt", "temperature")
-merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann.dat", LT = True)
+merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LT = True)
 
 # reanalyses
 make_plot(ax_e, [era, jra_anoms, merra_anoms], reanalyses, plot_label = "(e) Lower Tropospheric Temperature\n(1981-2010)", ylabel = '$^{\circ}$'+"C", ylim = [-0.9,1.2])
@@ -322,7 +325,7 @@ print "Lower Stratospheric Temperature"
 
 import lst
 
-UAH, rss, ratpac, raobcore, rich, noaa, cfsr, era, unsw = lst.read_csv(data_loc + "{}/TLS_annual_anomalies_{}.csv".format("LST", settings.YEAR))
+UAH, rss, ratpac, raobcore, rich, noaa, era, unsw, cmip, ssu3 = lst.read_csv(data_loc + "{}/SOC_Strat_Data.csv".format("LST"))
 
 # in situ
 make_plot(ax_f, [raobcore, rich, ratpac, unsw], insitu)
@@ -330,7 +333,7 @@ make_plot(ax_f, [raobcore, rich, ratpac, unsw], insitu)
 make_plot(ax_f, [UAH, noaa, rss], satellite)
 
 jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_MSUch4_global_ts.txt", "temperature")
-merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann.dat", LS = True)
+merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LS = True)
 
 # reanalyses
 make_plot(ax_f, [era, jra_anoms, merra_anoms], reanalyses, plot_label = "(f) Lower Stratospheric Temperature\n(1981-2010)", ylabel = '$^{\circ}$'+"C", ylim = [-0.9,2.7])
@@ -341,8 +344,10 @@ print "Temperature Extremes"
 
 import tex
 
-tx90p = tex.obtain_timeseries(data_loc + "{}/GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format("TEX", "TX90p", int(settings.YEAR) + 1), "Ann", "GHCNDEX")
-tx10p = tex.obtain_timeseries(data_loc + "{}/GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format("TEX", "TX10p", int(settings.YEAR) + 1), "Ann", "GHCNDEX")
+tx90p, cover = tex.obtain_timeseries(data_loc + "{}/GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format("TEX", "TX90p", int(settings.YEAR) + 1), "Ann", "GHCNDEX", "TX90p")
+tx10p, cover = tex.obtain_timeseries(data_loc + "{}/GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format("TEX", "TX10p", int(settings.YEAR) + 1), "Ann", "GHCNDEX", "TX10p")
+
+print "Axis in % days, so resetting back to original values (x3.65 applied in tex.py)"
 
 tx90p.data = tx90p.data / 3.65
 tx10p.data = tx10p.data / 3.65
@@ -372,7 +377,7 @@ make_plot(ax_i, [antarctic_min], insitu, plot_label = "(i) Antarctic Sea Ice Ext
 print "Glacier Mass Balance"
 
 import agl
-balance, cumul_balance = agl.read_glacier(data_loc + "{}/globalbn2014.csv".format("AGL"))
+balance, cumul_balance = agl.read_glacier(data_loc + "{}/globalbn{}.csv".format("AGL", settings.YEAR))
 
 # in situ
 make_plot(ax_j, [cumul_balance], insitu, plot_label = "(j) Glacier Cumulative Mean Specific Balance\n(actual values)", ylabel = "equivalent depth\n in water (m)", ylim = [-22,9])
@@ -383,16 +388,16 @@ print "NH Snow Cover"
 
 import snw
 
-NH, Eurasia, NAmer = snw.read_snow(data_loc + "{}/robinson_SCE_anomalies{}12_rd.csv".format("SNW", settings.YEAR))
+NH, Eurasia, NAmer = snw.read_snow(data_loc + "{}/rutgers-sce-anom12-31-{}_rd.csv".format("SNW", settings.YEAR))
 
 # satellite
 make_plot(ax_k, [annual_from_monthly(NH)], satellite, plot_label = "(k) Northern Hemisphere Snow Cover Extent\n(1966-2010)", ylabel = "x 10"+r'$^6$'+" km"+r'$^2$', ylim = [-1.9,3.6])
 
 #***************************
 # L - Lower Stratospheric Water Vapour
-print "Lower Stratospheric Water Vapour"
+print "Lower Stratospheric Water Vapour - missing"
 
-swv = read_swv(data_loc + "{}/Plate1_SWV_BLD_FPH_82hPa.csv".format("SWV"))
+swv = read_swv(data_loc + "{}/Plate1_SWV_83hPa_BLD_ed.csv".format("SWV"))
 
 # in situ
 make_plot(ax_l, [swv], insitu, plot_label = "(l) Lower Stratospheric Water Vapor\n(actual values)", ylabel = "ppmv", ylim = [2.01, 6.99], scatter = True)
@@ -404,10 +409,10 @@ print "Cloudiness"
 
 import cld
 
-patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2 = cld.read_ts(data_loc + "{}/{}_global_cloudiness_timeseries.txt".format("CLD", settings.YEAR))
+patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = cld.read_ts(data_loc + "{}/{}_global_cloudiness_timeseries.txt".format("CLD", settings.YEAR), anomaly = True)
 
 # satellite
-make_plot(ax_m, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2], satellite, plot_label = "(m) Cloudiness\n(2000-2008)", ylabel = "%", ylim = [-6,9])
+make_plot(ax_m, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], satellite, plot_label = "(m) Cloudiness\n(2000-2008)", ylabel = "%", ylim = [-6,9])
 
 
 #***************************
@@ -416,7 +421,7 @@ print "Total Column Water Vapour - Land"
 
 import tcw
 
-merra2_land, era_land, jra_land, cosmic_land, gnss_land = tcw.read_csv(data_loc + "{}/data_for_annual_land_vapor_ts.submit.v2.txt".format("TCW"), domain = "L")
+merra2_land, era_land, jra_land, cosmic_land, gnss_land = tcw.read_csv(data_loc + "{}/data_for_annual_land_vapor_ts_v2.txt".format("TCW"), domain = "L")
 gnss_land.name = "GNSS (Ground Based)"
 
 # satellite
@@ -430,7 +435,7 @@ make_plot(ax_n, [era_land, jra_land, merra2_land], reanalyses, plot_label = "(n)
 # O - Total Column Water - Ocean
 print "Total Column Water Vapour - Marine"
 
-merra2_ocean, era_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = tcw.read_csv(data_loc + "{}/data_for_annual_ocean_vapor_ts.submit.txt".format("TCW"), domain = "O")
+merra2_ocean, era_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = tcw.read_csv(data_loc + "{}/data_for_annual_ocean_vapor_ts_v2.txt".format("TCW"), domain = "O")
 radiometer_ocean.name = "RSS Satellite"
 
 # satellite
@@ -457,18 +462,18 @@ print "Specific Humidity - Land"
 
 import hum
 
-land_q = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}.txt".format("HUM", settings.YEAR), "q", "L")
+land_q = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}_v2.txt".format("HUM", settings.YEAR), "q", "L")
 
 # in situ
-make_plot(ax_q, land_q[:4], insitu)
+make_plot(ax_q, [land_q[0], land_q[1], land_q[2], land_q[3]], insitu)
 # reanalyses
-make_plot(ax_q, land_q[-3:], reanalyses, plot_label = "(q) Specific Humidity - Land\n(1979-2010)", ylabel = "g kg"+r'$^{-1}$', ylim = [-0.5,0.8])
+make_plot(ax_q, land_q[4:7], reanalyses, plot_label = "(q) Specific Humidity - Land\n(1979-2010)", ylabel = "g kg"+r'$^{-1}$', ylim = [-0.5,0.8])
 
 #***************************
 # R - Specific Humidity - Ocean
 print "Specific Humidity - Marine"
 
-marine_q = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}.txt".format("HUM", settings.YEAR), "q", "M")
+marine_q = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}_v2.txt".format("HUM", settings.YEAR), "q", "M")
 
 # in situ
 make_plot(ax_r, [marine_q[1],marine_q[2],marine_q[3]], insitu)
@@ -482,24 +487,24 @@ make_plot(ax_r, marine_q[-3:], reanalyses, plot_label = "(r) Specific Humidity -
 # S - Relative Humidity - Land
 print "Relative Humidity - Land"
 
-land_rh = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}.txt".format("HUM", settings.YEAR), "rh", "L")
+land_rh = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}_v2.txt".format("HUM", settings.YEAR), "rh", "L")
 
 # in situ
-make_plot(ax_s, land_rh[:4], insitu)
+make_plot(ax_s, [land_rh[0], land_rh[1], land_rh[2], land_rh[3]], insitu)
 # reanalyses
-make_plot(ax_s, land_rh[-3:], reanalyses, plot_label = "(s) Relative Humidity - Land\n(1979-2010)", ylabel = "% rh", ylim = [-1.5, 2.5])
+make_plot(ax_s, [land_rh[4], land_rh[6]], reanalyses, plot_label = "(s) Relative Humidity - Land\n(1979-2010)", ylabel = "% rh", ylim = [-1.5, 2.5])
 
 
 #***************************
 # T - Relative Humidity - Ocean
 print "Relative Humidity - Marine"
 
-marine_rh = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}.txt".format("HUM", settings.YEAR), "rh", "M")
+marine_rh = hum.read_ts(data_loc + "{}/HUM_timeseries_ALL{}_v2.txt".format("HUM", settings.YEAR), "rh", "M")
 
 # in situ
 make_plot(ax_t, [marine_q[1],marine_q[2]], insitu)
 # reanalyses
-make_plot(ax_t, marine_rh[-3:], reanalyses, plot_label = "(t) Relative Humidity - Ocean\n(1979-2010)", ylabel = "% rh", ylim = [-0.7, 1.5])
+make_plot(ax_t, [marine_rh[-3], marine_rh[-1]], reanalyses, plot_label = "(t) Relative Humidity - Ocean\n(1979-2010)", ylabel = "% rh", ylim = [-0.7, 1.5])
 
 
 #***************************
@@ -507,7 +512,7 @@ make_plot(ax_t, marine_rh[-3:], reanalyses, plot_label = "(t) Relative Humidity 
 print "Precipitation - Land"
 
 import pcp
-ghcn, gpcc, gpcp, ghcn2 = pcp.read_land(data_loc + "{}/Fig2.1h_land_in_situ.dat".format("PCP"))
+ghcn, gpcc, gpcp, ghcn2 = pcp.read_land(data_loc + "{}/Land_insitu_timeseries.dat".format("PCP"))
 
 make_plot(ax_u, [ghcn, gpcc, gpcp, ghcn2], insitu, plot_label = "(u) Precipitation - Land\n(1961-90)", ylabel = "mm")
 
@@ -527,15 +532,15 @@ soi = slp.read_soi(data_loc + "{}/soiplaintext.html".format("SLP"))
 make_plot(ax_v, [soi], insitu, plot_label = "(v) Southern Oscillation Index\n ", ylabel = "Standard Units", ylim = [-40,49])
 
 #***************************
-# W - OHC
+# W - OHC - Jessica & Deke provide
 print "Ocean Heat Content"
 
-hadley, csiro, pmel, ncei, jma = read_ohc(data_loc + "{}/OHC.dat".format("PLT1_1"))
+hadley, csiro, pmel, ncei, mri, iap = read_ohc(data_loc + "{}/OHC.dat".format("PLT1_1"))
 
-make_plot(ax_w, [hadley, csiro, pmel, ncei, jma], insitu, plot_label = "(w) Ocean Heat Content (0-700m)\n(1983-16)", ylabel = '$10^{21}$'+"J", ylim = [-140, 140])
+make_plot(ax_w, [hadley, csiro, pmel, ncei, mri, iap], insitu, plot_label = "(w) Ocean Heat Content (0-700m)\n(1983-16)", ylabel = '$10^{21}$'+"J", ylim = [-140, 140])
 
 #***************************
-# X - Sea Level Rise
+# X - Sea Level Rise - Jessica & Deke provide
 print "Sea Level Rise"
 
 slr = read_slr(data_loc + "{}/SLR.dat".format("PLT1_1"))
@@ -544,12 +549,14 @@ make_plot(ax_x, [slr], insitu, plot_label = "(x) Sea Level Rise\n(actual values)
 
 #***************************
 # Y - Tropospheric Ozone
-print "Tropospheric Ozone"
+print "Tropospheric Ozone - need actuals"
 
-tco = read_tco(data_loc + "{}/TropOzone_global_burden_2004-{}.csv".format("TCO", settings.YEAR))
+import tco
+
+tco = tco.read_data(data_loc + "{}/BAMS_SOTC_TROPOSPHERIC_OZONE_TG_60Sto60N.txt".format("TCO", settings.YEAR), "TCO")
 
 # satellite
-make_plot(ax_y, [annual_from_monthly(tco)], satellite, plot_label = "(y) Tropospheric Ozone\n(actual values)", ylabel = "Ozone Burden (Tg)", ylim = [260, 300])
+make_plot(ax_y, [annual_from_monthly(tco)], satellite, plot_label = "(y) Tropospheric Ozone\n(actual values)", ylabel = "Ozone Burden (Tg)", ylim = [280, 320])
 
 
 #***************************
@@ -558,12 +565,12 @@ print "Tropospheric Wind Speed"
 
 import uaw
 
-grasp, erai, era_presat, merra, jra55 = uaw.read_uaw_ts(data_loc + "{}/20N-40N300.nc".format("UAW"), smooth = True)
+grasp, erai, cera, merra, jra55 = uaw.read_uaw_ts(data_loc + "{}/Globe850.nc".format("UAW"), smooth = True)
 
 # sonde
 make_plot(ax_z, [annual_from_monthly(grasp)], insitu)
 # reanalyses
-make_plot(ax_z, [annual_from_monthly(erai), annual_from_monthly(era_presat), annual_from_monthly(merra), annual_from_monthly(jra55)], reanalyses, plot_label = "(z) Tropospheric Wind Speed at 300hPa for 20"+r'$^{o}$'+"-40"+r'$^{o}$'+"N\n(1981-2010)", ylabel = "m s"+r'$^{-1}$', ylim = [-2.9,3.8])
+make_plot(ax_z, [annual_from_monthly(erai), annual_from_monthly(cera), annual_from_monthly(merra), annual_from_monthly(jra55)], reanalyses, plot_label = "(z) Tropospheric Wind Speed at 850hPa\n(1981-2010)", ylabel = "m s"+r'$^{-1}$', ylim = [-0.5,0.7])
 
 #***************************
 # AA - LAND WIND SPEED
@@ -590,7 +597,7 @@ make_plot(ax_ab, [ownd], satellite)
 jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_ws10m_globalocean_ts.txt", "wind")
 era_globe, era_ocean, era_land, eratropics = utils.era_ts_read(reanalysis_loc, "wnd", annual = True)
 ocean_era_clim, ocean_era_anoms = utils.calculate_climatology_and_anomalies_1d(era_ocean, 1981, 2010)
-merra_anoms = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "wind", "O", anomalies = True)
+merra_anoms = utils.read_merra(reanalysis_loc + "MERRA-2_SfcAnom_ts_{}.dat".format(settings.YEAR), "wind", "O", anomalies = True)
 
 make_plot(ax_ab, [ocean_era_anoms, jra_anoms, merra_anoms], reanalyses, plot_label = "(ab) Ocean Wind Speed\n(1988-2010)", ylabel = "m s"+r'$^{-1}$', ylim = [-0.29,0.49])
 
@@ -601,11 +608,11 @@ print "Biomass Burning"
 
 import bob
 
-gfed = bob.read_csv(data_loc + "{}/timeseries_glob".format("BOB"), "GFED3.1", make_annual = True)
-gfas3 = bob.read_csv(data_loc + "{}/timeseries_glob".format("BOB"), "GFAS1p3", make_annual = True)
-gfas0 = bob.read_csv(data_loc + "{}/timeseries_glob".format("BOB"), "GFAS1p0", make_annual = True)
+gfed = bob.read_gfed_csv(data_loc + "{}/GFED_monthly_C_Tg.dat".format("BOB"), "global", make_annual = True)
+gfas = bob.read_gfas_csv(data_loc + "{}/GFAS_monthly_C_kg.dat".format("BOB"), "global", make_annual = True)
 
-make_plot(ax_ac, [gfed, gfas3, gfas0], satellite, plot_label = "(ac) Biomass Burning\n(actual values)", ylabel = "Pg C yr"+r'$^{-1}$', ylim = [1.25,3.7])
+
+make_plot(ax_ac, [gfed, gfas], satellite, plot_label = "(ac) Biomass Burning\n(actual values)", ylabel = "Pg C yr"+r'$^{-1}$', ylim = [1.25,3.7])
 
 
 #***************************
@@ -614,7 +621,7 @@ print "Soil Moisture"
 
 import sms
 
-cube_list = iris.load(data_loc + "{}/monthlyAnomalies_perHemisphere.nc".format("SMS"))
+cube_list = iris.load(data_loc + "{}/monthAnomaliesPerHemisphere.nc".format("SMS"))
 glob = cube_list[2]
 years = sms.convert_times(glob)
 
@@ -631,7 +638,7 @@ import tws
 
 grace = tws.read_ts(data_loc + "{}/avg_JPLM05_land.txt".format("TWS"))
 annuals = annual_from_monthly(grace)
-make_plot(ax_ae, [annuals], satellite, plot_label = "(ad) Terrestrial Water Storage\n(2005-2010)", ylabel = "equivalent depth\nin water (cm)", ylim = [-2.3,1.4])
+make_plot(ax_ae, [annuals], satellite, plot_label = "(ae) Terrestrial Water Storage\n(2005-2010)", ylabel = "equivalent depth\nin water (cm)", ylim = [-2.3,1.4])
 
 #***************************
 # AF - FAPAR
@@ -639,7 +646,7 @@ print "FAPAR"
 
 import fpr
 
-data = fpr.read_binary_ts(data_loc + "{}/TimeSeries_faparanomaliesglobal_{}_bams_v{}.bin".format("FPR", settings.YEAR, int(settings.YEAR)+1))
+data = fpr.read_binary_ts(data_loc + "{}/TimeSeries_faparanomaliesglobal_{}_bams_v{}_C6.bin".format("FPR", int(settings.YEAR)-1, settings.YEAR))
 
 for dataset in data:
     if dataset.name == "Globe":
@@ -654,8 +661,8 @@ print "Land Surface Albedo"
 
 import abd
 
-IRdata = abd.read_binary_ts(data_loc + "{}/TimeseriesBHRNIRpost_{}.bin".format("ABD", int(settings.YEAR)+1))
-Vdata = abd.read_binary_ts(data_loc + "{}/TimeseriesBHRVpost_{}.bin".format("ABD", int(settings.YEAR)+1))
+IRdata = abd.read_binary_ts(data_loc + "{}/TimeseriesBHRNIRpost_C6_v{}.bin".format("ABD", int(settings.YEAR)+1))
+Vdata = abd.read_binary_ts(data_loc + "{}/TimeseriesBHRVpost_C6_v{}.bin".format("ABD", int(settings.YEAR)+1))
 
 for dataset in Vdata:
     if dataset.name == "Globe":
@@ -665,7 +672,7 @@ for dataset in Vdata:
 for dataset in IRdata:
     if dataset.name == "Globe":
         annuals = annual_from_monthly(dataset)
-        make_plot(ax_ag, [annuals], satellite, plot_label = "(af) Land Surface Albedo - visible & infrared (dotted)\n(2003-{})".format(settings.YEAR), ylabel = "%", ylim = [-4,5], ls = ":")
+        make_plot(ax_ag, [annuals], satellite, plot_label = "(ag) Land Surface Albedo - visible & infrared (dotted)\n(2003-{})".format(settings.YEAR), ylabel = "%", ylim = [-4,5], ls = ":")
 
 
 #************************************************************************
@@ -675,9 +682,9 @@ all_axes = [ax_a, ax_b, ax_c, ax_d, ax_e, ax_f, ax_g, ax_h, ax_i, ax_j, ax_k, ax
 for ax in all_axes:
     ax.axhline(0, ls = "--", color = "0.5")
 
-ax_a.set_xlim([1950, 2017])
-ax_l.set_xlim([1960, 2017])
-ax_w.set_xlim([1980, 2017])
+ax_a.set_xlim([1950, int(settings.YEAR)+2])
+ax_l.set_xlim([1960, int(settings.YEAR)+2])
+ax_w.set_xlim([1980, int(settings.YEAR)+2])
 
 # remove x-tick labels on all but lowest 3.
 plt.setp([a.get_xticklabels() for a in [ax_a, ax_b, ax_c, ax_d, ax_e, ax_f, ax_g, ax_h, ax_i, ax_j, ax_l, ax_m, ax_n, ax_o, ax_p, ax_q, ax_r, ax_s, ax_t, ax_u, ax_w, ax_x, ax_y, ax_z, ax_aa, ax_ab, ax_ac, ax_ad, ax_ae, ax_af]], visible=False)
