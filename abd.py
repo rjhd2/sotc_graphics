@@ -6,43 +6,42 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 22                                       $:  Revision of last commit
+# $Rev:: 26                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
+# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-
-import matplotlib.cm as mpl_cm
-import matplotlib as mpl
-
-import iris
+# python3
+from __future__ import absolute_import
+from __future__ import print_function
 import datetime as dt
 import struct
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 
 import utils # RJHD utilities
 import settings
 
 
-data_loc = "/data/local/rdunn/SotC/{}/data/ABD/".format(settings.YEAR)
-reanalysis_loc = "/data/local/rdunn/SotC/{}/data/RNL/".format(settings.YEAR)
-image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
+data_loc = "{}/{}/data/ABD/".format(settings.ROOTLOC, settings.YEAR)
+reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
+image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = "lower left"
 minor_tick_interval = 1
 minorLocator = MultipleLocator(minor_tick_interval)
 
-print "faking time axis - 16 day period"
+print("faking time axis - 16 day period")
 # http://modis-atmos.gsfc.nasa.gov/ALBEDO/
 
-start = dt.datetime(2003,1,1)
+start = dt.datetime(2003, 1, 1)
 # get difference in days, 16 day period, and add a few.
-DURATION = int(round(((dt.datetime(int(settings.YEAR),12,31) - start).days)/16.))+3
+print("Built-in round() might cause issues in Python3")
+DURATION = int(round(((dt.datetime(int(settings.YEAR), 12, 31) - start).days)/16.))+3
 
-dates=[start + dt.timedelta(days=i*16) for i in range(DURATION)]
+dates = [start + dt.timedelta(days=i*16) for i in range(DURATION)]
 
 times = np.ma.array([(d - start).days/365.  for d in dates]) + 2003
 times.mask = np.zeros(times.shape)
@@ -86,9 +85,9 @@ def read_binary_ts(filename):
     north = utils.Timeseries("N. Hemisphere", times, north)
     south = utils.Timeseries("S. Hemisphere", times, south)
 
-    globe_sm = utils.Timeseries("Globe Smoothed", times, aver[0,:])
-    north_sm = utils.Timeseries("N. Hemisphere Smoothed", times, aver[1,:])
-    south_sm = utils.Timeseries("S. Hemisphere Smoothed", times, aver[2,:])
+    globe_sm = utils.Timeseries("Globe Smoothed", times, aver[0, :])
+    north_sm = utils.Timeseries("N. Hemisphere Smoothed", times, aver[1, :])
+    south_sm = utils.Timeseries("S. Hemisphere Smoothed", times, aver[2, :])
 
     return  [globe, north, south, globe_sm, north_sm, south_sm] # read_binary_ts
 
@@ -98,45 +97,45 @@ def run_all_plots():
     #************************************************************************
     # Timeseries
 
-    IRdata = read_binary_ts(data_loc + "TimeseriesBHRNIRpost_C6_v{}.bin".format(int(settings.YEAR)+1))
-    Vdata = read_binary_ts(data_loc + "TimeseriesBHRVpost_C6_v{}.bin".format(int(settings.YEAR)+1))
+    IRdata = read_binary_ts(data_loc + "TimeseriesBHRNIR_C6_poids_{}.bin".format(int(settings.YEAR)+1))
+    Vdata = read_binary_ts(data_loc + "TimeseriesBHRV_C6_poids_{}.bin".format(int(settings.YEAR)+1))
 
-    fig, (ax1, ax2) = plt.subplots(2, figsize = (10, 8), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(10, 8), sharex=True)
     COLOURS = settings.COLOURS["land_surface"]
 
-    for dataset in IRdata:
-        print dataset.name
-        locs, = np.where(dataset.data != 0) # remove zero bits (mainly for smoothed)
-        ls = "--"
-        lw = 1
-        if dataset.name.split(" ")[-1] == "Smoothed":
-            ls = "-"
-            lw = 2
-        ax1.plot(dataset.times[locs], dataset.data[locs], c = COLOURS[dataset.name], ls = ls, label = dataset.name, lw = lw)
-
-    ax1.axhline(0, c = '0.5', ls = '--')
-    utils.thicken_panel_border(ax1)
-
     for dataset in Vdata:
-        print dataset.name
+        print(dataset.name)
         locs, = np.where(dataset.data != 0)
         ls = "--"
         lw = 1
         if dataset.name.split(" ")[-1] == "Smoothed":
             ls = "-"
             lw = 2            
-        ax2.plot(dataset.times[locs], dataset.data[locs], c = COLOURS[dataset.name], ls = ls, label = dataset.name, lw = lw)
+        ax1.plot(dataset.times[locs], dataset.data[locs], c=COLOURS[dataset.name], ls=ls, label=dataset.name, lw=lw)
 
-    ax2.legend(loc = LEGEND_LOC, ncol = 2, frameon = False, prop={'size':settings.LEGEND_FONTSIZE * 0.8}, labelspacing = 0.1, columnspacing = 0.5)
-    ax2.axhline(0, c = '0.5', ls = '--')
+    ax1.axhline(0, c='0.5', ls='--')
+    utils.thicken_panel_border(ax1)
+
+    for dataset in IRdata:
+        print(dataset.name)
+        locs, = np.where(dataset.data != 0) # remove zero bits (mainly for smoothed)
+        ls = "--"
+        lw = 1
+        if dataset.name.split(" ")[-1] == "Smoothed":
+            ls = "-"
+            lw = 2
+        ax2.plot(dataset.times[locs], dataset.data[locs], c=COLOURS[dataset.name], ls=ls, label=dataset.name, lw=lw)
+
+    ax2.legend(loc=LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE * 0.8}, labelspacing=0.1, columnspacing=0.5)
+    ax2.axhline(0, c='0.5', ls='--')
     utils.thicken_panel_border(ax2)
 
     #*******************
     # prettify
 
-    fig.text(0.01, 0.5, "Normalised Anomalies (%)", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+    fig.text(0.01, 0.5, "Normalised Anomalies (%)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
-    plt.xlim([2002.5,int(settings.YEAR)+1.5])
+    plt.xlim([2002.5, int(settings.YEAR)+1.5])
 
     for ax in [ax1, ax2]:
         for tick in ax.yaxis.get_major_ticks():
@@ -147,18 +146,18 @@ def run_all_plots():
     for tick in ax2.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
 
-    ax1.text(0.02, 0.9, "(a) Visible", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    ax2.text(0.02, 0.9, "(b) Near Infrared", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
+    ax1.text(0.02, 0.9, "(a) Visible", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
+    ax2.text(0.02, 0.9, "(b) Near Infrared", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-    fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
+    fig.subplots_adjust(right=0.95, top=0.95, bottom=0.05, hspace=0.001)
 
     plt.savefig(image_loc + "ABD_ts{}".format(settings.OUTFMT))
     plt.close()
 
     #************************************************************************
     # Hovmullers
-    IRdata = read_binary(data_loc + "HovMullerBHRNIRpost_C6_v{}.bin".format(int(settings.YEAR)+1))
-    Vdata = read_binary(data_loc + "HovMullerBHRVpost_C6_v{}.bin".format(int(settings.YEAR)+1))
+    IRdata = read_binary(data_loc + "HovMullerBHRNIR_C6_{}.bin".format(int(settings.YEAR)+1))
+    Vdata = read_binary(data_loc + "HovMullerBHRV_C6_{}.bin".format(int(settings.YEAR)+1))
 
     # reshape - from Readme
     IRdata = IRdata.reshape(360, DURATION)
@@ -167,25 +166,24 @@ def run_all_plots():
     IRdata = np.ma.masked_where(IRdata <= -100., IRdata) * 100 # from readme
     Vdata = np.ma.masked_where(Vdata <= -100., Vdata) * 100
 
-    lats = np.arange(-90,90, 0.5)
+    lats = np.arange(-90, 90, 0.5)
 
     # curtail times
-    locs, = np.where(times > int(settings.YEAR) +1 )
+    locs, = np.where(times > int(settings.YEAR) + 1)
     IRdata.mask[:, locs] = True
     Vdata.mask[:, locs] = True
     times.mask[locs] = True
 
     # cant use "cmap.set_bad" for contour as ignored when contouring
 
-    bounds = [-100, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 100]
-    utils.plot_hovmuller(image_loc + "ABD_NIR_hovmuller", times, lats, IRdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext = "(b)", background = "0.9")
-    utils.plot_hovmuller(image_loc + "ABD_V_hovmuller", times, lats, Vdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext = "(a)", background = "0.9")
-
+    bounds = [-100, -20, -15, -10, -5, 0, 5, 10, 15, 20, 100]
+    utils.plot_hovmuller(image_loc + "ABD_NIR_hovmuller", times, lats, IRdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext="(b)", background="1.0")
+    utils.plot_hovmuller(image_loc + "ABD_V_hovmuller", times, lats, Vdata, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Normalised Anomalies (%)", figtext="(a)", background="1.0")
 
     #************************************************************************
     # Anomalies
-    IRdata = read_binary(data_loc + "Annual_BHRNIRpost_C6_v{}.bin".format(int(settings.YEAR)+1))
-    Vdata = read_binary(data_loc + "Annual_BHRVpost_C6_v{}.bin".format(int(settings.YEAR)+1))
+    IRdata = read_binary(data_loc + "Annual_BHRNIR_C6_{}.bin".format(int(settings.YEAR)+1))
+    Vdata = read_binary(data_loc + "Annual_BHRV_C6_{}.bin".format(int(settings.YEAR)+1))
 
     # reshape - from Readme
     IRdata = IRdata.reshape(360, 720)
@@ -194,20 +192,25 @@ def run_all_plots():
     IRdata = np.ma.masked_where(IRdata <= -9999., IRdata)
     Vdata = np.ma.masked_where(Vdata <= -9999., Vdata)
 
+    IRdata = np.ma.masked_where(IRdata == 0., IRdata)
+    Vdata = np.ma.masked_where(Vdata == 0., Vdata)
+
+
+
     delta = 0.5
-    lons = np.arange(-180 + (delta/2.),180,delta)
-    lats = np.arange(-90 + (delta/2.),90, delta)
+    lons = np.arange(-180 + (delta/2.), 180, delta)
+    lats = np.arange(-90 + (delta/2.), 90, delta)
 
     ir_cube = utils.make_iris_cube_2d(IRdata, lats, lons, "IR Albedo", "%")
     v_cube = utils.make_iris_cube_2d(Vdata, lats, lons, "V Albedo", "%")
 
-    bounds = [-100, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 100]
+    bounds = [-100, -20, -15, -10, -5, 0, 5, 10, 15, 20, 100]
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR), figtext = "(ac) Land Surface Albedo in the Visible")
-    utils.plot_smooth_map_iris(image_loc + "ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR))
+    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010), figtext="(ad) Land Surface Albedo in the Visible")
+    utils.plot_smooth_map_iris(image_loc + "ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010))
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR), figtext = "(ad) Land Surface Albedo in the Near Infrared")
-    utils.plot_smooth_map_iris(image_loc + "ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR))
+    utils.plot_smooth_map_iris(image_loc + "p2.1_ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010), figtext="(ae) Land Surface Albedo in the Near Infrared")
+    utils.plot_smooth_map_iris(image_loc + "ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010))
 
     return # run_all_plots
 

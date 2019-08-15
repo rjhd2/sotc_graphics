@@ -6,33 +6,28 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 23                                       $:  Revision of last commit
+# $Rev:: 26                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
+# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
+# python3
+from __future__ import absolute_import
+from __future__ import print_function
 
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+from matplotlib.ticker import MultipleLocator
 
-import matplotlib.cm as mpl_cm
-import matplotlib as mpl
-
-import iris
-import iris.quickplot as qplt
-import cartopy.crs as ccrs
-
-import calendar
 import datetime as dt
+import numpy as np
 
 import utils # RJHD utilities
 import settings
 
-data_loc = "/data/local/rdunn/SotC/{}/data/TCO/".format(settings.YEAR)
-reanalysis_loc = "/data/local/rdunn/SotC/{}/data/RNL/".format(settings.YEAR)
-image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
+data_loc = "{}/{}/data/TCO/".format(settings.ROOTLOC, settings.YEAR)
+reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
+image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
 LW = 3
 LEGEND_LOC = "center right"
@@ -62,10 +57,10 @@ LEGEND_LOC = "center right"
 #************************************************************************
 def read_data(filename, name):
 
-    indata = np.genfromtxt(filename, dtype = (str), missing_values = "-999.000")
+    indata = np.genfromtxt(filename, dtype=(str), missing_values="-999.000")
 
-    times = indata[:,0]
-    data = indata[:,1].astype(float)
+    times = indata[:, 0]
+    data = indata[:, 1].astype(float)
     data = np.ma.masked_where(data == -999.000, data)
 
     dt_times = [dt.datetime.strptime(d, "%b%y") for d in times]
@@ -85,15 +80,128 @@ def read_map(filename, name, units):
     :returns: cube
     '''
     
-    indata = np.genfromtxt(filename, dtype = (float), skip_header = 1)
+    indata = np.genfromtxt(filename, dtype=(float), skip_header=1)
 
-    lats = np.arange(-177.5, 177.5+5, 5) # hard coded from header
-    lons = np.arange(-57.5, 57.5+5, 5) # hard coded from header
-    anoms = indata[:,1:]
+    lons = np.arange(-177.5, 177.5+5, 5) # hard coded from header
+    lats = np.arange(-57.5, 57.5+5, 5) # hard coded from header
+    anoms = indata[:, 1:]
 
-    cube = utils.make_iris_cube_2d(anoms.T, lons, lats, name, units)
+    cube = utils.make_iris_cube_2d(anoms.T, lats, lons, name, units)
 
     return cube
+
+#************************************************************************
+def read_significance(filename, signame):
+    '''
+    Read data for significance and convert to lat/lon lists.  Given as single list files
+
+    :param str filename: datafile to read
+    :param str signame: significance file to read
+
+    :returns: lats lons data
+    '''
+    
+    # read in both data (significance is 1/0)
+    indata = np.genfromtxt(filename, dtype=(float), skip_header=1)
+    sigdata = np.genfromtxt(signame, dtype=(float), skip_header=1)
+
+    lons = np.arange(-177.5, 177.5+5, 5) # hard coded from header
+    lats = np.arange(-57.5, 57.5+5, 5) # hard coded from header
+    anoms = indata[:, 1:]
+    sigs = sigdata[:, 1:]
+
+    # blank lists to store
+    sig_lats = []
+    sig_lons = []
+    sig_data = []
+    
+    # for each longitude line
+    for s, sig in enumerate(sigs):
+        
+        locs, = np.where(sig == 1.)
+
+        # store matching values
+        sig_lons += [lons[s] for l in locs]
+        sig_lats += [lats[l] for l in locs]
+        sig_data += [anoms[s][l] for l in locs]
+
+    return np.array(sig_lats), np.array(sig_lons), np.array(sig_data) # read_significance
+
+#************************************************************************
+def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
+                             figtext="", title="", contour=False, cb_extra="", save_netcdf_filename=""):
+    '''
+    Standard map - 
+
+    :param str outname: output filename root
+    :param array cube: cube to plot
+    :param obj cmap: colourmap to use
+    :param array bounds: bounds for discrete colormap
+    :param str cb_label: colorbar label
+    :param str save_netcdf_filename: filename to save the output plot to a cube.
+    '''
+
+    import matplotlib as mpl
+    import cartopy
+    import copy
+    import iris
+
+    norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+
+    fig = plt.figure(figsize=(10, 6.5))
+
+    plt.clf()
+    ax = plt.axes([0.05, 0.10, 0.90, 0.90], projection=cartopy.crs.Robinson())
+    ax.gridlines() #draw_labels=True)
+    ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+    ax.coastlines()
+
+    ext = ax.get_extent() # save the original extent
+
+    if settings.OUTFMT in [".eps", ".pdf"]:
+        if cube.coord("latitude").points.shape[0] > 180 or cube.coord("longitude").points.shape[0] > 360:
+            regrid_size = 1.0
+            print("Regridding cube for {} output to {} degree resolution".format(settings.OUTFMT, regrid_size))
+            print("Old Shape {}".format(cube.data.shape))
+            plot_cube = regrid_cube(cube, regrid_size, regrid_size)
+            print("New Shape {}".format(plot_cube.data.shape))
+        else:
+            plot_cube = copy.deepcopy(cube)
+    else:
+        plot_cube = copy.deepcopy(cube)
+
+    mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm=norm)
+
+    if len(scatter) > 0:
+        lons, lats, data = scatter
+        plt.scatter(lons, lats, c=data, cmap=cmap, norm=norm, s=10, \
+                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=1.0)
+
+
+    cb = plt.colorbar(mesh, orientation='horizontal', pad=0.05, fraction=0.05, \
+                        aspect=30, ticks=bounds[1:-1], label=cb_label, drawedges=True)
+    # thicken border of colorbar and the dividers
+    # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
+    cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+
+#    cb.outline.set_color('k')
+    cb.outline.set_linewidth(2)
+    cb.dividers.set_color('k')
+    cb.dividers.set_linewidth(2)
+
+    if cb_extra != "":
+        fig.text(0.04, 0.05, cb_extra[0], fontsize=settings.FONTSIZE * 0.8, ha="left")
+        fig.text(0.96, 0.05, cb_extra[1], fontsize=settings.FONTSIZE * 0.8, ha="right")
+
+    ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
+
+    plt.title(title)
+    fig.text(0.03, 0.95, figtext, fontsize=settings.FONTSIZE * 0.8)
+
+    plt.savefig(outname + settings.OUTFMT)
+    plt.close()
+
+    return # plot_smooth_map_iris
 
 
 #************************************************************************
@@ -107,55 +215,60 @@ def run_all_plots():
     bounds = np.array([-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100])
     bounds = np.array([-100, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0, 100])
 
-    utils.plot_smooth_map_iris(image_loc + "TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-{} (DU)".format(int(settings.YEAR[2:])-1), contour = True)
-    utils.plot_smooth_map_iris(image_loc + "p2.1_TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-{} (DU)".format(int(settings.YEAR[2:])-1), figtext = "(x) OMI/MLS Tropospheric Column Ozone", contour = True)
+    utils.plot_smooth_map_iris(image_loc + "TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-{} (DU)".format(int(settings.YEAR[2:])-1), contour=True)
+    utils.plot_smooth_map_iris(image_loc + "p2.1_TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-{} (DU)".format(int(settings.YEAR[2:])-1), figtext="(ab) OMI/MLS Tropospheric Column Ozone", contour=True)
 
 
     #************************************************************************
     # Global Trend map
-#    cube = read_map(data_loc + "".format(settings.YEAR())
+    cube = read_map(data_loc + "tco_omimls_trends_{}.txt".format(settings.YEAR), "TCO_trend", "DU")
 
-#    bounds = np.array([-10, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 10])
-#    utils.plot_smooth_map_iris(image_loc + "TCO_trend_{}".format(settings.YEAR), cube,  settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)")
+    bounds = np.array([-100, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 100])
+#    utils.plot_smooth_map_iris(image_loc + "TCO_trend_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)")
+
+    sig_lats, sig_lons, sig_data = read_significance(data_loc + "tco_omimls_trends_{}.txt".format(settings.YEAR), data_loc + "tco_omimls_trends_95pct_signficance_{}.txt".format(settings.YEAR))
+    # use local adapted routine.
+    plot_smooth_map_iris(image_loc + "TCO_trend_significance_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)", scatter = (sig_lons, sig_lats, sig_data))
+
 
     #************************************************************************
     # Timeseries
     # monthly_global, annual_global, monthly_NH, annual_NH, monthly_SH, annual_SH = read_data(data_loc + "OMI_MLS_trop_ozone_burden_2004_2015.txt")
 
-    monthly_global = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_60Sto60N.txt", "mg")
-    monthly_SH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60S.txt", "msh")
-    monthly_NH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60N.txt", "mnh")
+    monthly_global = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_60Sto60N_{}.txt".format(settings.YEAR), "mg")
+    monthly_SH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60S_{}.txt".format(settings.YEAR), "msh")
+    monthly_NH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60N_{}.txt".format(settings.YEAR), "mnh")
 
-    annual_global = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_60Sto60N.txt", "ag")
-    annual_SH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60S.txt", "ash")
-    annual_NH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60N.txt", "anh")
+    annual_global = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_60Sto60N_{}.txt".format(settings.YEAR), "ag")
+    annual_SH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60S_{}.txt".format(settings.YEAR), "ash")
+    annual_NH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60N_{}.txt".format(settings.YEAR), "anh")
 
     minor_tick_interval = 1
     minorLocator = MultipleLocator(minor_tick_interval)
     COLOURS = settings.COLOURS["composition"]
 
-    fig = plt.figure(figsize = (10,7))
+    fig = plt.figure(figsize=(10, 7))
     ax = plt.axes([0.13, 0.07, 0.75, 0.86])
 
-    plt.plot(monthly_global.times, monthly_global.data,  'k', ls = '-', label = r"1.76$\pm$0.59 Tg yr$^{-1}$", lw = LW)
-    plt.plot(annual_global.times, annual_global.data,  'k', ls = '--',  lw = LW)
-    plt.text(2004, 250, "60"+r'$^{\circ}$'+"S - 60"+r'$^{\circ}$'+"N", va='center', color = 'k', fontsize = settings.FONTSIZE)
+    plt.plot(monthly_global.times, monthly_global.data, 'k', ls='-', label=r"1.78$\pm$0.59 Tg yr$^{-1}$", lw=LW)
+    plt.plot(annual_global.times, annual_global.data, 'k', ls='--', lw=LW)
+    plt.text(2004, 250, "60"+r'$^{\circ}$'+"S - 60"+r'$^{\circ}$'+"N", va='center', color='k', fontsize=settings.FONTSIZE)
 
-    plt.plot(monthly_NH.times, monthly_NH.data,  'r', ls = '-', label = r"0.93$\pm$0.49 Tg yr$^{-1}$", lw = LW)
-    plt.plot(annual_NH.times, annual_NH.data,  'r', ls = '--',  lw = LW)
-    plt.text(2004, 180, "0"+r'$^{\circ}$'+" - 60"+r'$^{\circ}$'+"N", va='center', color = 'r', fontsize = settings.FONTSIZE)
+    plt.plot(monthly_NH.times, monthly_NH.data, 'r', ls='-', label=r"0.94$\pm$0.49 Tg yr$^{-1}$", lw=LW)
+    plt.plot(annual_NH.times, annual_NH.data, 'r', ls='--', lw=LW)
+    plt.text(2004, 180, "0"+r'$^{\circ}$'+" - 60"+r'$^{\circ}$'+"N", va='center', color='r', fontsize=settings.FONTSIZE)
 
-    plt.plot(monthly_SH.times, monthly_SH.data,  'c', ls = '-', label = r"0.83$\pm$0.58 Tg yr$^{-1}$", lw = LW)
-    plt.plot(annual_SH.times, annual_SH.data,  'c', ls = '--',  lw = LW)
-    plt.text(2004, 110, "60"+r'$^{\circ}$'+"S - 0"+r'$^{\circ}$'+"", va='center', color = 'c', fontsize = settings.FONTSIZE)
+    plt.plot(monthly_SH.times, monthly_SH.data, 'c', ls='-', label=r"0.83$\pm$0.58 Tg yr$^{-1}$", lw=LW)
+    plt.plot(annual_SH.times, annual_SH.data, 'c', ls='--', lw=LW)
+    plt.text(2004, 110, "60"+r'$^{\circ}$'+"S - 0"+r'$^{\circ}$'+"", va='center', color='c', fontsize=settings.FONTSIZE)
 
-    ax.legend(loc = LEGEND_LOC, ncol = 1, frameon = False, prop = {'size':settings.LEGEND_FONTSIZE}, labelspacing = 0.1, columnspacing = 0.5)
+    ax.legend(loc=LEGEND_LOC, ncol=1, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, labelspacing=0.1, columnspacing=0.5)
 
     # prettify
     ax.xaxis.set_minor_locator(minorLocator)
     utils.thicken_panel_border(ax)
 
-    fig.text(0.035, 0.5, "Tropospheric Ozone Mass\n(Tg)", va='center', rotation='vertical', ha="center", fontsize = settings.FONTSIZE)
+    fig.text(0.035, 0.5, "Tropospheric Ozone Mass\n(Tg)", va='center', rotation='vertical', ha="center", fontsize=settings.FONTSIZE)
 
     plt.xlim([2003.5, int(settings.YEAR)+1.5])
     plt.ylim([90, 340])

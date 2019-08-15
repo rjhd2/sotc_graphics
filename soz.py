@@ -6,23 +6,26 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 22                                       $:  Revision of last commit
+# $Rev:: 26                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
+# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 
+# python3
+from __future__ import absolute_import
+from __future__ import print_function
+
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 
 import utils # RJHD utilities
 import settings
 
-data_loc = "/data/local/rdunn/SotC/{}/data/SOZ/".format(settings.YEAR)
-reanalysis_loc = "/data/local/rdunn/SotC/{}/data/RNL/".format(settings.YEAR)
-image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
+data_loc = "{}/{}/data/SOZ/".format(settings.ROOTLOC, settings.YEAR)
+reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
+image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
 #************************************************************************
 def read_data(filename):
@@ -40,7 +43,7 @@ def read_data(filename):
     data = np.ma.zeros((latitudes.shape[0], longitudes.shape[0]))
 
     # read in the dat
-    indata = np.genfromtxt(filename, dtype = (float), skip_header = 4)
+    indata = np.genfromtxt(filename, dtype=(float), skip_header=4)
 
     this_lat = []
     tl = 0
@@ -52,7 +55,7 @@ def read_data(filename):
             # copy into final array and reset
             data[tl, :] = this_lat
             tl += 1
-            this_lat=[]
+            this_lat = []
 
     # mask the missing values
     data = np.ma.masked_where(data <= -999.000, data)
@@ -64,10 +67,10 @@ def read_data(filename):
 #************************************************************************
 def read_ts(filename):
 
-    indata = np.genfromtxt(filename, skip_header = 1)
+    indata = np.genfromtxt(filename, skip_header=1)
 
-    years = indata[:,0]
-    mean_val = indata[:,1]
+    years = indata[:, 0]
+    mean_val = indata[:, 1]
 
     ts = utils.Timeseries("SOZ", years, mean_val)
 
@@ -87,7 +90,7 @@ def run_all_plots():
 
     utils.plot_smooth_map_iris(image_loc + "SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)")
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext = "(y) Stratospheric (Total Column) Ozone")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext="(aa) Stratospheric (Total Column) Ozone")
 
 
     #************************************************************************
@@ -99,11 +102,11 @@ def run_all_plots():
     nh = read_ts(data_loc + "NH_polar_ozone.txt")
     sh = read_ts(data_loc + "SH_polar_ozone.txt")
 
-    fig = plt.figure(figsize = (8,6))
+    fig = plt.figure(figsize=(8, 6))
     plt.clf()
 
-    plt.plot(nh.times, nh.data, "b-", label = "March NH")
-    plt.plot(sh.times, sh.data, "r-", label = "October SH")
+    plt.plot(nh.times, nh.data, "b-", label="March NH")
+    plt.plot(sh.times, sh.data, "r-", label="October SH")
 
     plt.ylabel("total Ozone (DU")
     plt.title("Polar Ozone")

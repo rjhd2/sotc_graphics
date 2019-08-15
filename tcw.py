@@ -6,12 +6,15 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 22                                       $:  Revision of last commit
+# $Rev:: 26                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
+# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
+# python3
+from __future__ import absolute_import
+from __future__ import print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,21 +31,21 @@ import struct
 import utils # RJHD utilities
 import settings
 
-data_loc = "/data/local/rdunn/SotC/{}/data/TCW/".format(settings.YEAR)
-reanalysis_loc = "/data/local/rdunn/SotC/{}/data/RNL/".format(settings.YEAR)
-image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
+data_loc = "{}/{}/data/TCW/".format(settings.ROOTLOC, settings.YEAR)
+reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
+image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'upper left'
-BBOX = (0,0.9)
-YLIM = [-1,1.6]
+BBOX = (0, 0.9)
+YLIM = [-1, 1.6]
 
 #************************************************************************
-def read_csv(filename, domain = "L"):
+def read_csv(filename, domain="L"):
     """
     Read user supplied CSV for LST into Timeseries object
     """
 
-    # fieldwidths = (5,8,12,10,12,14,10,8)
+    # fieldwidths = (5, 8, 12, 10, 12, 14, 10, 8)
     # fmtstring = ''.join('%ds' % f for f in fieldwidths)
 
     # parse = struct.Struct(fmtstring).unpack_from
@@ -56,44 +59,48 @@ def read_csv(filename, domain = "L"):
                 
     #             indata += [[float(f.strip()) for f in fields]]
 
-    indata = np.genfromtxt(filename, skip_header = 2)
+    indata = np.genfromtxt(filename, skip_header=2, dtype=str, encoding="latin-1")
             
     indata = np.ma.array(indata)
-    indata = np.ma.masked_where(indata == -99.99, indata)
+    indata[indata =="NaN"] = "-99.9"
+    indata = indata.astype(float)
+    indata = np.ma.masked_where(indata == -99.9, indata)
 
     # process the years and months to give decimals
-    times = indata[:,0]
+    times = indata[:, 0]
 
     if domain == "L":
-        merra2 = utils.Timeseries("MERRA-2", times, indata[:,1])
-        era = utils.Timeseries("ERA-Interim", times, indata[:,2])
-        jra = utils.Timeseries("JRA-55", times, indata[:,3])
-        cosmic = utils.Timeseries("COSMIC RO", times, indata[:,4])
-        obs = utils.Timeseries("GNSS", times, indata[:,5])
+        jra = utils.Timeseries("JRA-55", times, indata[:, 1])
+        merra2 = utils.Timeseries("MERRA-2", times, indata[:, 2])
+        erai = utils.Timeseries("ERA-Interim", times, indata[:, 3])
+        era5 = utils.Timeseries("ERA5", times, indata[:, 4])
+        cosmic = utils.Timeseries("COSMIC RO", times, indata[:, 5])
+        obs = utils.Timeseries("GNSS", times, indata[:, 6])
 
     elif domain == "O":
-        obs = utils.Timeseries("RSS", times, indata[:,1])
-        merra2 = utils.Timeseries("MERRA-2", times, indata[:,2])
-        era = utils.Timeseries("ERA-Interim", times, indata[:,3])
-        jra = utils.Timeseries("JRA-55", times, indata[:,4])
-        cosmic = utils.Timeseries("COSMIC RO", times, indata[:,5])
+        obs = utils.Timeseries("RSS", times, indata[:, 1])
+        jra = utils.Timeseries("JRA-55", times, indata[:, 2])
+        merra2 = utils.Timeseries("MERRA-2", times, indata[:, 3])
+        erai = utils.Timeseries("ERA-Interim", times, indata[:, 4])
+        era5 = utils.Timeseries("ERA5", times, indata[:, 5])
+        cosmic = utils.Timeseries("COSMIC RO", times, indata[:, 6])
 
-    return merra2, era, jra, cosmic, obs  # read_csv
+    return merra2, erai, era5, jra, cosmic, obs  # read_csv
 
 
 
 #************************************************************************
-def read_jra_hovmuller(filename):
+def read_hovmuller(filename):
 
-    all_jra = np.genfromtxt(filename, dtype = (float))
+    all_data = np.genfromtxt(filename, dtype=(float))
 
     # convert the years and months to give decimals
-    years = all_jra[:,0]
-    months = all_jra[:,1]
+    years = all_data[:, 0]
+    months = all_data[:, 1]
     all_times = years + (months - 1)/12.
 
-    all_latitudes = all_jra[:,2]
-    all_data = np.ma.masked_where(all_jra[:,3] == -99.99, all_jra[:,3])
+    all_latitudes = all_data[:, 2]
+    all_data = np.ma.masked_where(all_data[:, 3] == -99.99, all_data[:, 3])
     
     # have columnar data = convert into an array
 
@@ -111,7 +118,7 @@ def read_jra_hovmuller(filename):
         data[xloc[0], yloc[0]] = val     
         
 
-    return times, latitudes, data # read_jra_hovmuller
+    return times, latitudes, data # read_hovmuller
 
 
 #************************************************************************
@@ -154,11 +161,11 @@ def read_scatter_data(filename):
     :returns: anomalies, latitudes, longitudes
     '''
 
-    all_jra = np.genfromtxt(filename, dtype = (float), skip_header = 2)
+    all_jra = np.genfromtxt(filename, dtype=(float), skip_header=2)
 
-    lats = all_jra[:,0]
-    lons = all_jra[:,1]
-    anoms = all_jra[:,2]
+    lats = all_jra[:, 0]
+    lons = all_jra[:, 1]
+    anoms = all_jra[:, 2]
 
     return anoms, lats, lons
 
@@ -169,51 +176,52 @@ def run_all_plots():
     # Total Column Water figure
 
     # land
-    merra2_land, era_land, jra_land, cosmic_land, gnss_land = read_csv(data_loc + "data_for_annual_land_vapor_ts_v2.txt", domain = "L")
+    merra2_land, erai_land, era5_land, jra_land, cosmic_land, gnss_land=read_csv(data_loc + "time_series_tpw_land.txt", domain="L")
     gnss_land.name = "GNSS (Ground Based)"
-
+    erai_land.ls = "--"
 
     # ocean
-    merra2_ocean, era_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = read_csv(data_loc + "data_for_annual_ocean_vapor_ts_v2.txt", domain = "O")
+    merra2_ocean, erai_ocean, era5_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = read_csv(data_loc + "time_series_tpw_ocean.txt", domain="O")
     radiometer_ocean.name = "RSS Satellite"
+    erai_ocean.ls = "--"
 
 
     #************************************************************************
     # Timeseries figures
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize = (10,12), sharex=True)
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=(10, 12), sharex=True)
 
     # Obs - ocean
-    utils.plot_ts_panel(ax1, [radiometer_ocean, cosmic_ocean], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
+    utils.plot_ts_panel(ax1, [radiometer_ocean, cosmic_ocean], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
     # Reanalyses - ocean
-    utils.plot_ts_panel(ax2, [era_ocean, jra_ocean, merra2_ocean], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
+    utils.plot_ts_panel(ax2, [erai_ocean, era5_ocean, jra_ocean, merra2_ocean], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
     # Obs - land
-    utils.plot_ts_panel(ax3, [gnss_land, cosmic_land], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
+    utils.plot_ts_panel(ax3, [gnss_land, cosmic_land], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
     # Reanalyses - land
-    utils.plot_ts_panel(ax4, [era_land, jra_land, merra2_land], "-", "hydrological", loc = LEGEND_LOC, bbox = BBOX)
+    utils.plot_ts_panel(ax4, [erai_land, era5_land, jra_land, merra2_land], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
 
     # prettify
-    fig.subplots_adjust(right = 0.95, top = 0.95, hspace = 0.001)
+    fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
 
     for tick in ax4.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE) 
     for ax in [ax1, ax2, ax3, ax4]:
         ax.set_ylim(YLIM)
-        ax.yaxis.set_ticks([-1,-0.5,0,0.5,1])
+        ax.yaxis.set_ticks([-1, -0.5, 0, 0.5, 1])
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
     plt.xlim([1979,int(settings.YEAR)+1])
 
     # sort labelling
-    ax1.text(0.02, 0.88, "(a) Observations Ocean", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    ax2.text(0.02, 0.88, "(b) Reanalyses Ocean", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    ax3.text(0.02, 0.88, "(c) Observations Land", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    ax4.text(0.02, 0.88, "(d) Reanalyses Land", transform = ax4.transAxes, fontsize = settings.LABEL_FONTSIZE)
+    ax1.text(0.02, 0.88, "(a) Observations Ocean", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
+    ax2.text(0.02, 0.88, "(b) Reanalyses Ocean", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
+    ax3.text(0.02, 0.88, "(c) Observations Land", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
+    ax4.text(0.02, 0.88, "(d) Reanalyses Land", transform=ax4.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-    fig.text(0.03, 0.5, "Anomalies (mm)", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+    fig.text(0.03, 0.5, "Anomalies (mm)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
     plt.savefig(image_loc+"TCW_ts{}".format(settings.OUTFMT))
 
@@ -223,22 +231,40 @@ def run_all_plots():
     #************************************************************************
     # JRA Hovmuller figure
 
-    times, latitudes, data = read_jra_hovmuller(data_loc + "data_for_tpw_hofmueller_{}.JRA-55_v2.txt".format(settings.YEAR))
+    times, latitudes, data = read_hovmuller(data_loc + "data_for_tpw_hofmueller_{}_JRA-55.txt".format(settings.YEAR))
 
     bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
 
     utils.plot_hovmuller(image_loc + "TCW_hovmuller_jra", times, latitudes, data.T, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (mm)")
 
     #************************************************************************
+    # ERA5 Hovmuller figure
+
+    times, latitudes, data = read_hovmuller(data_loc + "data_for_tpw_hofmueller_{}_ERA5.txt".format(settings.YEAR))
+
+    bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
+
+    utils.plot_hovmuller(image_loc + "TCW_hovmuller_era5", times, latitudes, data.T, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (mm)")
+
+    #************************************************************************
     # Microwave, Cosmic and GNSS figure - plate 2.1
 
-    cosmic = read_map_data(data_loc + "data_for_tpw_map_{}.1981_2010.txt".format(settings.YEAR))
+    bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
+    cosmic = read_map_data(data_loc + "rss_cosmic_data_for_tpw_map_{}.1981_2010.txt".format(settings.YEAR))
 
-    print "waiting on GNSS data"
-#    gnss_anoms, gnss_lats, gnss_lons = read_scatter_data(data_loc + "data_for_tpw_map_{}.1981_2010.txt".format(settings.YEAR))
+    gnss_anoms, gnss_lats, gnss_lons = read_scatter_data(data_loc + "GNSS_ground_stations_tpw_{}.1981_2010.txt".format(settings.YEAR))
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_TCW_{}_anoms_cosmic".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", figtext = "(r) Total Column Water Vapour") #, scatter = (gnss_lons, gnss_lats, gnss_anoms))
-    utils.plot_smooth_map_iris(image_loc + "TCW_{}_anoms_cosmic".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)") #, scatter = (gnss_lons, gnss_lats, gnss_anoms))
+    utils.plot_smooth_map_iris(image_loc + "p2.1_TCW_{}_anoms_cosmic".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", figtext="(r) Total Column Water Vapour", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+    utils.plot_smooth_map_iris(image_loc + "TCW_{}_anoms_cosmic".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+
+
+    #************************************************************************
+    # ERA and GNSS figure
+
+    era5 = read_map_data(data_loc + "ERA5_data_for_tpw_map_{}.1981_2010.txt".format(settings.YEAR))
+
+    utils.plot_smooth_map_iris(image_loc + "TCW_{}_anoms_era5".format(settings.YEAR), era5, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+    utils.plot_smooth_map_iris(image_loc + "p2.1_TCW_{}_anoms_era5".format(settings.YEAR), era5, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", figtext="(i) Total Column Water Vapour", scatter=(gnss_lons, gnss_lats, gnss_anoms))
 
 
     #************************************************************************
@@ -256,7 +282,7 @@ def run_all_plots():
     # # pass to plotting routine
     # bounds = np.array([-100, -8, -4, -2, -1, 0, 1, 2, 4, 8, 100])
 
-    # utils.plot_smooth_map_iris_multipanel(image_loc + "TCW_{}_year_jra".format(settings.YEAR), cubelist, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (mm)", shape = (2,1), title = plotyears, figtext = ["(a)","(b)"])
+    # utils.plot_smooth_map_iris_multipanel(image_loc + "TCW_{}_year_jra".format(settings.YEAR), cubelist, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (mm)", shape=(2,1), title=plotyears, figtext=["(a)","(b)"])
 
 
     return # run_all_plots

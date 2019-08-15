@@ -6,30 +6,29 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 22                                       $:  Revision of last commit
+# $Rev:: 26                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2018-04-06 15:34:21 +0100 (Fri, 06 Apr #$:  Date of last commit
+# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
+from __future__ import absolute_import
+from __future__ import print_function
+
 import numpy as np
-import matplotlib.pyplot as plt
-
-import matplotlib.cm as mpl_cm
-import matplotlib as mpl
-
 import iris
 
 import utils # RJHD utilities
 import settings
 
 
-data_loc = "/data/local/rdunn/SotC/{}/data/RDC/".format(settings.YEAR)
-reanalysis_loc = "/data/local/rdunn/SotC/{}/data/RNL/".format(settings.YEAR)
-image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
+data_loc = "{}/{}/data/RDC/".format(settings.ROOTLOC, settings.YEAR)
+reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
+image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
 COORD_DICT = {"lat" : "latitude", "lon" : "longitude"}
 
+#************************************************************************
 def fix_coords(cube):
 
     for coord in ["lat", "lon"]:
@@ -45,7 +44,7 @@ def fix_coords(cube):
 #************************************************************************
 # Discharge Map
 
-cube_list = iris.load(data_loc + "discharge.{}.nc".format(settings.YEAR, settings.YEAR))
+cube_list = iris.load(data_loc + "discharge.nc")
 
 cube = fix_coords(cube_list[0])
 
@@ -55,21 +54,21 @@ mask = cube.data.mask
 bounds = [-10000, -1000, -500, -100, -50, -25, 25, 50, 100, 500, 1000, 10000]
 
 utils.plot_smooth_map_iris(image_loc + "RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")", figtext = "(m) River Discharge")
+utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")", figtext="(o) River Discharge")
 
 #************************************************************************
 # Runoff Map
 
-cube_list = iris.load(data_loc + "runoff.{}.nc".format(settings.YEAR, settings.YEAR))
+cube_list = iris.load(data_loc + "runoff.nc")
 
 cube = fix_coords(cube_list[0])
 cube.data = np.ma.array(cube.data)
-cube.data.mask= mask
+cube.data.mask = mask
 
 bounds = [-10000, -500, -250, -100, -50, -25, 25, 50, 100, 250, 500, 10000]
 
 utils.plot_smooth_map_iris(image_loc + "RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")", figtext = "(l) Runoff")
+utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")", figtext="(p) Runoff")
 
 
 #************************************************************************

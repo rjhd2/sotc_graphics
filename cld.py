@@ -1,4 +1,7 @@
 #!/usr/local/sci/python
+# python3
+from __future__ import absolute_import
+from __future__ import print_function
 #************************************************************************
 #
 #  Plot figures and output numbers for Cloudiness (CLD) section.
@@ -6,22 +9,17 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 23                                       $:  Revision of last commit
+# $Rev:: 26                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2018-06-05 17:55:11 +0100 (Tue, 05 Jun #$:  Date of last commit
+# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-import matplotlib.cm as mpl_cm
-import matplotlib as mpl
 from matplotlib.ticker import MultipleLocator
-
-import iris
-import iris.quickplot as qplt
-import cartopy.crs as ccrs
 
 import scipy.io
 
@@ -29,9 +27,9 @@ import utils # RJHD utilities
 import settings
 
 
-data_loc = "/data/local/rdunn/SotC/{}/data/CLD/".format(settings.YEAR)
-reanalysis_loc = "/data/local/rdunn/SotC/{}/data/RNL/".format(settings.YEAR)
-image_loc = "/data/local/rdunn/SotC/{}/images/".format(settings.YEAR)
+data_loc = "{}/{}/data/CLD/".format(settings.ROOTLOC, settings.YEAR)
+reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
+image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'lower left'
 
@@ -39,7 +37,7 @@ CLIMSTART = 2003
 CLIMEND = 2015
 
 #************************************************************************
-def read_ts(filename, anomaly = False, fullbase = False):
+def read_ts(filename, anomaly=False, fullbase=False):
     '''
     Read the timeseries data, and returning Timeseries objects.
 
@@ -50,35 +48,35 @@ def read_ts(filename, anomaly = False, fullbase = False):
     :returns: Timeseries object s
     '''
 
-    raw_data = np.genfromtxt(filename, dtype = (float), skip_header = 1)
+    raw_data = np.genfromtxt(filename, dtype=(float), skip_header=1)
     
     raw_data = np.ma.masked_where(raw_data <= -999.0, raw_data)    
 
-    times = raw_data[:,0]
+    times = raw_data[:, 0]
 
     cstart, = np.where(times == CLIMSTART)
     cend, = np.where(times == CLIMEND)
 
     if fullbase:
-        clims = np.ma.mean(raw_data, axis = 0)
+        clims = np.ma.mean(raw_data, axis=0)
     else:
-        clims = np.ma.mean(raw_data[cstart[0]:cend[0]], axis = 0)
+        clims = np.ma.mean(raw_data[cstart[0]:cend[0]], axis=0)
 
     if anomaly:
         data = raw_data - clims
     else:
         data = raw_data
 
-    patmosx = utils.Timeseries("PATMOS-x/AVHRR", times, data[:,1])
-    hirs = utils.Timeseries("HIRS", times, data[:,2])
-    misr = utils.Timeseries("MISR", times, data[:,3])
-    modis = utils.Timeseries("AQUA MODIS C6", times, data[:,4])
-    calipso = utils.Timeseries("CALIPSO", times, data[:,5])
-    ceres = utils.Timeseries("CERES", times, data[:,6])
-    satcorps = utils.Timeseries("SatCORPS", times, data[:,7])
-    clara_a2 = utils.Timeseries("CLARA-A2", times, data[:,8])
-    patmosdx = utils.Timeseries("PATMOS-x/AQUA MODIS", times, data[:,9])
-    cci = utils.Timeseries("Cloud CCI", times, data[:,10])
+    patmosx = utils.Timeseries("PATMOS-x/AVHRR", times, data[:, 1])
+    hirs = utils.Timeseries("HIRS", times, data[:, 2])
+    misr = utils.Timeseries("MISR", times, data[:, 3])
+    modis = utils.Timeseries("AQUA MODIS C6", times, data[:, 4])
+    calipso = utils.Timeseries("CALIPSO", times, data[:, 5])
+    ceres = utils.Timeseries("CERES", times, data[:, 6])
+    satcorps = utils.Timeseries("SatCORPS", times, data[:, 7])
+    clara_a2 = utils.Timeseries("CLARA-A2", times, data[:, 8])
+    patmosdx = utils.Timeseries("PATMOS-x/AQUA MODIS", times, data[:, 9])
+    cci = utils.Timeseries("Cloud CCI AVHRR-PMv3", times, data[:, 10])
 
     return patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci # read_ts
 
@@ -90,26 +88,30 @@ def run_all_plots():
     # Cloudiness timeseries
 
     plt.clf()
-    fig, (ax1, ax2) = plt.subplots(2, figsize = (10,8), sharex = True)
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(10, 8), sharex=True)
+
+    infilename = os.path.join(data_loc, "{}_global_cloudiness_timeseries_v2.txt".format(settings.YEAR))
 
     # anomalies
-    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = read_ts(data_loc + "{}_global_cloudiness_timeseries.txt".format(settings.YEAR), anomaly = True)
+    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = \
+        read_ts(infilename, anomaly=True)
 
-    utils.plot_ts_panel(ax1, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], "-", "hydrological", loc = "")
+    utils.plot_ts_panel(ax1, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], "-", "hydrological", loc="")
 
-    ax1.text(0.02, 0.9, "(a) Satellite - Anomalies", transform = ax1.transAxes, fontsize = settings.FONTSIZE)
+    ax1.text(0.02, 0.9, "(a) Satellite - Anomalies", transform=ax1.transAxes, fontsize=settings.FONTSIZE)
 
     # actuals
-    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = read_ts(data_loc + "{}_global_cloudiness_timeseries.txt".format(settings.YEAR))
+    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = \
+        read_ts(infilename)
 
-    utils.plot_ts_panel(ax2, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], "-", "hydrological", loc = LEGEND_LOC, ncol = 3)
+    utils.plot_ts_panel(ax2, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], "-", "hydrological", loc=LEGEND_LOC, ncol=3)
 
-    ax2.text(0.02, 0.9, "(b) Satellite - Actual", transform = ax2.transAxes, fontsize = settings.FONTSIZE)
+    ax2.text(0.02, 0.9, "(b) Satellite - Actual", transform=ax2.transAxes, fontsize=settings.FONTSIZE)
 
     #*******************
     # prettify
-    ax1.set_ylabel("Anomaly (%)", fontsize = settings.FONTSIZE)
-    ax2.set_ylabel("(%)", fontsize = settings.FONTSIZE)
+    ax1.set_ylabel("Anomaly (%)", fontsize=settings.FONTSIZE)
+    ax2.set_ylabel("(%)", fontsize=settings.FONTSIZE)
 
     for tick in ax2.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE) 
@@ -123,11 +125,11 @@ def run_all_plots():
             tick.label.set_fontsize(settings.FONTSIZE) 
  
     plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-    fig.subplots_adjust(right = 0.95, top = 0.95, hspace = 0.001)
+    fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
 
-    plt.xlim([hirs.times[0]-1,hirs.times[-1]+1])
-    ax1.set_ylim([-4.4,6.9])
-    ax2.set_ylim([0,95])
+    plt.xlim([hirs.times[0]-1, hirs.times[-1]+1])
+    ax1.set_ylim([-4.4, 6.9])
+    ax2.set_ylim([0, 95])
 
     plt.savefig(image_loc+"CLD_ts{}".format(settings.OUTFMT))
     plt.close()
@@ -135,26 +137,30 @@ def run_all_plots():
     #************************************************************************
     # make a version using the full base period of the data and only the pre2000 datasets
     plt.clf()
-    fig, (ax1, ax2) = plt.subplots(2, figsize = (10,8), sharex = True)
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(10, 8), sharex=True)
 
     # anomalies
-    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = read_ts(data_loc + "{}_global_cloudiness_timeseries.txt".format(settings.YEAR), anomaly = True, fullbase = True)
+    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = \
+        read_ts(data_loc + "{}_global_cloudiness_timeseries.txt".format(settings.YEAR), \
+                    anomaly=True, fullbase=True)
 
-    utils.plot_ts_panel(ax1, [patmosx, hirs, satcorps, clara_a2, cci], "-", "hydrological", loc = "")
+    utils.plot_ts_panel(ax1, [patmosx, hirs, satcorps, clara_a2, cci], "-", "hydrological", loc="")
 
-    ax1.text(0.02, 0.9, "(a) Satellite - Anomalies", transform = ax1.transAxes, fontsize = settings.FONTSIZE)
+    ax1.text(0.02, 0.9, "(a) Satellite - Anomalies", transform=ax1.transAxes, fontsize=settings.FONTSIZE)
 
     # actuals
-    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = read_ts(data_loc + "{}_global_cloudiness_timeseries.txt".format(settings.YEAR))
+    patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = \
+        read_ts(data_loc + "{}_global_cloudiness_timeseries.txt".format(settings.YEAR))
 
-    utils.plot_ts_panel(ax2, [patmosx, hirs, satcorps, clara_a2, cci], "-", "hydrological", loc = LEGEND_LOC, ncol = 3)
+    utils.plot_ts_panel(ax2, [patmosx, hirs, satcorps, clara_a2, cci], "-", "hydrological", \
+                            loc=LEGEND_LOC, ncol=3)
 
-    ax2.text(0.02, 0.9, "(b) Satellite - Actual", transform = ax2.transAxes, fontsize = settings.FONTSIZE)
+    ax2.text(0.02, 0.9, "(b) Satellite - Actual", transform=ax2.transAxes, fontsize=settings.FONTSIZE)
 
     #*******************
     # prettify
-    ax1.set_ylabel("Anomaly (%)", fontsize = settings.FONTSIZE)
-    ax2.set_ylabel("(%)", fontsize = settings.FONTSIZE)
+    ax1.set_ylabel("Anomaly (%)", fontsize=settings.FONTSIZE)
+    ax2.set_ylabel("(%)", fontsize=settings.FONTSIZE)
 
     for tick in ax2.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE) 
@@ -168,11 +174,11 @@ def run_all_plots():
             tick.label.set_fontsize(settings.FONTSIZE) 
  
     plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-    fig.subplots_adjust(right = 0.95, top = 0.95, hspace = 0.001)
+    fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
 
-    plt.xlim([hirs.times[0]-1,hirs.times[-1]+1])
-    ax1.set_ylim([-4.9,4.4])
-    ax2.set_ylim([0,95])
+    plt.xlim([hirs.times[0]-1, hirs.times[-1]+1])
+    ax1.set_ylim([-4.9, 4.4])
+    ax2.set_ylim([0, 95])
 
 
     plt.savefig(image_loc+"CLD_ts_fullbaseperiod{}".format(settings.OUTFMT))
@@ -192,12 +198,16 @@ def run_all_plots():
     lats = mapfile_dict["lat"]
     lons = mapfile_dict["lon"]
 
-    cube = utils.make_iris_cube_2d(annual_anoms, lats[:,0], lons[0],  "CLD_anom", "%")
+    cube = utils.make_iris_cube_2d(annual_anoms, lats[:, 0], lons[0], "CLD_anom", "%")
 
-    bounds=[-100, -15, -10, -5, -2.5, 0, 2.5, 5, 10, 15, 100]
+    bounds = [-100, -15, -10, -5, -2.5, 0, 2.5, 5, 10, 15, 100]
 
-    utils.plot_smooth_map_iris(image_loc + "CLD_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (%)")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_CLD_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (%)", figtext = "(p) Cloudiness")
+    utils.plot_smooth_map_iris(image_loc + "CLD_{}_anoms".format(settings.YEAR), cube, \
+                                   settings.COLOURMAP_DICT["hydrological"], bounds, \
+                                   "Anomalies from 1981-2010 (%)")
+    utils.plot_smooth_map_iris(image_loc + "p2.1_CLD_{}_anoms".format(settings.YEAR), \
+                                   cube, settings.COLOURMAP_DICT["hydrological"], bounds, \
+                                   "Anomalies from 1981-2010 (%)", figtext="(n) Cloudiness")
 
 
     #************************************************************************
@@ -206,11 +216,15 @@ def run_all_plots():
     cubelist = []
     for season in [djf_anoms, mam_anoms, jja_anoms, son_anoms]:
 
-        cube = utils.make_iris_cube_2d(season, lats[:,0], lons[0], "CLD_anom", "%")
+        cube = utils.make_iris_cube_2d(season, lats[:, 0], lons[0], "CLD_anom", "%")
         cubelist += [cube]
 
 
-    utils.plot_smooth_map_iris_multipanel(image_loc + "CLD_{}_anoms_seasons".format(settings.YEAR), cubelist, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (%)", shape = (2,2), title = ["DJF", "MAM", "JJA", "SON"], figtext = ["(a)","(b)", "(c)", "(d)"])
+    utils.plot_smooth_map_iris_multipanel(image_loc + "CLD_{}_anoms_seasons".format(settings.YEAR), \
+                                              cubelist, settings.COLOURMAP_DICT["hydrological"], \
+                                              bounds, "Anomaly (%)", shape=(2, 2), \
+                                              title=["DJF", "MAM", "JJA", "SON"], \
+                                              figtext=["(a)", "(b)", "(c)", "(d)"])
 
 
     #************************************************************************
