@@ -28,9 +28,7 @@ import settings
 
 
 
-data_loc = "{}/{}/data/LTT/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/LTT/".format(settings.ROOTLOC, settings.YEAR)
 
 CLIMSTART = 1981
 CLIMEND = 2010
@@ -45,9 +43,9 @@ def read_csv(filename):
     Read user supplied CSV for LTT into Timeseries object
     """
 
-    indata = np.genfromtxt(filename, delimiter=',', dtype=(float), skip_header=5)
+    indata = np.genfromtxt(filename, delimiter=',', dtype=(float), skip_header=7)
 
-    indata = np.ma.masked_where(indata == -99.9, indata)
+    indata = np.ma.masked_where(indata == "", indata)
 
     raobcore = utils.Timeseries("RAOBCORE v1.7", indata[:, 0], indata[:, 1])
     rich = utils.Timeseries("RICH v1.7", indata[:, 0], indata[:, 2])
@@ -56,15 +54,12 @@ def read_csv(filename):
 
     UAH = utils.Timeseries("UAH v6.0", indata[:, 0], indata[:, 4])
     rss = utils.Timeseries("RSS v4.0", indata[:, 0], indata[:, 5])
-    avg_sat = utils.Timeseries("Av. Satellite", indata[:, 0], indata[:, 6])
 
-    erai = utils.Timeseries("ERA-Interim", indata[:, 0], indata[:, 7])
-    erai.ls = "--"
-    era5 = utils.Timeseries("ERA5", indata[:, 0], indata[:, 8])
-    jra = utils.Timeseries("JRA-55", indata[:, 0], indata[:, 9])
-    merra = utils.Timeseries("MERRA-2", indata[:, 0], indata[:, 10])
+    era5 = utils.Timeseries("ERA5", indata[:, 0], indata[:, 6])
+    jra = utils.Timeseries("JRA-55", indata[:, 0], indata[:, 7])
+    merra = utils.Timeseries("MERRA-2", indata[:, 0], indata[:, 8])
 
-    return raobcore, rich, ratpac, UAH, rss, erai, era5, jra, merra # read_csv
+    return raobcore, rich, ratpac, UAH, rss, era5, jra, merra # read_csv
 
 #************************************************************************
 def read_mei(filename):
@@ -133,148 +128,149 @@ def run_all_plots():
 
     #************************************************************************
     # Timeseries figure (2 panels)
+    if True:
+        for region in ["global"]:
 
-    for region in ["global"]:
+            if region == "global":
+                raobcore, rich, ratpac, UAH, rss, era5, merra, jra = \
+                    read_csv(DATALOC + "SotC_AnnTemps_2020_0220_LTTGL.csv")
 
-        if region == "global":
-            raobcore, rich, ratpac, UAH, rss, erai, era5, merra, jra = \
-                read_csv(data_loc + "{}_LTT_LST_SSU_date0401_LTT.csv".format(settings.YEAR))
+            plt.clf()
+            fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
 
-        plt.clf()
-        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(10, 12), sharex=True)
+            # sondes
+            utils.plot_ts_panel(ax1, [raobcore, rich, ratpac], "-", "temperature", loc=LEGEND_LOC)
 
-        # sondes
-        utils.plot_ts_panel(ax1, [raobcore, rich, ratpac], "-", "temperature", loc=LEGEND_LOC)
+            # satellites
+            utils.plot_ts_panel(ax2, [UAH, rss], "-", "temperature", loc=LEGEND_LOC)
 
-        # satellites
-        utils.plot_ts_panel(ax2, [UAH, rss], "-", "temperature", loc=LEGEND_LOC)
-
-        ax2.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
-
-
-        # reanalyses
-        if region == "global":
-            jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_MSUch2LT_global_ts.txt", "temperature")
-            merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LT=True)
-
-            utils.plot_ts_panel(ax3, [erai, era5, jra_anoms, merra_anoms], "-", "temperature", loc=LEGEND_LOC)
-        else:
-            utils.plot_ts_panel(ax3, [erai], "-", "temperature", loc=LEGEND_LOC)
+            ax2.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
 
 
-        # sort formatting
-        plt.xlim([raobcore.times[0]-1, raobcore.times[-1]+1])
-        ax1.set_ylim([-0.89, 0.89])
-        ax2.set_ylim([-0.89, 0.89])
-        ax3.set_ylim([-0.89, 0.89])
+            # reanalyses
+            if region == "global":
+    #            jra_actuals, jra_anoms = utils.read_jra55(settings.REANALYSISLOC + "JRA-55_MSUch2LT_global_ts.txt", "temperature")
+    #            merra_actuals, merra_anoms = utils.read_merra_LT_LS(settings.REANALYSISLOC + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LT=True)
+    #            utils.plot_ts_panel(ax3, [erai, era5, jra_anoms, merra_anoms], "-", "temperature", loc=LEGEND_LOC)
+                twenty_cr_actuals = utils.read_20cr(settings.REANALYSISLOC + "tlt.global.txt", "temperature")
+                dummy, twenty_cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, 1981, 2010)
 
-        for tick in ax3.xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
 
-        for tick in ax1.yaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
-        for tick in ax2.yaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
-        for tick in ax3.yaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
+                utils.plot_ts_panel(ax3, [era5, jra, merra], "-", "temperature", loc=LEGEND_LOC)
+            else:
+                utils.plot_ts_panel(ax3, [era5], "-", "temperature", loc=LEGEND_LOC)
 
-        # sort labelling
-        ax1.text(0.02, 0.9, "(a) Radiosondes", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
-        ax2.text(0.02, 0.9, "(b) Satellites", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
-        ax3.text(0.02, 0.9, "(c) Reanalyses", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-        fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
+            # sort formatting
+            plt.xlim([raobcore.times[0]-1, raobcore.times[-1]+1])
+            ax1.set_ylim([-0.89, 0.89])
+            ax2.set_ylim([-0.89, 0.89])
+            ax3.set_ylim([-0.89, 0.89])
 
-        plt.savefig(image_loc+"LTT_ts_{}{}".format(region, settings.OUTFMT))
+            for tick in ax3.xaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
 
-        plt.close()
+            for tick in ax1.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+            for tick in ax2.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+            for tick in ax3.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
 
-    #************************************************************************
-    # Land Fraction - 2018
+            # sort labelling
+            ax1.text(0.02, 0.9, "(a) Radiosondes", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
+            ax2.text(0.02, 0.9, "(b) Satellites", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
+            ax3.text(0.02, 0.9, "(c) Reanalyses", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-    high, low = read_hilo(data_loc + "high_low.dat")
-    fig, ax1 = plt.subplots(1, figsize=(10, 6))
+            fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
 
-    ax1.plot(high.times, high.data, c="r", ls="-", lw=2, label=high.name)
-    ax1.plot(low.times, low.data, c="b", ls="-", lw=2, label=low.name)
+            plt.savefig(settings.IMAGELOC+"LTT_ts_{}{}".format(region, settings.OUTFMT))
+
+            plt.close()
+
+    # #************************************************************************
+    # # Land Fraction - 2018
+
+    # high, low = read_hilo(DATALOC + "high_low.dat")
+    # fig, ax1 = plt.subplots(1, figsize=(8, 5))
+
+    # ax1.plot(high.times, high.data, c="r", ls="-", lw=2, label=high.name)
+    # ax1.plot(low.times, low.data, c="b", ls="-", lw=2, label=low.name)
     
-    ax1.legend(loc="upper right", ncol=2, frameon=False)
-    ax1.set_xlim([1978, int(settings.YEAR)+2])
-    ax1.set_ylabel("Percentage of Global Area (%)", fontsize=settings.FONTSIZE)
+    # ax1.legend(loc="upper right", ncol=2, frameon=False, prop={'size':settings.FONTSIZE})
+    # ax1.set_xlim([1978, int(settings.YEAR)+2])
+    # ax1.set_ylabel("Percentage of Global Area (%)", fontsize=settings.FONTSIZE)
 
-    for tick in ax1.yaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
-    for tick in ax1.xaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
-    utils.thicken_panel_border(ax1)
+    # for tick in ax1.yaxis.get_major_ticks():
+    #     tick.label.set_fontsize(settings.FONTSIZE)
+    # for tick in ax1.xaxis.get_major_ticks():
+    #     tick.label.set_fontsize(settings.FONTSIZE)
+    # utils.thicken_panel_border(ax1)
 
-    plt.savefig(image_loc+"LTT_land_area_ts{}".format(settings.OUTFMT))
+    # plt.savefig(settings.IMAGELOC+"LTT_land_area_ts{}".format(settings.OUTFMT))
 
-    plt.close()
-
-    #************************************************************************
-    # Read in ERA-I anomalies
-
-    cube_list = iris.load(reanalysis_loc + "TLT_anvj_moda_ann{}{}-ann19812010.nc".format(settings.YEAR, settings.YEAR))
-
-    cube = cube_list[0]
-    cube.coord('latitude').guess_bounds()
-    cube.coord('longitude').guess_bounds()
-
-    bounds = np.array([-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100])
-    bounds = np.array([-100, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 100])
-    bounds = np.array([-100, -2.0, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2.0, 100])
-
-    cmap = settings.COLOURMAP_DICT["temperature"]
-    utils.plot_smooth_map_iris(image_loc + "LTT_{}_anoms_erai".format(settings.YEAR), cube[0][0], cmap, \
-                                   bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA-Interim")
-#    utils.plot_smooth_map_iris(image_loc + "p2.1_LTT_{}_anoms_erai".format(settings.YEAR), cube[0][0], \
-#                                   cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
-#                                   figtext="(e) Lower Tropospheric Temperature")
+    # plt.close()
 
     #************************************************************************
     # Read in ERA5 anomalies
+    if False:
+        cube_list = iris.load(DATALOC + "2019TLTAnom.nc")
+        names = np.array([c.var_name for c in cube_list])
 
-    cube_list = iris.load(data_loc + "tlt.nc")
+        loc, = np.where(names == "tltAnnualAnom")[0]
 
-    cube = cube_list[0]
-    cube.data = cube.data - 273.1
-    
-    # update time axis
-    time = cube.coord("time")
-    cube.coord("time").points = time.points*30
-    cube.coord("time").units = cf_units.Unit("days since {}-01-01".format(time.units.origin.split()[-1]), calendar="360_day")
-    
-    # get climatology
-    clim_constraint = utils.periodConstraint(cube, cf_units.cftime._cftime.Datetime360Day(1981, 1, 1), cf_units.cftime._cftime.Datetime360Day(2011, 1, 1)) 
-    clim_cube = cube.extract(clim_constraint)
+        cube = cube_list[loc]
 
-    clim_data = clim_cube.data.reshape(-1, 12, clim_cube.data.shape[-2], clim_cube.data.shape[-1])
-    climatology = np.ma.mean(clim_data, axis=0)
+        bounds = np.array([-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100])
+        bounds = np.array([-100, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 100])
+        bounds = np.array([-100, -2.0, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2.0, 100])
 
-    # extract final year
-    date_constraint = utils.periodConstraint(cube, cf_units.cftime._cftime.Datetime360Day(int(settings.YEAR), 1, 1),  cf_units.cftime._cftime.Datetime360Day(int(settings.YEAR)+1, 1, 1))
-    cube = cube.extract(date_constraint)
-    cube.data = cube.data - climatology
-    
-    annual_cube = cube.collapsed('time', iris.analysis.MEAN)
+        cmap = settings.COLOURMAP_DICT["temperature"]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "LTT_{}_anoms_era5".format(settings.YEAR), cube, cmap, \
+                                       bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA5")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_LTT_{}_anoms_era5".format(settings.YEAR), cube, \
+                                       cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
+                                       figtext="(e) Lower Tropospheric Temperature")
 
-    bounds = np.array([-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100])
-    bounds = np.array([-100, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 100])
-    bounds = np.array([-100, -2.0, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2.0, 100])
 
-    cmap = settings.COLOURMAP_DICT["temperature"]
-    utils.plot_smooth_map_iris(image_loc + "LTT_{}_anoms_era5".format(settings.YEAR), annual_cube, cmap, \
-                                   bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA5")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_LTT_{}_anoms_era5".format(settings.YEAR), annual_cube, \
-                                   cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
-                                   figtext="(e) Lower Tropospheric Temperature")
+    #************************************************************************
+    # Read in ERA5 anomalies with record pixels
+    if True:
+        cube_list = iris.load(DATALOC + "2019TLTAnom_warmest.nc")
+        names = np.array([c.var_name for c in cube_list])
 
+        loc, = np.where(names == "tltAnnualAnom")[0]
+
+        cube = cube_list[loc]
+
+        loc, = np.where(names == "recordMask")[0]
+        record = cube_list[loc]
+        record.coord("latitude").guess_bounds()
+        record.coord("longitude").guess_bounds()
+
+        lats, lons, data = [], [], []
+        for t, lat in enumerate(record.coord("latitude").points):
+            for n, lon in enumerate(record.coord("longitude").points):
+                if record.data[t, n] == 1:
+                    data += [cube.data[t, n]]
+                    lats += [np.mean(record.coord("latitude").bounds[t])]
+                    lons += [np.mean(record.coord("longitude").bounds[n])]
+        
+        bounds = np.array([-100, -2.0, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2.0, 100])
+
+        cmap = settings.COLOURMAP_DICT["temperature"]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "LTT_{}_anoms_era5".format(settings.YEAR), cube, cmap, \
+                                       bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA5", \
+                                   scatter=(lons, lats, data), smarker="dots")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_LTT_{}_anoms_era5".format(settings.YEAR), cube, \
+                                       cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
+                                       figtext="(e) Lower Tropospheric Temperature", \
+                                   scatter=(lons, lats, data), smarker="dots")
 
     #************************************************************************
     # ERA-I Hovmuller
 
-    # times, latitudes, data = utils.erai_2dts_read(reanalysis_loc, "ltt")
+    # times, latitudes, data = utils.erai_2dts_read(settings.REANALYSISLOC, "ltt")
 
     # bounds = np.array([-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100])
     # bounds = np.array([-100, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 100])
@@ -312,16 +308,16 @@ def run_all_plots():
     # data = data.reshape(-1, data.shape[-1])
     # new_times = new_times.reshape(-1)
 
-    # utils.plot_hovmuller(image_loc + "LTT_hovmuller_erai", new_times, latitudes, data.T, \
+    # utils.plot_hovmuller(settings.IMAGELOC + "LTT_hovmuller_erai", new_times, latitudes, data.T, \
     #                          settings.COLOURMAP_DICT["temperature"], bounds, \
     #                          "Anomaly ("+r'$^{\circ}$'+"C)", cosine=True)
 
 
     # version with MEI on top
-    # mei = read_mei(os.path.join(data_loc, "MEI.dat"))
+    # mei = read_mei(os.path.join(DATALOC, "MEI.dat"))
 
 
-    # utils.plot_hovmuller(image_loc + "LTT_hovmuller_era_MEI", new_times, latitudes, data.T, \
+    # utils.plot_hovmuller(settings.IMAGELOC + "LTT_hovmuller_era_MEI", new_times, latitudes, data.T, \
     #                          settings.COLOURMAP_DICT["temperature"], bounds, \
     #                          "Anomaly ("+r'$^{\circ}$'+"C)", cosine=True, extra_ts=mei)
 

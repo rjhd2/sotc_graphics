@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for snow cover (SNW) section.
@@ -24,9 +24,7 @@ import utils # RJHD utilities
 import settings
 
 
-data_loc = "{}/{}/data/SNW/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/SNW/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'upper left'
 
@@ -54,7 +52,7 @@ def read_snow(filename):
                 
     #             indata += [[int(f) for f in fields]]
             
-    indata = np.genfromtxt(filename, skip_header=1, delimiter=",")
+    indata = np.genfromtxt(filename, skip_header=1, delimiter=",", encoding="latin-1")
 
     indata = np.ma.array(indata)
     indata = np.ma.masked_where(indata == 0, indata)
@@ -78,12 +76,12 @@ def run_all_plots():
     #************************************************************************
     # Snow cover figure
 
-    NH, Eurasia, NAmer = read_snow(data_loc + "rutgers-sce-anom12-31-{}.csv".format(settings.YEAR))
+    NH, Eurasia, NAmer = read_snow(DATALOC + "Robinson-snow-cover-{}.csv".format(settings.YEAR))
 
 
-    fig = plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(8, 5))
     plt.clf()
-    ax = plt.axes([0.10, 0.10, 0.87, 0.87])
+    ax = plt.axes([0.10, 0.10, 0.86, 0.87])
 
     utils.plot_ts_panel(ax, [NH, Eurasia, NAmer], "-", "cryosphere", loc=LEGEND_LOC)
 
@@ -98,7 +96,7 @@ def run_all_plots():
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE) 
 
-    plt.savefig(image_loc+"SNW_ts{}".format(settings.OUTFMT))
+    plt.savefig(settings.IMAGELOC+"SNW_ts{}".format(settings.OUTFMT))
 
     plt.close()
 

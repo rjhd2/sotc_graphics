@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 # python3
 from __future__ import absolute_import
 from __future__ import print_function
@@ -29,8 +29,7 @@ import utils # RJHD utilities
 import settings
 
 
-data_loc = "{}/{}/data/LKT/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/LKT/".format(settings.ROOTLOC, settings.YEAR)
 
 CLIM_PERIOD = "8110"
 
@@ -128,188 +127,219 @@ def read_hovmuller_style(filename):
     return data # read_hovmuller_style
 
 
+#************************************************************************
+def run_all_plots():
 
 
-#***************
-# Figure 1
+    if True:
+        #***************
+        # Figure 1
 
-euro, africa, tibet, canada = read_ts(data_loc + "Fig1_data_LSWT.csv")
-euro_fit, africa_fit, tibet_fit, canada_fit = read_ts(data_loc + "Fig1_lines_LSWT.csv")
+        euro, africa, tibet, canada = read_ts(DATALOC + "BAMS2020Fig1_data_LSWT.csv")
+#        euro_fit, africa_fit, tibet_fit, canada_fit = read_ts(DATALOC + "Fig1_lines_LSWT.csv")
 
-fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=(10, 13), sharex=True)
+        euro_fit = utils.Timeseries("Lake", [1994, 2020], [-0.5136, (2020-1994)*0.0386 - 0.5136])
+        africa_fit = utils.Timeseries("Lake", [1994, 2020], [0.0204, (2020-1994)*0.0036 + 0.0204])
+        tibet_fit = utils.Timeseries("Lake", [1994, 2020], [0.0878, (2020-1994)*0.0017 + 0.0878])
+        canada_fit = utils.Timeseries("Lake", [1994, 2020], [-0.2018, (2020-1994)*0.0223 - 0.2018])
 
-#***************
-# the timeseries
-LEGEND_LOC = ""
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=(8, 10), sharex=True)
 
-utils.plot_ts_panel(ax1, [euro], "-", "temperature", loc=LEGEND_LOC)
-ax1.plot(euro_fit.times, euro_fit.data, c=settings.COLOURS["temperature"][euro_fit.name], lw=2, ls="--")
-ax1.text(1995, 0.75, "Europe, 127 lakes", fontsize=settings.FONTSIZE)
-utils.plot_ts_panel(ax2, [africa], "-", "temperature", loc=LEGEND_LOC)
-ax2.plot(africa_fit.times, africa_fit.data, c=settings.COLOURS["temperature"][africa_fit.name], lw=2, ls="--")
-ax2.text(1995, 0.75, "Africa, 68 lakes", fontsize=settings.FONTSIZE)
-utils.plot_ts_panel(ax3, [tibet], "-", "temperature", loc=LEGEND_LOC)
-ax3.plot(tibet_fit.times, tibet_fit.data, c=settings.COLOURS["temperature"][tibet_fit.name], lw=2, ls="--")
-ax3.text(1995, 0.75, "Tibetan Plateau, 106 lakes", fontsize=settings.FONTSIZE)
-utils.plot_ts_panel(ax4, [canada], "-", "temperature", loc=LEGEND_LOC)
-ax4.plot(canada_fit.times, canada_fit.data, c=settings.COLOURS["temperature"][canada_fit.name], lw=2, ls="--")
-ax4.text(1995, 0.75, "Canada, 245 lakes", fontsize=settings.FONTSIZE)
+        #***************
+        # the timeseries
+        LEGEND_LOC = ""
 
-
-# prettify
-for ax in [ax1, ax2, ax3, ax4]:
-    ax.axhline(0, c='0.5', ls='--')
-    utils.thicken_panel_border(ax)
-    ax.set_ylim([-1, 1])
-    ax.set_xlim([euro.times[0]-1, int(settings.YEAR)+1])
-    ax.yaxis.set_ticks_position('left')
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
-for tick in ax4.xaxis.get_major_ticks():
-    tick.label.set_fontsize(settings.FONTSIZE)
-
-fig.text(0.01, 0.65, "Anomaly from 1996-2016 ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE, rotation="vertical")
-fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
-
-plt.savefig(image_loc+"LKT_ts{}".format(settings.OUTFMT))
-
-plt.close()
+        utils.plot_ts_panel(ax1, [euro], "-", "temperature", loc=LEGEND_LOC)
+        ax1.plot(euro_fit.times, euro_fit.data, c=settings.COLOURS["temperature"][euro_fit.name], lw=2, ls="--")
+        ax1.text(1995, 0.8, "Europe, 127 lakes", fontsize=settings.FONTSIZE)
+        utils.plot_ts_panel(ax2, [africa], "-", "temperature", loc=LEGEND_LOC)
+        ax2.plot(africa_fit.times, africa_fit.data, c=settings.COLOURS["temperature"][africa_fit.name], lw=2, ls="--")
+        ax2.text(1995, 0.8, "Africa, 68 lakes", fontsize=settings.FONTSIZE)
+        utils.plot_ts_panel(ax3, [tibet], "-", "temperature", loc=LEGEND_LOC)
+        ax3.plot(tibet_fit.times, tibet_fit.data, c=settings.COLOURS["temperature"][tibet_fit.name], lw=2, ls="--")
+        ax3.text(1995, 0.8, "Tibetan Plateau, 106 lakes", fontsize=settings.FONTSIZE)
+        utils.plot_ts_panel(ax4, [canada], "-", "temperature", loc=LEGEND_LOC)
+        ax4.plot(canada_fit.times, canada_fit.data, c=settings.COLOURS["temperature"][canada_fit.name], lw=2, ls="--")
+        ax4.text(1995, 0.8, "Canada, 244 lakes", fontsize=settings.FONTSIZE)
 
 
-#***************
-# Anomaly Scatter map
-anomalies = read_lakes(data_loc + "PlateX_data_LSWT.csv")
+        # prettify
+        for ax in [ax1, ax2, ax3, ax4]:
+            ax.axhline(0, c='0.5', ls='--')
+            utils.thicken_panel_border(ax)
+            ax.set_ylim([-1, 1.2])
+            ax.set_xlim([euro.times[0]-1, int(settings.YEAR)+1])
+            ax.yaxis.set_ticks_position('left')
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax4.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
 
-bounds = [-8, -2, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2, 8]
-bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
+        fig.text(0.01, 0.35, "Anomaly from 1996-2016 ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE, rotation="vertical")
+        fig.subplots_adjust(bottom=0.03, right=0.96, top=0.99, hspace=0.001)
 
-lons = np.arange(-90, 120, 30)
-lats = np.arange(-180, 210, 30)
-dummy = np.ma.zeros((len(lats), len(lons)))
-dummy.mask = np.ones(dummy.shape)
+        plt.savefig(settings.IMAGELOC+"LKT_ts{}".format(settings.OUTFMT))
 
-cube = utils.make_iris_cube_2d(dummy, lats, lons, "blank", "m")
-
-utils.plot_smooth_map_iris(image_loc + "LKT_anomaly", cube, settings.COLOURMAP_DICT["temperature"], \
-                               bounds, "Anomalies from 1996-2016 ("+r"$^{\circ}$"+"C)", \
-                               scatter=[anomalies[1], anomalies[0], anomalies[2]], figtext="", title="")
-
-utils.plot_smooth_map_iris(image_loc + "p2.1_LKT_anomaly", cube, settings.COLOURMAP_DICT["temperature"], \
-                               bounds, "Anomalies from 1996-2016 ("+r"$^{\circ}$"+"C)", \
-                               scatter=[anomalies[1], anomalies[0], anomalies[2]], \
-                               figtext="(b) Lake Temperatures", title="")
+        plt.close()
 
 
-#***************
-# Insets Scatter map
+    #***************
+    # Anomaly Scatter map
+    if True:
+        anomalies = read_lakes(DATALOC + "PlateX_data_LSWT.csv")
 
-fig = plt.figure(figsize=(8, 7))
-plt.clf()
+        bounds = [-8, -2, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2, 8]
+#        bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
-anomalies = read_lakes(data_loc + "Fig2_data_LSWT.csv")
+        lons = np.arange(-90, 120, 30)
+        lats = np.arange(-180, 210, 30)
+        dummy = np.ma.zeros((len(lats), len(lons)))
+        dummy.mask = np.ones(dummy.shape)
 
-bounds = [-8, -2.5, -2, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2, 2.5, 8]
-bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
-cmap = settings.COLOURMAP_DICT["temperature"]
-norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
-this_cmap = copy.copy(cmap)
+        cube = utils.make_iris_cube_2d(dummy, lats, lons, "blank", "m")
 
-first_cube = iris.load(data_loc + "amaps_1st_quarter_2018_250km.nc")[0]
-third_cube = iris.load(data_loc + "amaps_3rd_quarter_2018_250km.nc")[0]
-annual_cube = iris.load(data_loc + "amaps_annual_2018_250km.nc")[0]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "LKT_anomaly", cube, settings.COLOURMAP_DICT["temperature"], \
+                                       bounds, "Anomalies from 1996-2016 ("+r"$^{\circ}$"+"C)", \
+                                       scatter=[anomalies[1], anomalies[0], anomalies[2]], figtext="", title="")
 
-# make axes by hand
-axes = ([0.01, 0.55, 0.59, 0.41], [0.565, 0.45, 0.47, 0.50], [0.01, 0.13, 0.59, 0.41], [0.61, 0.07, 0.38, 0.41],[0.1, 0.08, 0.8, 0.03])
-
-# Europe
-ax = plt.axes(axes[0], projection=cartopy.crs.PlateCarree())
-
-ax.gridlines() #draw_labels=True)
-ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-ax.coastlines(resolution="50m")
-#ax.add_feature(cartopy.feature.BORDERS.with_scale('110m'), linewidth=.5)
-ax.set_extent([-25, 40, 34, 72], cartopy.crs.PlateCarree())
-
-mesh = iris.plot.pcolormesh(third_cube, cmap=this_cmap, norm=norm, axes=ax)
-plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
-                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5, zorder=10)
-
-ax.text(0.05, 1.05, "(a) Europe", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
-utils.thicken_panel_border(ax)
-
-# Africa
-ax = plt.axes(axes[1], projection=cartopy.crs.PlateCarree())
-
-ax.gridlines() #draw_labels=True)
-ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-ax.coastlines(resolution="50m")
-#ax.add_feature(cartopy.feature.BORDERS.with_scale('110m'), linewidth=.5)
-ax.set_extent([-19, 43, -40, 33], cartopy.crs.PlateCarree())
-
-lat_constraint = utils.latConstraint([25, 90]) 
-nh_cube = third_cube.extract(lat_constraint)
-lat_constraint = utils.latConstraint([-90, -25]) 
-sh_cube = first_cube.extract(lat_constraint)
-lat_constraint = utils.latConstraint([-25, 25]) 
-trop_cube = annual_cube.extract(lat_constraint)
-
-mesh = iris.plot.pcolormesh(nh_cube, cmap=this_cmap, norm=norm, axes=ax)
-mesh = iris.plot.pcolormesh(trop_cube, cmap=this_cmap, norm=norm, axes=ax)
-mesh = iris.plot.pcolormesh(sh_cube, cmap=this_cmap, norm=norm, axes=ax)
-
-plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
-                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5, zorder=10)
-
-ax.text(0.05, 1.05, "(b) Africa", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
-utils.thicken_panel_border(ax)
-
-# Canada
-ax = plt.axes(axes[2], projection=cartopy.crs.PlateCarree())
-
-ax.gridlines() #draw_labels=True)
-ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-ax.coastlines(resolution="50m")
-#ax.add_feature(cartopy.feature.BORDERS.with_scale('110m'), linewidth=.5)
-ax.set_extent([-140, -55, 42, 82], cartopy.crs.PlateCarree())
-
-mesh = iris.plot.pcolormesh(third_cube, cmap=this_cmap, norm=norm, axes=ax)
-plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
-                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5, zorder=10)
-
-ax.text(0.05, 1.05, "(c) Canada", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
-utils.thicken_panel_border(ax)
-
-# Tibet
-ax = plt.axes(axes[3], projection=cartopy.crs.PlateCarree())
-
-ax.gridlines() #draw_labels=True)
-ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-ax.coastlines(resolution="50m")
-ax.add_feature(cartopy.feature.BORDERS.with_scale('50m'), linewidth=.5)
-ax.set_extent([78, 102, 28, 39], cartopy.crs.PlateCarree())
-
-mesh = iris.plot.pcolormesh(third_cube, cmap=this_cmap, norm=norm, axes=ax)
-plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
-                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5, zorder=10)
-
-ax.text(0.05, 1.05, "(d) Tibetan Plateau", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
-utils.thicken_panel_border(ax)
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_LKT_anomaly", cube, settings.COLOURMAP_DICT["temperature"], \
+                                       bounds, "Anomalies from 1996-2016 ("+r"$^{\circ}$"+"C)", \
+                                       scatter=[anomalies[1], anomalies[0], anomalies[2]], \
+                                       figtext="(b) Lake Temperatures", title="")
 
 
-# colourbar
-cb = plt.colorbar(mesh, cax=plt.axes(axes[4]), orientation='horizontal', ticks=bounds[1:-1], \
-                    label="Anomalies from 1996-2016 ("+r"$^{\circ}$"+"C)", drawedges=True)
+    #***************
+    # Insets Scatter map
+    if True:
 
-# prettify
-cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-cb.outline.set_linewidth(2)
-cb.dividers.set_color('k')
-cb.dividers.set_linewidth(2)
+        fig = plt.figure(figsize=(8, 7))
+        plt.clf()
 
-plt.savefig(image_loc + "LKT_Regions_scatter_map{}".format(settings.OUTFMT))
-plt.close()
+        anomalies = read_lakes(DATALOC + "Fig2_data_LSWT.csv")
+
+        bounds = [-8, -2, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2, 8]
+#        bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
+        cmap = settings.COLOURMAP_DICT["temperature"]
+        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+        this_cmap = copy.copy(cmap)
+
+        # first_cube = iris.load(DATALOC + "amaps_1st_quarter_2018_250km.nc")[0]
+        # third_cube = iris.load(DATALOC + "amaps_3rd_quarter_2018_250km.nc")[0]
+        # annual_cube = iris.load(DATALOC + "amaps_annual_2018_250km.nc")[0]
+
+        cube = iris.load(DATALOC + "lswt_anom_1979_2019.nc")[0]
+        if settings.OUTFMT in [".eps", ".pdf"]:
+            if cube.coord("latitude").points.shape[0] > 180 or cube.coord("longitude").points.shape[0] > 360:
+                regrid_size = 1.0
+                print("Regridding cube for {} output to {} degree resolution".format(settings.OUTFMT, regrid_size))
+                print("Old Shape {}".format(cube.data.shape))
+                plot_cube = utils.regrid_cube(cube, regrid_size, regrid_size)
+                print("New Shape {}".format(plot_cube.data.shape))
+            else:
+                plot_cube = copy.deepcopy(cube)
+        else:
+            plot_cube = copy.deepcopy(cube)
+        
+
+        # make axes by hand
+        axes = ([0.01, 0.55, 0.59, 0.41], [0.565, 0.45, 0.47, 0.50], [0.01, 0.13, 0.59, 0.41], [0.61, 0.07, 0.38, 0.41],[0.1, 0.1, 0.8, 0.03])
+
+        # Europe
+        ax = plt.axes(axes[0], projection=cartopy.crs.PlateCarree())
+
+        ax.gridlines() #draw_labels=True)
+        ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+        ax.coastlines(resolution="50m")
+        #ax.add_feature(cartopy.feature.BORDERS.with_scale('110m'), linewidth=.5)
+        ax.set_extent([-25, 40, 34, 72], cartopy.crs.PlateCarree())
+
+        mesh = iris.plot.pcolormesh(plot_cube, cmap=this_cmap, norm=norm, axes=ax)
+        plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
+                                transform=cartopy.crs.Geodetic(), edgecolor='0.1', linewidth=0.5, zorder=10)
+
+        ax.text(0.05, 1.05, "(a) Europe", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+        utils.thicken_panel_border(ax)
+
+        # Africa
+        ax = plt.axes(axes[1], projection=cartopy.crs.PlateCarree())
+
+        ax.gridlines() #draw_labels=True)
+        ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+        ax.coastlines(resolution="50m")
+        #ax.add_feature(cartopy.feature.BORDERS.with_scale('110m'), linewidth=.5)
+        ax.set_extent([-19, 43, -40, 33], cartopy.crs.PlateCarree())
+
+        # lat_constraint = utils.latConstraint([25, 90]) 
+        # nh_cube = third_cube.extract(lat_constraint)
+        # lat_constraint = utils.latConstraint([-90, -25]) 
+        # sh_cube = first_cube.extract(lat_constraint)
+        # lat_constraint = utils.latConstraint([-25, 25]) 
+        # trop_cube = annual_cube.extract(lat_constraint)
+
+        # mesh = iris.plot.pcolormesh(nh_cube, cmap=this_cmap, norm=norm, axes=ax)
+        # mesh = iris.plot.pcolormesh(trop_cube, cmap=this_cmap, norm=norm, axes=ax)
+        # mesh = iris.plot.pcolormesh(sh_cube, cmap=this_cmap, norm=norm, axes=ax)
+        mesh = iris.plot.pcolormesh(plot_cube, cmap=this_cmap, norm=norm, axes=ax)
+
+        plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
+                                transform=cartopy.crs.Geodetic(), edgecolor='0.1', linewidth=0.5, zorder=10)
+
+        ax.text(0.05, 1.05, "(b) Africa", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+        utils.thicken_panel_border(ax)
+
+        # Canada
+        ax = plt.axes(axes[2], projection=cartopy.crs.PlateCarree())
+
+        ax.gridlines() #draw_labels=True)
+        ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+        ax.coastlines(resolution="50m")
+        #ax.add_feature(cartopy.feature.BORDERS.with_scale('110m'), linewidth=.5)
+        ax.set_extent([-140, -55, 42, 82], cartopy.crs.PlateCarree())
+
+        mesh = iris.plot.pcolormesh(plot_cube, cmap=this_cmap, norm=norm, axes=ax)
+        plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
+                                transform=cartopy.crs.Geodetic(), edgecolor='0.1', linewidth=0.5, zorder=10)
+
+        ax.text(0.05, 1.05, "(c) Canada", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+        utils.thicken_panel_border(ax)
+
+        # Tibet
+        ax = plt.axes(axes[3], projection=cartopy.crs.PlateCarree())
+
+        ax.gridlines() #draw_labels=True)
+        ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+        ax.coastlines(resolution="50m")
+        ax.add_feature(cartopy.feature.BORDERS.with_scale('50m'), linewidth=.5)
+        ax.set_extent([78, 102, 28, 39], cartopy.crs.PlateCarree())
+
+        mesh = iris.plot.pcolormesh(plot_cube, cmap=this_cmap, norm=norm, axes=ax)
+        plt.scatter(anomalies[1], anomalies[0], c=anomalies[2], cmap=this_cmap, norm=norm, s=25, \
+                                transform=cartopy.crs.Geodetic(), edgecolor='0.1', linewidth=0.5, zorder=10)
+
+        ax.text(0.05, 1.05, "(d) Tibetan Plateau", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+        utils.thicken_panel_border(ax)
+
+
+        # colourbar
+        cb = plt.colorbar(mesh, cax=plt.axes(axes[4]), orientation='horizontal', ticks=bounds[1:-1], drawedges=True)
+
+        # prettify
+        cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in', size=0)
+        cb.set_label(label="Anomalies from 1996-2016 ("+r"$^{\circ}$"+"C)", fontsize=settings.FONTSIZE)
+        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+        cb.outline.set_linewidth(2)
+        cb.dividers.set_color('k')
+        cb.dividers.set_linewidth(2)
+
+        plt.savefig(settings.IMAGELOC + "LKT_Regions_scatter_map{}".format(settings.OUTFMT))
+        plt.close()
 
 
 #************************************************************************
-#   END
+if __name__ == "__main__":
+
+    run_all_plots()
+
+#************************************************************************
+#                                 END
 #************************************************************************

@@ -68,10 +68,10 @@ def scatter_plot_map(outname, data, lons, lats, cmap, bounds, cb_label, title=""
      
     norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-    fig = plt.figure(figsize=(10, 6.5))
+    fig = plt.figure(figsize=(8, 5.5))
 
     plt.clf()
-    ax = plt.axes([0.05, 0.10, 0.90, 0.90], projection=cartopy.crs.Robinson())
+    ax = plt.axes([0.01, 0.12, 0.98, 0.88], projection=cartopy.crs.Robinson())
     ax.gridlines() #draw_labels=True)
     ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
     ax.coastlines()
@@ -87,8 +87,11 @@ def scatter_plot_map(outname, data, lons, lats, cmap, bounds, cb_label, title=""
 
     # thicken border of colorbar and the dividers
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
-
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in', size=0)
+
+    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE)
+
 #    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
@@ -118,9 +121,9 @@ def annual_average(indata):
 
     # if a 1-D array, reshape
     if len(indata.shape) == 1:
-        newdata = np.reshape(indata, [-1, 12])
+        newdata = np.ma.reshape(indata, [-1, 12])
 
-    return np.mean(newdata, axis=1) # annual_average
+    return np.ma.mean(newdata, axis=1) # annual_average
 
 #************************************************************************
 def erai_ts_read(data_loc, variable, annual=False):
@@ -215,7 +218,7 @@ def era5_ts_read(data_loc, variable, annual=False):
     elif variable == "sat":
         var = "T2M"
 
-    cube_list = iris.load(data_loc + "ERA5_{}_197901-{}12_area_time_series.nc".format(var, settings.YEAR))
+    cube_list = iris.load(data_loc + "era5_{}_197901-{}12_mon_area_avg_series.nc".format(var.lower(), settings.YEAR))
 
     names = np.array([cube.name() for cube in cube_list])
 
@@ -269,6 +272,13 @@ def calculate_climatology_and_anomalies_1d(indata, start, end):
     # find range to use
     start_loc, = np.where(indata.times == start)
     end_loc, = np.where(indata.times == end + 1)
+
+    if len(start_loc) == 0:
+        # series starts too late
+        start_loc = [0]
+    if len(end_loc) == 0:
+        # series ends too early
+        end_loc = [-1]
 
     # get the mean and subtract to get anomalies
     try:
@@ -368,8 +378,8 @@ def mpw_plot_points(slope, years, values):
 
 
 #************************************************************************
-def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
-                             figtext="", title="", contour=False, cb_extra="", save_netcdf_filename=""):
+def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], smarker="o",\
+                             figtext="", title="", contour=False, cb_extra="", save_netcdf_filename="", tall=False):
     '''
     Standard scatter map
 
@@ -379,14 +389,22 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
     :param array bounds: bounds for discrete colormap
     :param str cb_label: colorbar label
     :param str save_netcdf_filename: filename to save the output plot to a cube.
+    :param bool tall: make a taller map for longer colorbar label (with line-break)
     '''
 
     norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-    fig = plt.figure(figsize=(10, 6.5))
+    if tall:
+        fig = plt.figure(figsize=(8, 5.7))
+        plt.clf()
+        ax = plt.axes([0.01, 0.18, 0.98, 0.78], projection=cartopy.crs.Robinson())
+    else:
+        fig = plt.figure(figsize=(8, 5.5))
+        plt.clf()
+        ax = plt.axes([0.01, 0.12, 0.98, 0.88], projection=cartopy.crs.Robinson())
 
-    plt.clf()
-    ax = plt.axes([0.05, 0.10, 0.90, 0.90], projection=cartopy.crs.Robinson())
+
+        
     ax.gridlines() #draw_labels=True)
     ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
     ax.coastlines()
@@ -458,11 +476,13 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
             save_cube_as_netcdf(plot_cube, save_netcdf_filename)
 
     if len(scatter) > 0:
-
         lons, lats, data = scatter
-
-        plt.scatter(lons, lats, c=data, cmap=cmap, norm=norm, s=25, \
+        if smarker == "o":
+            plt.scatter(lons, lats, c=data, cmap=cmap, norm=norm, s=25, marker="o",\
                         transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5)
+        elif smarker == "dots":
+            plt.scatter(lons, lats, c="0.1", cmap=cmap, norm=norm, s=2, marker="o",\
+                        transform=cartopy.crs.Geodetic())
 
 
     cb = plt.colorbar(mesh, orientation='horizontal', pad=0.05, fraction=0.05, \
@@ -471,9 +491,9 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
     # thicken border of colorbar and the dividers
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE*0.6, direction='in')
+    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in', size=0)
 
-    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE*0.6)
+    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE)
 
 #    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
@@ -481,13 +501,13 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
     cb.dividers.set_linewidth(2)
 
     if cb_extra != "":
-        fig.text(0.04, 0.05, cb_extra[0], fontsize=settings.FONTSIZE*0.6, ha="left")
-        fig.text(0.96, 0.05, cb_extra[1], fontsize=settings.FONTSIZE*0.6, ha="right")
+        fig.text(0.04, 0.07, cb_extra[0], fontsize=settings.FONTSIZE, ha="left")
+        fig.text(0.96, 0.07, cb_extra[1], fontsize=settings.FONTSIZE, ha="right")
 
     ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
 
-    plt.title(title, fontsize=settings.FONTSIZE*0.8)
-    fig.text(0.03, 0.95, figtext, fontsize=settings.FONTSIZE*0.8)
+    plt.title(title, fontsize=settings.FONTSIZE)
+    fig.text(0.01, 0.95, figtext, fontsize=settings.FONTSIZE)
 
     plt.savefig(outname + settings.OUTFMT)
     plt.close()
@@ -515,16 +535,16 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
 
     height = 8
     if shape[0] == 2:
-        height = 7
+        height = 6
     if shape[0] == 4:
         height = 12
     if shape[0] == 6:
-        height = 18
-    width = 10
-    if shape[1] == 2:
-        width = 10
-    if shape[1] == 1:
-        width = 5
+        height = 15
+    width = 8
+#    if shape[1] == 2:
+#        width = 10
+#    if shape[1] == 1:
+#        width = 5
 
     fig = plt.figure(figsize=(width, height))
 
@@ -565,17 +585,18 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
 
         if len(title) > 0:
             ax.title.set_text(title[panel])
+            ax.title.set_fontsize(settings.FONTSIZE)
         if len(figtext) > 0:
             ax.text(0.03, 0.95, figtext[panel], fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
 
         ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
 
-    if height == 18:
-        cbar_ax = fig.add_axes([0.05, 0.03, 0.9, 0.04])
-    elif height == 12:
+    if height == 15:
         cbar_ax = fig.add_axes([0.05, 0.05, 0.9, 0.04])
-    elif height == 7:
+    elif height == 12:
         cbar_ax = fig.add_axes([0.05, 0.07, 0.9, 0.04])
+    elif height == 6:
+        cbar_ax = fig.add_axes([0.05, 0.09, 0.9, 0.04])
 
     cb = fig.colorbar(mesh, cax=cbar_ax, orientation='horizontal', \
                          ticks=bounds[1:-1], label=cb_label, drawedges=True)
@@ -583,6 +604,10 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
     # thicken border of colorbar and the dividers
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in', size=0)
+
+    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE)
+
 #    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
     cb.dividers.set_color('k')
@@ -590,7 +615,10 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
 
     plt.figtext(0.5, 0.95, figtitle, fontsize=settings.FONTSIZE, ha="center")
 
-    fig.subplots_adjust(right=0.99, top=0.95, bottom=0.1, left=0.01, hspace=0.15, wspace=0.05)
+    if height == 15:
+        fig.subplots_adjust(right=0.99, top=0.98, bottom=0.10, left=0.01, hspace=0.3, wspace=0.01)
+    else:
+        fig.subplots_adjust(right=0.99, top=0.92, bottom=0.15, left=0.01, hspace=0.1, wspace=0.05)
 
     plt.savefig(outname + settings.OUTFMT)
     plt.close()
@@ -681,6 +709,36 @@ def read_jra55(filename, variable):
     anomalies = Timeseries(name, indata[:, 0], indata[:, 2])
 
     return actuals, anomalies
+
+#************************************************************************
+def read_20cr(filename, variable):
+    """
+    20CR data to be read (from Gil & Cathy)
+
+    :param str filename: file to read
+
+    :returns years, actuals and anomalies
+    """
+
+    name = "20CRv3"
+
+    indata = np.genfromtxt(filename, dtype=(float))
+    
+    times = indata[:, 0].astype(int).astype(str)
+    years = np.array([t[:4] for t in times]).astype(int)
+    months = np.array([t[4:] for t in times]).astype(int)
+    
+    times = years + (months - 1)/12.    
+
+    monthly = np.ma.masked_where(indata[:, 1] == -9999, indata[:, 1])
+    annuals = annual_average(monthly)
+
+    if variable == "temperature":
+        actuals = Timeseries(name, times[::12], annuals - 273.1)
+    else:
+        actuals = Timeseries(name, times[::12], annuals)
+
+    return actuals # read_20cr
 
 
 #************************************************************************
@@ -926,9 +984,9 @@ def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figt
                           ticks=bounds[1:-1], label=cb_label, drawedges=True)
 
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE*0.6, direction='in')
+    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in', size=0)
 
-    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE*0.6)
+    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE)
 
 #    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
@@ -965,12 +1023,12 @@ def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figt
             ax.set_yticks(np.sin(np.deg2rad(np.array([-90, -60, -30, 0, 30, 60, 90]))))
             ax.set_yticklabels(["-90"+r'$^{\circ}$'+"S", "-60"+r'$^{\circ}$'+"S", \
                                     "-30"+r'$^{\circ}$'+"S", "0"+r'$^{\circ}$'+"", \
-                                    "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N", "90"+r'$^{\circ}$'+"N"], fontsize=settings.FONTSIZE*0.8)
+                                    "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N", "90"+r'$^{\circ}$'+"N"], fontsize=settings.FONTSIZE)
         else:
             ax.set_ylim([-90, 90])
             ax.set_yticks([-60, -30, 0, 30, 60])
             ax.set_yticklabels(["-60"+r'$^{\circ}$'+"S", "-30"+r'$^{\circ}$'+"S", \
-                                    "0"+r'$^{\circ}$'+"", "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N"], fontsize=settings.FONTSIZE*0.8)
+                                    "0"+r'$^{\circ}$'+"", "30"+r'$^{\circ}$'+"N", "60"+r'$^{\circ}$'+"N"], fontsize=settings.FONTSIZE)
 
     # prettify the plot
     for ax in [ax1, ax2]:
@@ -982,11 +1040,16 @@ def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figt
         ax.xaxis.set_minor_locator(minorLocator)
         thicken_panel_border(ax)
         for tick in ax.xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8)
+            tick.label.set_fontsize(settings.FONTSIZE)
+
+        if "TWS" in outname:
+                majorLocator = MultipleLocator(5)
+                ax.xaxis.set_major_locator(majorLocator)
+
 
     # finish off
     plt.title(title)
-    fig.text(0.03, 0.95, figtext, fontsize=settings.FONTSIZE * 0.8)
+    fig.text(0.03, 0.95, figtext, fontsize=settings.FONTSIZE)
 
     plt.savefig(outname + settings.OUTFMT)
     plt.close()

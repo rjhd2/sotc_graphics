@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Stratospheric Ozone (SOZ) section.
@@ -23,9 +23,7 @@ import matplotlib.pyplot as plt
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/SOZ/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/SOZ/".format(settings.ROOTLOC, settings.YEAR)
 
 #************************************************************************
 def read_data(filename):
@@ -83,36 +81,36 @@ def run_all_plots():
 
     #************************************************************************
     # Global Map
+    if True:
+        cube = read_data(DATALOC + "GSG_{}annual mean_G_ano_ref1998-2008.txt".format(settings.YEAR))
 
-    cube = read_data(data_loc + "GSG_{}annual mean_G_ano_ref1998-2008.txt".format(settings.YEAR))
+        bounds = [-100, -20, -15, -8, -4, 0, 4, 8, 15, 20, 100]
 
-    bounds = [-100, -20, -15, -8, -4, 0, 4, 8, 15, 20, 100]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)")
 
-    utils.plot_smooth_map_iris(image_loc + "SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)")
-
-    utils.plot_smooth_map_iris(image_loc + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext="(aa) Stratospheric (Total Column) Ozone")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext="(z) Stratospheric (Total Column) Ozone")
 
 
     #************************************************************************
     # Timeseries (plate 1.1)
+    if True:
+    #    nh = read_ts(DATALOC + "tozave_60N_90N_3_3.dat")
+    #    sh = read_ts(DATALOC + "tozave_90S_60S_10_10.dat")
 
-#    nh = read_ts(data_loc + "tozave_60N_90N_3_3.dat")
-#    sh = read_ts(data_loc + "tozave_90S_60S_10_10.dat")
+        nh = read_ts(DATALOC + "NH_polar_ozone.txt")
+        sh = read_ts(DATALOC + "SH_polar_ozone.txt")
 
-    nh = read_ts(data_loc + "NH_polar_ozone.txt")
-    sh = read_ts(data_loc + "SH_polar_ozone.txt")
+        fig = plt.figure(figsize=(8, 6))
+        plt.clf()
 
-    fig = plt.figure(figsize=(8, 6))
-    plt.clf()
+        plt.plot(nh.times, nh.data, "b-", label="March NH")
+        plt.plot(sh.times, sh.data, "r-", label="October SH")
 
-    plt.plot(nh.times, nh.data, "b-", label="March NH")
-    plt.plot(sh.times, sh.data, "r-", label="October SH")
+        plt.ylabel("total Ozone (DU")
+        plt.title("Polar Ozone")
 
-    plt.ylabel("total Ozone (DU")
-    plt.title("Polar Ozone")
-
-    plt.legend()
-    plt.savefig(image_loc + "SOZ_ts{}".format(settings.OUTFMT))
+        plt.legend()
+        plt.savefig(settings.IMAGELOC + "SOZ_ts{}".format(settings.OUTFMT))
 
     return # run_all_plots
 

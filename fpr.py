@@ -25,9 +25,7 @@ from matplotlib.ticker import MultipleLocator
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/FPR/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/FPR/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'lower left'
 LW = 2
@@ -90,9 +88,9 @@ def run_all_plots():
     #************************************************************************
     # Timeseries
 
-    data = read_binary_ts(data_loc + "TimeSeries_faparanomaliesglobal_bams_v{}_C6.bin".format(settings.YEAR))
+    data = read_binary_ts(DATALOC + "TimeSeries_faparanomaliesglobal_bams_v{}_C6_2020.bin".format(int(settings.YEAR)-1))
 
-    fig = plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(8, 6))
     ax = plt.axes([0.13, 0.07, 0.8, 0.86])
 
     COLOURS = settings.COLOURS["land_surface"]
@@ -107,7 +105,7 @@ def run_all_plots():
     ax.axhline(0, c='0.5', ls='--')
     utils.thicken_panel_border(ax)
 
-    ax.legend(loc=LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE * 0.8}, labelspacing=0.1, columnspacing=0.5)
+    ax.legend(loc=LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, labelspacing=0.1, columnspacing=0.5)
 
     #*******************
     # prettify
@@ -115,6 +113,7 @@ def run_all_plots():
     fig.text(0.01, 0.5, "Anomaly (FAPAR)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
     plt.xlim([1998-1, int(settings.YEAR)+2])
+    plt.ylim([-0.022, None])
 
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
@@ -122,12 +121,12 @@ def run_all_plots():
     for tick in ax.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
 
-    plt.savefig(image_loc + "FPR_ts{}".format(settings.OUTFMT))
+    plt.savefig(settings.IMAGELOC + "FPR_ts{}".format(settings.OUTFMT))
     plt.close()
 
     #************************************************************************
     # Hovmullers
-    data = read_binary(data_loc + "Hovmuller_Global_lat_fapar1998_2010_bams_trois_C6.eps_{}.bin".format(int(settings.YEAR)+1))
+    data = read_binary(DATALOC + "Hovmuller_Global_lat_fapar1998_2010_bams_trois_C6.eps_{}.bin".format(int(settings.YEAR)+1))
 
     # reshape - from Readme
     data = data.reshape(360, DURATION)
@@ -137,12 +136,12 @@ def run_all_plots():
     lats = np.arange(-90, 90, 0.5)
 
     bounds = [-20, -0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 20]
-    utils.plot_hovmuller(image_loc + "FPR_hovmuller", times, lats, data, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomaly (FAPAR)")
+    utils.plot_hovmuller(settings.IMAGELOC + "FPR_hovmuller", times, lats, data, settings.COLOURMAP_DICT["phenological"], bounds, "Anomaly (FAPAR)")
 
 
     #************************************************************************
     # Anomalies
-    data = read_binary(data_loc + "DataXFigure1fapar1998_2010_bams_trois_C6_v2.eps.bin")
+    data = read_binary(DATALOC + "DataXFigure1fapar1998_2010_bams_trois_C6_v2.eps_v2020.bin")
     data = data.reshape(360, 720)
 
     data = np.ma.masked_where(data == -100, data) # land/ocean mask
@@ -155,8 +154,8 @@ def run_all_plots():
     cube = utils.make_iris_cube_2d(data, lats, lons, "FAPAR", "%")
 
     bounds = [-20, -0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 20]
-    utils.plot_smooth_map_iris(image_loc + "p2.1_FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010), figtext="(af) Fraction of Absorbed Photosynthetically Active Radiation")
-    utils.plot_smooth_map_iris(image_loc + "FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010))
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["phenological"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010), figtext="(ae) Fraction of Absorbed Photosynthetically Active Radiation")
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["phenological"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010))
 
 
     return # run_all_plots

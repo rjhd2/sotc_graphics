@@ -57,7 +57,7 @@ print("missing linear trend")
 
 # minor_tick_interval = 1
 # minorLocator = MultipleLocator(minor_tick_interval)
-# fig = plt.figure(figsize=(10, 8))
+# fig = plt.figure(figsize=(8, 6.5))
 # ax = plt.axes([0.13, 0.07, 0.75, 0.86])
 
 # plt.plot(cmo_monthly.times, cmo_monthly.data, 'k', ls='-', lw=LW)
@@ -80,7 +80,7 @@ print("missing linear trend")
 # Global Map
 seasonal_list = []
 
-cube_list = iris.load(data_loc + "TCCO_ANO_YEAR_JUL_mean_{}.nc".format(settings.YEAR))
+cube_list = iris.load(data_loc + "TCCO_ANO_YEAR_JAS_mean_{}.nc".format(settings.YEAR))
 names = np.array([cube.var_name for cube in cube_list])
 
 selected_cube, = np.where(names == "tcco_ano")
@@ -92,7 +92,7 @@ cube.coord('longitude').guess_bounds()
 bounds = [-100, -20, -15, -10, -5, 0, 5, 10, 15, 20, 100]
 
 utils.plot_smooth_map_iris(image_loc + "CMO_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR[2:]))
-utils.plot_smooth_map_iris(image_loc + "p2.1_CMO_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR[2:]), figtext="(ac) Carbon Monoxide")
+utils.plot_smooth_map_iris(image_loc + "p2.1_CMO_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR[2:]), figtext="(ab) Carbon Monoxide")
 
 # # Global Map - Jan-Jun
 
@@ -120,7 +120,7 @@ seasonal_list += [cube]
 
 bounds = [-100, -20, -15, -10, -5, 0, 5, 10, 15, 20, 100]
 
-utils.plot_smooth_map_iris(image_loc + "CMO_{}_Jul_Sep_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR[2:]), title="July - Sept {}".format(settings.YEAR))
+utils.plot_smooth_map_iris(image_loc + "CMO_{}_Jul_Sep_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies (%)".format(settings.YEAR[2:]), title="July - Sept {}".format(settings.YEAR))
 
 #utils.plot_smooth_map_iris_multipanel(image_loc + "CMO_{}_season_anoms".format(settings.YEAR), seasonal_list, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{} (%)".format(settings.YEAR[2:]), shape=(2,1), title=["January - June {}".format(settings.YEAR), "July - December {}".format(settings.YEAR)], figtext=["(a)","(b)"])
 #************************************************************************

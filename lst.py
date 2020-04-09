@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 # python3
 from __future__ import absolute_import
 from __future__ import print_function
@@ -26,9 +26,7 @@ import iris
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/LST/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/LST/".format(settings.ROOTLOC, settings.YEAR)
 
 CLIM_PERIOD = "8110"
 LEGEND_LOC = 'lower left'
@@ -54,16 +52,14 @@ def read_csv(filename):
     rss = utils.Timeseries("RSS v4.0", indata[:, 0], indata[:, 5])
     noaa = utils.Timeseries("NOAA v4.1", indata[:, 0], indata[:, 6])
 
-    erai = utils.Timeseries("ERA-Interim", indata[:, 0], indata[:, 7])
-    erai.ls = "--"
-    era5 = utils.Timeseries("ERA5", indata[:, 0], indata[:, 8])
-    jra = utils.Timeseries("JRA-55", indata[:, 0], indata[:, 9])
-    merra = utils.Timeseries("MERRA-2", indata[:, 0], indata[:, 10])
+#    era5 = utils.Timeseries("ERA5", indata[:, 0], indata[:, 8])
+    jra = utils.Timeseries("JRA-55", indata[:, 0], indata[:, 7])
+    merra = utils.Timeseries("MERRA-2", indata[:, 0], indata[:, 8])
 
 #    cmip = utils.Timeseries("CMIP5", indata[:, 0], indata[:, 11])
 #    ssu3 = utils.Timeseries("SSU-3", indata[:, 0], indata[:, 12])
 
-    return UAH, rss, ratpac, raobcore, rich, noaa, erai, era5 # read_csv
+    return UAH, rss, ratpac, raobcore, rich, noaa, jra, merra # read_csv
 
 #************************************************************************
 def read_ssu_csv(filename):
@@ -79,6 +75,25 @@ def read_ssu_csv(filename):
     ncar = utils.Timeseries("NCAR", indata[:, 0], indata[:, 4])
 
     return ssu2, ncar # read_ssu_csv
+
+#************************************************************************
+def read_ssu(filename):
+    """
+    Read user supplied CSV for LST into Timeseries object
+    """
+
+    indata = np.genfromtxt(filename, dtype=(float), \
+                               skip_header=2, missing_values="", filling_values=-99.9)
+
+    indata = np.ma.masked_where(indata == -99.9, indata)
+    ssu1 = utils.Timeseries("SSU+MLS", indata[:, 0], indata[:, 1])
+    ssu1_2 = utils.Timeseries("SSU+AMSU", indata[:, 0], indata[:, 2])
+    ssu2 = utils.Timeseries("SSU+MLS", indata[:, 0], indata[:, 3])
+    ssu2_2 = utils.Timeseries("SSU+AMSU", indata[:, 0], indata[:, 4])
+    ssu3 = utils.Timeseries("SSU+MLS", indata[:, 0], indata[:, 5])
+    ssu3_2 = utils.Timeseries("SSU+AMSU", indata[:, 0], indata[:, 6])
+
+    return ssu1, ssu1_2, ssu2, ssu2_2, ssu3, ssu3_2 # read_ssu
 
 #************************************************************************
 def read_qbo_csv(filename):
@@ -195,91 +210,249 @@ def read_polar(filename):
     return north, south # read_polar
 
 #************************************************************************
+def read_era5(filename):
+    """
+    Read user supplied data for LST into Timeseries object
+    """
+    alldata = np.genfromtxt(filename, dtype=(float), skip_header=6, encoding="latin-1")
+
+    years = alldata[:, 0]
+    months = alldata[:, 1]
+    land = alldata[:, 2]
+    ocean = alldata[:, 3]
+    combined = alldata[:, 4]
+
+    times = years + (months - 1)/12.
+
+    eral = utils.Timeseries("ERA5", times, land)
+    erao = utils.Timeseries("ERA5", times, ocean)
+    eralo = utils.Timeseries("ERA5", times, combined)
+
+    return eral, erao, eralo # read_era5
+#************************************************************************
 def run_all_plots():
 
     #************************************************************************
     # Timeseries figures
+    if True:
 
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=(10, 13), sharex=True)
+        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
 
-    UAH, rss, ratpac, raobcore, rich, noaa, erai, era5 = read_csv(data_loc + "2018_LTT_LST_SSU_date0401_LST.csv")
-    ssu2, ncar = read_ssu_csv(data_loc + "2018_LTT_LST_SSU_date0401_SSU.csv")
+        UAH, rss, ratpac, raobcore, rich, noaa, jra, merra = read_csv(DATALOC + "SotC_AnnTemps_2020_0220_LSTGL.csv")
+#        ssu2, ncar = read_ssu_csv(DATALOC + "2018_LTT_LST_SSU_date0401_SSU.csv") 
 
-    # Sondes
-    utils.plot_ts_panel(ax1, [raobcore, rich, ratpac], "-", "temperature", loc=LEGEND_LOC)
+        eral, erao, eralo = read_era5(DATALOC + "ERA5_TLS_GLOBAL")
+        eralo_ann = utils.Timeseries("ERA5", np.reshape(eralo.times, [-1, 12])[:,0], utils.annual_average(eralo.data))
 
-    # satellites
-    utils.plot_ts_panel(ax2, [UAH, noaa, rss], "-", "temperature", loc=LEGEND_LOC)
+        # Sondes [no RATPAC for 2019]
+        utils.plot_ts_panel(ax1, [raobcore, rich], "-", "temperature", loc=LEGEND_LOC)
 
-    # reanalyses
-    jra_actuals, jra_anoms = utils.read_jra55(reanalysis_loc + "JRA-55_MSUch4_global_ts.txt", "temperature")
-    merra_actuals, merra_anoms = utils.read_merra_LT_LS(reanalysis_loc + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LS=True)
-    utils.plot_ts_panel(ax3, [erai, era5, jra_anoms, merra_anoms], "-", "temperature", loc=LEGEND_LOC)
+        # satellites
+        utils.plot_ts_panel(ax2, [UAH, noaa, rss], "-", "temperature", loc=LEGEND_LOC)
 
-#    ax3.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
+        # reanalyses
+        jra_actuals, jra_anoms = utils.read_jra55(settings.REANALYSISLOC + "JRA-55_MSUch4_global_ts.txt", "temperature")
+        merra_actuals, merra_anoms = utils.read_merra_LT_LS(settings.REANALYSISLOC + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LS=True)
+        utils.plot_ts_panel(ax3, [eralo_ann, jra_anoms, merra_anoms], "-", "temperature", loc=LEGEND_LOC)
 
-    # Upper Stratosphere
-    utils.plot_ts_panel(ax4, [ssu2, ncar], "-", "temperature", loc=LEGEND_LOC)
+    #    ax3.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
 
-    # sort formatting
-    plt.xlim([1957, raobcore.times[-1]+1])
+        # Upper Stratosphere
+#        utils.plot_ts_panel(ax4, [ssu2, ncar], "-", "temperature", loc=LEGEND_LOC)
 
-    for tick in ax4.xaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
-    for ax in [ax1, ax2, ax3, ax4]:
-        for tick in ax.yaxis.get_major_ticks():
+        # sort formatting
+        plt.xlim([1957, raobcore.times[-1]+1])
+
+        for tick in ax3.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE)
+        for ax in [ax1, ax2, ax3]:
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
 
-        ax.set_ylim([-1.0, 2.4])
-    ax4.set_ylim([-2.0, 1.9])
+            ax.set_ylim([-1.2, 2.2])
+ 
+        # sort labelling
+        ax1.text(0.02, 0.88, "(a) Radiosondes", transform=ax1.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax2.text(0.02, 0.88, "(b) Satellites", transform=ax2.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax3.text(0.02, 0.88, "(c) Reanalyses", transform=ax3.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+ 
+        fig.text(0.01, 0.45, "Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE, rotation="vertical")
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.04, hspace=0.001)
 
-    # sort labelling
-    ax1.text(0.02, 0.88, "(a) Radiosondes", transform=ax1.transAxes, \
-                 fontsize=settings.LABEL_FONTSIZE)
-    ax2.text(0.02, 0.88, "(b) Satellites", transform=ax2.transAxes, \
-                 fontsize=settings.LABEL_FONTSIZE)
-    ax3.text(0.02, 0.88, "(c) Reanalyses", transform=ax3.transAxes, \
-                 fontsize=settings.LABEL_FONTSIZE)
-    ax4.text(0.02, 0.88, "(d) MST Satellite", transform=ax4.transAxes, \
-                 fontsize=settings.LABEL_FONTSIZE)
+        plt.savefig(settings.IMAGELOC+"LST_ts{}".format(settings.OUTFMT))
 
-    fig.text(0.01, 0.55, "Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE, rotation="vertical")
-    fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
+        plt.close()
 
-    plt.savefig(image_loc+"LST_ts{}".format(settings.OUTFMT))
 
-    plt.close()
+    #************************************************************************
+    # Timeseries figures
+    if True:
+
+        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
+
+        
+        ssu1, ssu1_2, ssu2, ssu2_2, ssu3, ssu3_2 = read_ssu(DATALOC + "SSU.dat") 
+
+        # SSU3
+        utils.plot_ts_panel(ax1, [ssu3, ssu3_2], "-", "temperature", loc="")
+        # SSU2
+        utils.plot_ts_panel(ax2, [ssu2, ssu2_2], "-", "temperature", loc="")
+        # SSU1
+        utils.plot_ts_panel(ax3, [ssu1, ssu1_2], "-", "temperature", loc=LEGEND_LOC)
+
+        # sort formatting
+        plt.xlim([1957, ssu1.times[-1]+2])
+
+        for tick in ax3.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for ax in [ax1, ax2, ax3]:
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+
+            ax.set_ylim([-1.3, 2.2])
+            
+        # sort labelling
+        ax1.text(0.02, 0.88, "(a) SSU3", transform=ax1.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax2.text(0.02, 0.88, "(b) SSU2", transform=ax2.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax3.text(0.02, 0.88, "(c) SSU1", transform=ax3.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+
+        fig.text(0.01, 0.45, "Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE, rotation="vertical")
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.04, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"LST_SSU_ts{}".format(settings.OUTFMT))
+
+        plt.close()
+
+    #************************************************************************
+    # Combined Timeseries figures
+    if True:
+
+        fig = plt.figure(figsize=(12, 8))
+
+        # manually set up the 10 axes
+        w = 0.42
+        h = 0.31
+        c = 0.51
+        ax1 = plt.axes([c-w, 0.99-h, w, h])
+        ax2 = plt.axes([c, 0.99-h, w, h])
+        ax3 = plt.axes([c-w, 0.99-(2*h), w, h], sharex=ax1)
+        ax4 = plt.axes([c, 0.99-(2*h), w, h], sharex=ax2)
+        ax5 = plt.axes([c-w, 0.99-(3*h), w, h], sharex=ax1)
+        ax6 = plt.axes([c, 0.99-(3*h), w, h], sharex=ax2)
+
+        UAH, rss, ratpac, raobcore, rich, noaa, jra, merra = read_csv(DATALOC + "SotC_AnnTemps_2020_0220_LSTGL.csv")
+#        ssu2, ncar = read_ssu_csv(DATALOC + "2018_LTT_LST_SSU_date0401_SSU.csv") 
+
+        eral, erao, eralo = read_era5(DATALOC + "ERA5_TLS_GLOBAL")
+        eralo_ann = utils.Timeseries("ERA5", np.reshape(eralo.times, [-1, 12])[:,0], utils.annual_average(eralo.data))
+
+        # Sondes [no RATPAC for 2019]
+        utils.plot_ts_panel(ax2, [raobcore, rich], "-", "temperature", loc=LEGEND_LOC)
+
+        # satellites
+        utils.plot_ts_panel(ax4, [UAH, noaa, rss], "-", "temperature", loc=LEGEND_LOC)
+
+        # reanalyses
+        jra_actuals, jra_anoms = utils.read_jra55(settings.REANALYSISLOC + "JRA-55_MSUch4_global_ts.txt", "temperature")
+        merra_actuals, merra_anoms = utils.read_merra_LT_LS(settings.REANALYSISLOC + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LS=True)
+        utils.plot_ts_panel(ax6, [eralo_ann, jra_anoms, merra_anoms], "-", "temperature", loc=LEGEND_LOC)
+
+        
+        ssu1, ssu1_2, ssu2, ssu2_2, ssu3, ssu3_2 = read_ssu(DATALOC + "SSU.dat") 
+
+        # SSU3
+        utils.plot_ts_panel(ax1, [ssu3, ssu3_2], "-", "temperature", loc="")
+        # SSU2
+        utils.plot_ts_panel(ax3, [ssu2, ssu2_2], "-", "temperature", loc="")
+        # SSU1
+        utils.plot_ts_panel(ax5, [ssu1, ssu1_2], "-", "temperature", loc=LEGEND_LOC)
+ 
+        # sort labelling
+        for ax in [ax2, ax4, ax6]:
+            ax.yaxis.tick_right()
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label2.set_fontsize(settings.FONTSIZE)
+        for ax in [ax1, ax3, ax5]:
+            ax.yaxis.tick_right()
+            ax.yaxis.set_ticks_position('left')
+
+        ax2.text(0.02, 0.88, "(d) Radiosondes", transform=ax2.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax4.text(0.02, 0.88, "(e) Satellites", transform=ax4.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax6.text(0.02, 0.88, "(f) Reanalyses", transform=ax6.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+ 
+        ax1.text(0.02, 0.88, "(a) SSU3", transform=ax1.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax3.text(0.02, 0.88, "(b) SSU2", transform=ax3.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax5.text(0.02, 0.88, "(c) SSU1", transform=ax5.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-2]], visible=False)
+
+        # sort formatting
+        ax1.set_xlim([1957, raobcore.times[-1]+3])
+        ax2.set_xlim([1957, raobcore.times[-1]+3])
+
+        for ax in [ax5, ax6]:
+            for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+        for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+
+            ax.set_ylim([-1.2, 2.2])         
+
+        fig.text(0.01, 0.55, "Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE, rotation="vertical")
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.04, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"LST_combined_ts{}".format(settings.OUTFMT))
+
+        plt.close()
 
     #************************************************************************
     # Polar Figure
+    if False:
+        fig, ax1 = plt.subplots(figsize=(8, 5))
 
-    fig, ax1 = plt.subplots(figsize=(10, 6))
-   
-    north, south = read_polar(data_loc + "polar_data_{}.dat".format(settings.YEAR))
+        north, south = read_polar(DATALOC + "polar_data_{}.dat".format(settings.YEAR))
 
-    ax1.plot(north.times, north.data, c="b", ls="-", label=north.name)
-    ax1.plot(south.times, south.data, c="r", ls="-", label=south.name)
+        ax1.plot(north.times, north.data, c="b", ls="-", label=north.name)
+        ax1.plot(south.times, south.data, c="r", ls="-", label=south.name)
 
-    ax1.legend(loc=LEGEND_LOC, frameon=False)
-    ax1.set_xlim([1978, 2018+2])
-    ax1.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
+        ax1.legend(loc=LEGEND_LOC, frameon=False, prop={'size':settings.FONTSIZE})
+        ax1.set_xlim([1978, 2018+2])
+        ax1.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
 
-    utils.thicken_panel_border(ax1)
+        utils.thicken_panel_border(ax1)
 
-    plt.savefig(image_loc+"LST_polar_ts{}".format(settings.OUTFMT))
+        plt.savefig(settings.IMAGELOC+"LST_polar_ts{}".format(settings.OUTFMT))
 
-    plt.close()
-    
+        for tick in ax1.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+
+        plt.close()
+
     #************************************************************************
     # Polar and QBO Timeseries figures
 
-    # fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(10,12), sharex=True)
+    # fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
 
-    # north, south, qbo = read_qbo_csv(data_loc + "SOC_Strat_Data_QBO.csv")
+    # north, south, qbo = read_qbo_csv(DATALOC + "SOC_Strat_Data_QBO.csv")
 
-    # noaa_qbo = read_qbo_ncdf(data_loc + "qbo_noaa.nc", "NOAA v4.0")
-    # uah_qbo = read_qbo_ncdf(data_loc + "qbo_uah.nc", "UAH v6.0")
-    # rss_qbo = read_qbo_ncdf(data_loc + "qbo_rss.nc", "RSS v3.3")
+    # noaa_qbo = read_qbo_ncdf(DATALOC + "qbo_noaa.nc", "NOAA v4.0")
+    # uah_qbo = read_qbo_ncdf(DATALOC + "qbo_uah.nc", "UAH v6.0")
+    # rss_qbo = read_qbo_ncdf(DATALOC + "qbo_rss.nc", "RSS v3.3")
 
 
     # utils.plot_ts_panel(ax1, [north], "-", "temperature", loc="")
@@ -319,14 +492,14 @@ def run_all_plots():
 
     # fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
 
-    # plt.savefig(image_loc+"LST_qbo_ts{}".format(settings.OUTFMT))
+    # plt.savefig(settings.IMAGELOC+"LST_qbo_ts{}".format(settings.OUTFMT))
 
     # plt.close()
 
     #************************************************************************
     # MERRA Trop and Strat Timeseries figures
 
-    # fourh, threeh, twofiveh, twoh, onefiveh, fourtwoav, oneh, seventy, fifty, thirty, twenty, ten, seventytwentyav = read_merra_monthly(data_loc + "MERRA2_400_20_temp_anom_1980-{}.txt".format(settings.YEAR))
+    # fourh, threeh, twofiveh, twoh, onefiveh, fourtwoav, oneh, seventy, fifty, thirty, twenty, ten, seventytwentyav = read_merra_monthly(DATALOC + "MERRA2_400_20_temp_anom_1980-{}.txt".format(settings.YEAR))
 
     # fourtwoav.data = np.ma.masked_where(fourtwoav.times < 1994, fourtwoav.data)
     # seventytwentyav.data = np.ma.masked_where(seventytwentyav.times < 1994, seventytwentyav.data)
@@ -334,7 +507,7 @@ def run_all_plots():
     # seventytwentyav.times = np.ma.masked_where(seventytwentyav.times < 1994, seventytwentyav.times)
 
 
-    # fig, (ax1, ax2) = plt.subplots(2, figsize = (10,10), sharex=True)
+    # fig, (ax1, ax2) = plt.subplots(2, figsize = (8, 8), sharex=True)
 
     # # trop
     # fit = utils.fit_plot_points(0.025, -50.01, fourtwoav.times)
@@ -368,17 +541,17 @@ def run_all_plots():
 
     # fig.subplots_adjust(right = 0.95, top = 0.95, hspace = 0.001)
 
-    # plt.savefig(image_loc+"LST_merra_ts{}".format(settings.OUTFMT))
+    # plt.savefig(settings.IMAGELOC+"LST_merra_ts{}".format(settings.OUTFMT))
 
     # plt.close()
 
     #************************************************************************
     # Zonal figures
 
-    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10,8), sharey=True)
+    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (8, 6.5), sharey=True)
 
-    # cfsr, merra, era, jra = read_zonal(data_loc + "TLS_Reanal_zonal_trends_1994-{}.txt".format(settings.YEAR), "R")
-    # star, uah, rss = read_zonal(data_loc + "TLS_Satellite_zonal_trends_1994-{}.txt".format(settings.YEAR), "S")
+    # cfsr, merra, era, jra = read_zonal(DATALOC + "TLS_Reanal_zonal_trends_1994-{}.txt".format(settings.YEAR), "R")
+    # star, uah, rss = read_zonal(DATALOC + "TLS_Satellite_zonal_trends_1994-{}.txt".format(settings.YEAR), "S")
 
     # # Reanalyses
     # utils.plot_ts_panel(ax1, [cfsr, merra, era, jra], "--", "temperature", loc = "lower left", ncol = 1)
@@ -411,67 +584,52 @@ def run_all_plots():
 
     # fig.subplots_adjust(right = 0.95, top = 0.95, hspace = 0.001)
 
-    # plt.savefig(image_loc+"LST_profiles{}".format(settings.OUTFMT))
+    # plt.savefig(settings.IMAGELOC+"LST_profiles{}".format(settings.OUTFMT))
 
     # plt.close()
 
 
-    #************************************************************************
-    # ERA Anomaly figure
-
-    # Read in ERA anomalies
-
-    cube_list = iris.load(reanalysis_loc + "TLS_anvj_moda_ann{}{}-ann19812010.nc".format(settings.YEAR, settings.YEAR))
-
-    cube = cube_list[0]
-    cube.coord('latitude').guess_bounds()
-    cube.coord('longitude').guess_bounds()
-
-    bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
-
-    utils.plot_smooth_map_iris(image_loc + "LST_{}_anoms_erai".format(settings.YEAR), cube[0][0], \
-                                   settings.COLOURMAP_DICT["temperature"], bounds, \
-                                   "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA-Interim")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_LST_{}_anoms_erai".format(settings.YEAR), cube[0][0], \
-                                   settings.COLOURMAP_DICT["temperature"], bounds, \
-                                   "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
-                                   figtext="(f) Lower Stratospheric Temperature")
-
+ 
     #************************************************************************
     # ERA5 Anomaly figure
+    if True:
+        # Read in ERA anomalies
 
-    # Read in ERA anomalies
+        cube_list = iris.load(settings.REANALYSISLOC + "era5_tls_{}01-{}12_ann_ano.nc".format(settings.YEAR, settings.YEAR))
+        
+        cube = cube_list[0]
+        cube.coord('latitude').guess_bounds()
+        cube.coord('longitude').guess_bounds()
+        
+        bounds=[-4, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 4]
+        
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "LST_{}_anoms_era5".format(settings.YEAR), cube[0], \
+                                   settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA5")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_LST_{}_anoms_era5".format(settings.YEAR), cube[0], \
+                                   settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
+                                   figtext="(f) Lower Stratosphere Temperature")
 
-#    cube_list = iris.load(reanalysis_loc + "ERA5_TLS_{}01-{}12_gridded_annual_ano.nc".format(settings.YEAR, settings.YEAR))
-
-#    cube = cube_list[0]
-#    cube.coord('latitude').guess_bounds()
-#    cube.coord('longitude').guess_bounds()
-
-#    bounds=[-4, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 4]
-
-#    utils.plot_smooth_map_iris(image_loc + "LST_{}_anoms_era5".format(settings.YEAR), cube[0], \
-#        settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA5")
 
 
     #************************************************************************
-    # MERRA Anomaly figure
-    # import netCDF4 as ncdf
+    # merra Anomaly figure
+    if False:
+        import netCDF4 as ncdf
 
-    # ncfile = ncdf.Dataset(reanalysis_loc + "merra2_tls_ANNUAL_anom.nc")
+        ncfile = ncdf.Dataset(settings.REANALYSISLOC + "merra2_tls_ANNUAL_anom.nc")
 
-    # var=ncfile.variables["TLS ANOM"][:] # this is a masked array
-    # nlons = ncfile.variables["LONGITUDES"][:]
-    # nlats = ncfile.variables["LATITUDES"][:]
+        var=ncfile.variables["TLS ANOM"][:] # this is a masked array
+        nlons = ncfile.variables["LONGITUDES"][:]
+        nlats = ncfile.variables["LATITUDES"][:]
 
-    # cube = utils.make_iris_cube_2d(var, nlats, nlons, "LST", "C")
+        cube = utils.make_iris_cube_2d(var, nlats, nlons, "LST", "C")
 
-    # utils.plot_smooth_map_iris(image_loc + "LST_{}_anoms_merra".format(settings.YEAR), cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "LST_{}_anoms_merra".format(settings.YEAR), cube, settings.COLOURMAP_DICT["temperature"], bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)")
 
 
     #************************************************************************
     # 2015 MERRA seasonal figure
-
+    
     # import netCDF4 as ncdf
 
     # month_list = []
@@ -480,7 +638,7 @@ def run_all_plots():
     #     print month
 
     #     # IRIS doesn't like the whitespace in the "TLS ANOM"
-    #     ncfile=ncdf.Dataset(reanalysis_loc + "merra2_tls_{}_anom.nc".format(month.upper()),'r')
+    #     ncfile=ncdf.Dataset(settings.REANALYSISLOC + "merra2_tls_{}_anom.nc".format(month.upper()),'r')
 
     #     var=ncfile.variables["TLS ANOM"][:] # this is a masked array
     #     lons = ncfile.variables["LONGITUDES"][:]
@@ -493,7 +651,7 @@ def run_all_plots():
     #     month_list += [cube]
 
     # # pass to plotting routine
-    # utils.plot_smooth_map_iris_multipanel(image_loc + "LST_{}_monthly_merra".format(settings.YEAR), month_list, \
+    # utils.plot_smooth_map_iris_multipanel(settings.IMAGELOC + "LST_{}_monthly_merra".format(settings.YEAR), month_list, \
     #                                           settings.COLOURMAP_DICT["temperature"], bounds, \
     #                                           "Anomaly ("+r'$^{\circ}$'+"C)", shape = (6,2), \
     #                                           title = MONTHS, \

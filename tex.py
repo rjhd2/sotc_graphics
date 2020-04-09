@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 # python3
 from __future__ import absolute_import
 from __future__ import print_function
@@ -26,17 +26,18 @@ import copy
 import string
 
 import iris
+import iris.coord_categorisation
 import iris.quickplot as qplt
 import cartopy
+import cf_units
 
 import datetime as dt
+import calendar
 
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/TEX/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/TEX/".format(settings.ROOTLOC, settings.YEAR)
 
 CLIMSTART=1961
 CLIMEND=1990
@@ -62,7 +63,7 @@ INDEX_LABELS = {"TX90p" : "Warm Days", "TX10p" : "Cool Days", "TN90p" : "Warm Ni
 
 INDEX_UNITS = {"TX90p" : "Days", "TX10p" : "Days", "TN90p" : "Days", "TN10p" : "Days", "TXx" : '$^{\circ}$'+"C", "TXn" : '$^{\circ}$'+"C", "TNx" : '$^{\circ}$'+"C", "TNn": '$^{\circ}$'+"C"}
 
-FIGURE_LABELS = {"TX90p" : "(b)", "TX10p" : "(a)", "TN90p" : "(d)", "TN10p" : "(c)", "TXx" : "(a)", "TXn" : "(c)", "TNx" : "(b)", "TNn": "(d)"}
+FIGURE_LABELS = {"TX90p" : "(a)", "TX10p" : "(c)", "TN90p" : "(d)", "TN10p" : "(b)", "TXx" : "(a)", "TXn" : "(c)", "TNx" : "(b)", "TNn": "(d)"}
 
 SEASON_LABELS = {"TX90p" : ["(a)","(b)","(c)","(d)"], "TX10p" : ["(e)","(f)","(g)","(h)"], "TN90p" : ["(i)","(j)","(h)","(l)"], "TN10p" : ["(m)","(n)","(o)","(p)"], "TXx" : ["(a)","(b)","(c)","(d)"], "TXn" : ["(e)","(f)","(g)","(h)"], "TNx" : ["(a)","(b)","(c)","(d)"] , "TNn" : ["(e)","(f)","(g)","(h)"]}
 
@@ -276,10 +277,10 @@ def plot_rank_map(outname, cube, cmap, bounds, cb_label, scatter = [], figtext =
 
     norm=mpl.cm.colors.BoundaryNorm(bounds,cmap.N)
 
-    fig = plt.figure(figsize =(10,6.5))
+    fig = plt.figure(figsize=(8, 5.5))
 
     plt.clf()
-    ax = plt.axes([0.05, 0.10, 0.90, 0.90], projection=cartopy.crs.Robinson())
+    ax = plt.axes([0.01, 0.12, 0.98, 0.88], projection=cartopy.crs.Robinson())
     ax.gridlines() #draw_labels=True)
     ax.add_feature(cartopy.feature.LAND, zorder = 0, facecolor = "0.9", edgecolor = "k")
     ax.coastlines()
@@ -326,539 +327,669 @@ def plot_rank_map(outname, cube, cmap, bounds, cb_label, scatter = [], figtext =
 
     return # plot_rank_map_iris
 
+#***************************************
+def fix_time_coord(incube):
+
+    try:
+        newtimes = np.array([dt.datetime.strptime("{}".format(int(d)), "%Y%m%d") for d in incube.coord("time").points])
+    except ValueError:
+        newtimes = np.array([dt.datetime.strptime("{}".format(int(d)), "%Y") for d in incube.coord("time").points])
+        
+    newdiff = np.array([(t - newtimes[0]).days for t in newtimes])
+    
+    # replace cube time coordinate with new one
+    time_unit = cf_units.Unit('days since ' + dt.datetime.strftime(newtimes[0], "%Y-%m-%d %H:%M"), calendar=cf_units.CALENDAR_GREGORIAN)   
+    timecoord = iris.coords.DimCoord(newdiff, standard_name='time', units=time_unit, var_name="time") # add bounds?
+    incube.remove_coord('time')
+    incube.add_dim_coord(timecoord, 0)
+
+    return incube # fix_time_coord
+
+#*******************************
+def compute_coverage_error(observations, reanalysis):
+    '''
+    Calculate the coverage error on a monthly basis
+
+    Takes each month in observations, find all the corresponding calendar months in reanalysis
+    (i.e. for Jan 1973, finds all Jans in ERA).  Then mask by data coverage, and get
+    range of residuals in global average.  Use these residuals to estimate error
+
+    From HadEX3 code
+
+    '''
+    
+    offset = np.zeros(len(observations.coord("time").points))
+    st_dev = np.zeros(len(observations.coord("time").points))
+
+    # add month names into data
+    iris.coord_categorisation.add_month(reanalysis, 'time', name='month')
+    iris.coord_categorisation.add_month(observations, 'time', name='month')
+
+    for m, month  in enumerate(observations.coord("time").points):
+
+        # get weightings for cubes
+        grid_areas = iris.analysis.cartography.cosine_latitude_weights(observations[m]) 
+        area_average = observations[m].collapsed(['longitude', 'latitude'], iris.analysis.MEAN, weights=grid_areas)
+
+        if area_average == observations.data.fill_value:
+            # no data for this month
+            offset[m] = observations.data.fill_value
+            st_dev[m] = observations.data.fill_value
+            
+        else:
+            # make a copy so can update the mask without worrying
+            reanal = copy.deepcopy(reanalysis)
+
+            # get a clean-mean
+            grid_areas = iris.analysis.cartography.cosine_latitude_weights(reanal)              
+
+            total_mean = reanal.collapsed(['longitude', 'latitude'], iris.analysis.MEAN, weights=grid_areas)
+
+            # apply the observation coverage mask to all months
+            # combine the lsm with the data mask
+            combined_mask = np.ma.mask_or(np.array([observations[m].data.mask for i in range(reanal.data.shape[0])]), reanal.data.mask)
+
+            reanal.data.mask = combined_mask
+
+            # get a masked mean
+            grid_areas = iris.analysis.cartography.cosine_latitude_weights(reanal)              
+            masked_mean = reanal.collapsed(['longitude', 'latitude'], iris.analysis.MEAN, weights=grid_areas)
+            
+            # calculate residuals and find mean and st_dev
+            residuals = masked_mean.data - total_mean.data
+
+            offset[m] = np.mean(residuals)
+            st_dev[m] = np.std(residuals, ddof=1) # to match IDL
+
+    return offset, st_dev # compute_coverage_error
+
 #************************************************************************
 def run_all_plots():
 
-    for index in INDICES:
+    if True:
+        for index in INDICES:
 
-        # dummy so far
-#        NYEARS = 66
-#        rank_bounds = [-1,1,2,3,NYEARS-2,NYEARS-1,NYEARS,100]
-        rank_bounds = [-4.5,-3.5,-2.5,-1.5,1.5,2.5,3.5,4.5]
+            # dummy so far
+    #        NYEARS = 66
+    #        rank_bounds = [-1,1,2,3,NYEARS-2,NYEARS-1,NYEARS,100]
+            rank_bounds = [-4.5,-3.5,-2.5,-1.5,1.5,2.5,3.5,4.5]
 
-        # sort the bounds and colourbars
-        if index in ["TX90p", "TN90p"]:
-            bounds = [-100, -40, -30, -20, -10, 0, 10, 20, 30, 40, 100]
-            cmap=settings.COLOURMAP_DICT["temperature"]
-        elif index in ["TX10p", "TN10p"]:
-            bounds = [-100, -40, -30, -20, -10, 0, 10, 20, 30, 40, 100]
-            cmap=settings.COLOURMAP_DICT["temperature_r"]
-        elif index in ["TXx", "TNx", "TXn", "TNn"]:
-            bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
-            cmap=settings.COLOURMAP_DICT["temperature"]
+            # sort the bounds and colourbars
+            if index in ["TX90p", "TN90p"]:
+                bounds = [-100, -40, -30, -20, -10, 0, 10, 20, 30, 40, 100]
+                cmap=settings.COLOURMAP_DICT["temperature"]
+            elif index in ["TX10p", "TN10p"]:
+                bounds = [-100, -40, -30, -20, -10, 0, 10, 20, 30, 40, 100]
+                cmap=settings.COLOURMAP_DICT["temperature_r"]
+            elif index in ["TXx", "TNx", "TXn", "TNn"]:
+                bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+                cmap=settings.COLOURMAP_DICT["temperature"]
 
-        cube_list = iris.load(data_loc + "GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format(index, int(settings.YEAR) + 1))
-        names = np.array([cube.name() for cube in cube_list])
+            cube_list = iris.load(DATALOC + "GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format(index, int(settings.YEAR) + 1))
+            names = np.array([cube.name() for cube in cube_list])
 
-        #*************
-        # plot annual map
+            #*************
+            # plot annual map
 
-        selected_cube, = np.where(names == "Ann")[0]
+            selected_cube, = np.where(names == "Ann")[0]
 
-        cube = cube_list[selected_cube]
-        cube.coord('latitude').guess_bounds()
-        cube.coord('longitude').guess_bounds()  
+            cube = cube_list[selected_cube]
+            cube.coord('latitude').guess_bounds()
+            cube.coord('longitude').guess_bounds()  
 
-        if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-            # change from % to days
-            cube.data = cube.data * 3.65
-
-
-        cube = ApplyClimatology(cube)
-
-        # select the year to plot
-        years = GetYears(cube)
-        loc, = np.where(years == SELECTED_YEAR)
-
-        utils.plot_smooth_map_iris(image_loc + "TEX_{}_{}_anoms_ghcndex".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), title = "{} - {}".format(index, INDEX_LABELS[index]), figtext = FIGURE_LABELS[index])
-
-        if index == "TX90p":
-            utils.plot_smooth_map_iris(image_loc + "p2.1_TEX_{}_{}_anoms_ghcndex".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), title = "", figtext = "(c) Warm Days", save_netcdf_filename = "{}{}_for_NOAA_{}.nc".format(data_loc, index, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
-        if index == "TN10p":
-            utils.plot_smooth_map_iris(image_loc + "p2.1_TEX_{}_{}_anoms_ghcndex".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), title = "", figtext = "(d) Cool Nights", save_netcdf_filename = "{}{}_for_NOAA_{}.nc".format(data_loc, index, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
-
-
-        rank_cube = get_ranks(cube)
-
-        plot_rank_map(image_loc + "TEX_{}_{}_rank_ghcndex".format(index, settings.YEAR), rank_cube[loc[0]], cmap, rank_bounds, "Rank", title = "{} - {}".format(index, INDEX_LABELS[index]))
-
-        #*************
-        # plot season maps (2x2)
-
-        season_list = []
-        for season in SEASONS:
-
-            # extract each month
-            month_data = []
-            months = SEASON_DICT[season]
-            for month in months:
-
-                selected_cube, = np.where(names == month)[0]
-                cube = cube_list[selected_cube]
-
-                if month  == "Dec":
-                    # need to extract from previous year - cheat by rolling data around
-                    cube.data = np.roll(cube.data, 1, axis = 0)
-                    cube.data.mask[0,:,:] = True # and mask out the previous years'
-
-                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-                    # change from % to days
-                    cube.data = cube.data * (3.65/4.) # assume a season is 1/4 of a year
-
-                month_data += [cube.data]
-
-            # finished getting all months, make a dummy cube to populate
-            month_data = np.ma.array(month_data)
-            season_cube = copy.deepcopy(cube)
-
-            # take appropriate seasonal value
             if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-                season_cube.data = np.ma.mean(month_data, axis = 0)
-            elif index in ["TXx", "TNx"]:
-                season_cube.data = np.ma.max(month_data, axis = 0)
-            elif index in ["TXn", "TNn"]:
-                season_cube.data = np.ma.min(month_data, axis = 0)
+                # change from % to days
+                cube.data = cube.data * 3.65
 
-            # mask if fewer that 2 months present
-            nmonths_locs = np.ma.count(month_data, axis = 0)
-            season_cube.data = np.ma.masked_where(nmonths_locs < 2, season_cube.data)
 
-            # make anomalies
-            season_cube = ApplyClimatology(season_cube)
-
-            # fix for plotting
-            season_cube.coord('latitude').guess_bounds()
-            season_cube.coord('longitude').guess_bounds()
+            cube = ApplyClimatology(cube)
 
             # select the year to plot
             years = GetYears(cube)
             loc, = np.where(years == SELECTED_YEAR)
 
-            # add to list
-            season_list += [season_cube[loc[0]]]
+            utils.plot_smooth_map_iris(settings.IMAGELOC + "TEX_{}_{}_anoms_ghcndex".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), title = "{} - {}".format(index, INDEX_LABELS[index]), figtext = FIGURE_LABELS[index])
 
-        # sort the bounds and colourbars
-        if index in ["TX90p", "TN90p"]:
-            bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
-        elif index in ["TX10p", "TN10p"]:
-            bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
-        elif index in ["TXx", "TNx", "TXn", "TNn"]:
-            bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+            if index == "TX90p":
+                utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TEX_{}_{}_anoms_ghcndex".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), title = "", figtext = "(c) Warm Days", save_netcdf_filename = "{}{}_for_NOAA_{}.nc".format(DATALOC, index, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
+            if index == "TN10p":
+                utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TEX_{}_{}_anoms_ghcndex".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), title = "", figtext = "(d) Cool Nights", save_netcdf_filename = "{}{}_for_NOAA_{}.nc".format(DATALOC, index, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
 
-        # pass to plotting routine
-        utils.plot_smooth_map_iris_multipanel(image_loc + "TEX_{}_{}_seasons_ghcndex".format(index, settings.YEAR), season_list, cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), shape = (2,2), title = SEASONS, figtext = SEASON_LABELS[index], figtitle = "{} - {}".format(index, INDEX_LABELS[index]))
+
+            rank_cube = get_ranks(cube)
+
+            plot_rank_map(settings.IMAGELOC + "TEX_{}_{}_rank_ghcndex".format(index, settings.YEAR), rank_cube[loc[0]], cmap, rank_bounds, "Rank", title = "{} - {}".format(index, INDEX_LABELS[index]))
+
+            #*************
+            # plot season maps (2x2)
+
+            season_list = []
+            for season in SEASONS:
+
+                # extract each month
+                month_data = []
+                months = SEASON_DICT[season]
+                for month in months:
+
+                    selected_cube, = np.where(names == month)[0]
+                    cube = cube_list[selected_cube]
+
+                    if month  == "Dec":
+                        # need to extract from previous year - cheat by rolling data around
+                        cube.data = np.roll(cube.data, 1, axis = 0)
+                        cube.data.mask[0,:,:] = True # and mask out the previous years'
+
+                    if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+                        # change from % to days
+                        cube.data = cube.data * (3.65/4.) # assume a season is 1/4 of a year
+
+                    month_data += [cube.data]
+
+                # finished getting all months, make a dummy cube to populate
+                month_data = np.ma.array(month_data)
+                season_cube = copy.deepcopy(cube)
+
+                # take appropriate seasonal value
+                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+                    season_cube.data = np.ma.mean(month_data, axis = 0)
+                elif index in ["TXx", "TNx"]:
+                    season_cube.data = np.ma.max(month_data, axis = 0)
+                elif index in ["TXn", "TNn"]:
+                    season_cube.data = np.ma.min(month_data, axis = 0)
+
+                # mask if fewer that 2 months present
+                nmonths_locs = np.ma.count(month_data, axis = 0)
+                season_cube.data = np.ma.masked_where(nmonths_locs < 2, season_cube.data)
+
+                # make anomalies
+                season_cube = ApplyClimatology(season_cube)
+
+                # fix for plotting
+                season_cube.coord('latitude').guess_bounds()
+                season_cube.coord('longitude').guess_bounds()
+
+                # select the year to plot
+                years = GetYears(cube)
+                loc, = np.where(years == SELECTED_YEAR)
+
+                # add to list
+                season_list += [season_cube[loc[0]]]
+
+            # sort the bounds and colourbars
+            if index in ["TX90p", "TN90p"]:
+                bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
+            elif index in ["TX10p", "TN10p"]:
+                bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
+            elif index in ["TXx", "TNx", "TXn", "TNn"]:
+                bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+
+            # pass to plotting routine
+            utils.plot_smooth_map_iris_multipanel(settings.IMAGELOC + "TEX_{}_{}_seasons_ghcndex".format(index, settings.YEAR), season_list, cmap, bounds, "Anomalies from 1961-90 ({})".format(INDEX_UNITS[index]), shape = (2,2), title = SEASONS, figtext = SEASON_LABELS[index], figtitle = "{} - {}".format(index, INDEX_LABELS[index]))
 
     #*************
     # timeseries obs
+    if True:
+        for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
 
-    for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
+            fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6.5), sharex=True)
 
-        fig, (ax1, ax2) = plt.subplots(2, figsize = (10, 8), sharex=True)
+            ax3 = ax1.twinx()
+            ax4 = ax2.twinx()
 
-        ax3 = ax1.twinx()
-        ax4 = ax2.twinx()
+            axes = (ax1, ax2, ax3, ax4)
 
-        axes = (ax1, ax2, ax3, ax4)
+            for ix, index in enumerate(index_pair):
 
-        for ix, index in enumerate(index_pair):
+                index_ts, cover_ts = obtain_timeseries(DATALOC + "GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format(index, int(settings.YEAR) + 1), "Ann", "GHCNDEX", index)
 
-            index_ts, cover_ts = obtain_timeseries(data_loc + "GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format(index, int(settings.YEAR) + 1), "Ann", "GHCNDEX", index)
+                utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = "", bbox = BBOX) # no legend as single line
+                axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
 
-            utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
-            axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
+                # red tickmarks
+                axes[ix].tick_params(axis='y', colors='red', direction="in")
 
-            # and smoothed
-            index_ts.data.fill_value = -99.9
-            smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
-            smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
+                # and smoothed
+                index_ts.data.fill_value = -99.9
+                smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
+                smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
 
-            axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
-            
-            # print the index, the current anomaly and the rank information
-            print(index, index_ts.data.compressed()[-1]/36.5, np.argsort(np.argsort(index_ts.data.compressed())) + 1)
+                axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
 
-            axes[ix+2].plot(cover_ts.times, cover_ts.data, "k:", lw = 2)
-            axes[ix+2].yaxis.set_label_position("right")
-            axes[ix+2].yaxis.set_ticks_position('right')
+                # print the index, the current anomaly and the rank information
+                print(index, index_ts.data.compressed()[-1]/36.5, np.argsort(np.argsort(index_ts.data.compressed())) + 1)
 
-
-        # prettify
-        plt.xlim([1950,2019])
-        axes[0].set_ylim([15,None])
-        if "X" in index:
-            axes[1].set_ylim([19,59])
-        elif "N" in index:
-            axes[1].set_ylim([11,59])
-
-        ax3.set_ylim([0,98])
-        ax4.set_ylim([0,98])
+                axes[ix+2].plot(cover_ts.times, cover_ts.data, "k:", lw = 2)
+                axes[ix+2].yaxis.set_label_position("right")
+                axes[ix+2].yaxis.set_ticks_position('right')
 
 
-        fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
-        fig.text(0.97, 0.5, "% land covered", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+            # prettify
+            plt.xlim([1950, int(settings.YEAR)+1])
+            axes[0].set_ylim([15,None])
+            if "X" in index:
+                axes[1].set_ylim([19,59])
+            elif "N" in index:
+                axes[1].set_ylim([11,59])
 
-        for ax in axes:
-            for tick in ax.yaxis.get_major_ticks():
+            ax3.set_ylim([0,98])
+            ax4.set_ylim([0,98])
+
+
+            fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE, color="r")
+            fig.text(0.97, 0.5, "% land covered", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+
+            for ax in axes:
+                for tick in ax.yaxis.get_major_ticks():
+                    tick.label.set_fontsize(settings.FONTSIZE)
+                    tick.label2.set_fontsize(settings.FONTSIZE)
+            for tick in axes[1].xaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE)
-                tick.label2.set_fontsize(settings.FONTSIZE)
-        for tick in axes[1].xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
 
-        fig.subplots_adjust(right = 0.9, top = 0.95, bottom = 0.05, hspace = 0.001)
+            fig.subplots_adjust(left=0.1, right = 0.9, top = 0.98, bottom = 0.05, hspace = 0.001)
 
-        plt.savefig(image_loc+"TEX_{}+{}_ts_ghcndex{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
-        plt.close()
+            plt.savefig(settings.IMAGELOC+"TEX_{}+{}_ts_ghcndex{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
+            plt.close()
 
 
 
-    #*************
-    # timeseries ERA-Int
+    # #*************
+    # # timeseries ERA-Int
 
 
-    for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
+    # for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
 
-        fig, axes = plt.subplots(2, figsize = (10, 8), sharex=True)
+    #     fig, axes = plt.subplots(2, figsize=(8, 6.5), sharex=True)
 
-        for ix, index in enumerate(index_pair):
+    #     for ix, index in enumerate(index_pair):
 
-            index_ts, cover_ts = obtain_timeseries(data_loc + "ERA-Int_1979-{}_{}_LSmask.nc".format(settings.YEAR, index), "Annual", "ERA-Interim", index)
+    #         index_ts, cover_ts = obtain_timeseries(DATALOC + "ERA-Int_1979-{}_{}_LSmask.nc".format(settings.YEAR, index), "Annual", "ERA-Interim", index)
 
-            utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
+    #         utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
 
-            axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
+    #         axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
 
-            # and smoothed
-            index_ts.data.fill_value = -99.9
-            smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
-            smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
+    #         # and smoothed
+    #         index_ts.data.fill_value = -99.9
+    #         smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
+    #         smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
 
-            axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
+    #         axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
 
-        # prettify
-        plt.xlim([1950,2019])
-        axes[0].set_ylim([15,None])
-        axes[1].set_ylim([16,59])
+    #     # prettify
+    #     plt.xlim([1950,2019])
+    #     axes[0].set_ylim([15,None])
+    #     axes[1].set_ylim([16,59])
 
-        fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+    #     fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
-        for ax in axes:
-            for tick in ax.yaxis.get_major_ticks():
-                tick.label.set_fontsize(settings.FONTSIZE)
-        for tick in axes[1].xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
+    #     for ax in axes:
+    #         for tick in ax.yaxis.get_major_ticks():
+    #             tick.label.set_fontsize(settings.FONTSIZE)
+    #     for tick in axes[1].xaxis.get_major_ticks():
+    #         tick.label.set_fontsize(settings.FONTSIZE)
 
-        fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
+    #     fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
 
-        plt.savefig(image_loc+"TEX_{}+{}_ts_erai{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
-        plt.close()
+    #     plt.savefig(settings.IMAGELOC+"TEX_{}+{}_ts_erai{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
+    #     plt.close()
 
 
-    #*************
-    # ERA-Int Maps (annual only)
+    # #*************
+    # # ERA-Int Maps (annual only)
 
-    for index in INDICES:
+    # for index in INDICES:
 
-        # sort the bounds and colourbars
-        if index in ["TX90p", "TN90p"]:
-            bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
-            cmap=settings.COLOURMAP_DICT["temperature"]
-        elif index in ["TX10p", "TN10p"]:
-            bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
-            cmap=settings.COLOURMAP_DICT["temperature_r"]
-        elif index in ["TXx", "TNx", "TXn", "TNn"]:
-            bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
-            cmap=settings.COLOURMAP_DICT["temperature"]
+    #     # sort the bounds and colourbars
+    #     if index in ["TX90p", "TN90p"]:
+    #         bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+    #         cmap=settings.COLOURMAP_DICT["temperature"]
+    #     elif index in ["TX10p", "TN10p"]:
+    #         bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+    #         cmap=settings.COLOURMAP_DICT["temperature_r"]
+    #     elif index in ["TXx", "TNx", "TXn", "TNn"]:
+    #         bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+    #         cmap=settings.COLOURMAP_DICT["temperature"]
 
-        cube_list = iris.load(data_loc + "ERA-Int_1979-{}_{}_LSmask.nc".format(settings.YEAR, index))
-        names = np.array([cube.name() for cube in cube_list])
+    #     cube_list = iris.load(DATALOC + "ERA-Int_1979-{}_{}_LSmask.nc".format(settings.YEAR, index))
+    #     names = np.array([cube.name() for cube in cube_list])
 
-        #*************
-        # plot annual map
+    #     #*************
+    #     # plot annual map
 
-        selected_cube, = np.where(names == "Annual")[0]
+    #     selected_cube, = np.where(names == "Annual")[0]
 
-        cube = cube_list[selected_cube]
-        cube.coord('latitude').guess_bounds()
-        cube.coord('longitude').guess_bounds()  
+    #     cube = cube_list[selected_cube]
+    #     cube.coord('latitude').guess_bounds()
+    #     cube.coord('longitude').guess_bounds()  
 
-        if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-            # change from % to days
-            cube.data = cube.data * 3.65
+    #     if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+    #         # change from % to days
+    #         cube.data = cube.data * 3.65
 
-        cube = ApplyClimatology(cube)
+    #     cube = ApplyClimatology(cube)
 
-        # select the year to plot
-        years = GetYears(cube)
-        loc, = np.where(years == SELECTED_YEAR)
+    #     # select the year to plot
+    #     years = GetYears(cube)
+    #     loc, = np.where(years == SELECTED_YEAR)
 
-        utils.plot_smooth_map_iris(image_loc + "TEX_{}_{}_anoms_erai".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), title = "ERA-Interim {} - {}".format(index, INDEX_LABELS[index]), figtext = FIGURE_LABELS[index])
+    #     utils.plot_smooth_map_iris(settings.IMAGELOC + "TEX_{}_{}_anoms_erai".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), title = "ERA-Interim {} - {}".format(index, INDEX_LABELS[index]), figtext = FIGURE_LABELS[index])
 
-        #*************
-        # plot season maps (2x2)
+    #     #*************
+    #     # plot season maps (2x2)
 
-        season_list = []
-        for season in SEASONS:
+    #     season_list = []
+    #     for season in SEASONS:
 
-            # extract each month
-            month_data = []
-            months = SEASON_DICT_ERA[season]
-            for month in months:
+    #         # extract each month
+    #         month_data = []
+    #         months = SEASON_DICT_ERA[season]
+    #         for month in months:
 
-                selected_cube, = np.where(names == month)[0]
-                cube = cube_list[selected_cube]
+    #             selected_cube, = np.where(names == month)[0]
+    #             cube = cube_list[selected_cube]
 
-                if month  == "December":
-                    # need to extract from previous year - cheat by rolling data around
-                    cube.data = np.roll(cube.data, 1, axis = 0)
-                    cube.data.mask[0,:,:] = True # and mask out the previous years'
+    #             if month  == "December":
+    #                 # need to extract from previous year - cheat by rolling data around
+    #                 cube.data = np.roll(cube.data, 1, axis = 0)
+    #                 cube.data.mask[0,:,:] = True # and mask out the previous years'
 
-                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-                    # change from % to days
-                    cube.data = cube.data * (3.65/4.) # assume a season is 1/4 of a year
+    #             if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+    #                 # change from % to days
+    #                 cube.data = cube.data * (3.65/4.) # assume a season is 1/4 of a year
 
-                month_data += [cube.data]
+    #             month_data += [cube.data]
 
-            # finished getting all months, make a dummy cube to populate
-            month_data = np.ma.array(month_data)
-            season_cube = copy.deepcopy(cube)
+    #         # finished getting all months, make a dummy cube to populate
+    #         month_data = np.ma.array(month_data)
+    #         season_cube = copy.deepcopy(cube)
 
-            # take appropriate seasonal value
-            if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-                season_cube.data = np.ma.mean(month_data, axis = 0)
-            elif index in ["TXx", "TNx"]:
-                season_cube.data = np.ma.max(month_data, axis = 0)
-            elif index in ["TXn", "TNn"]:
-                season_cube.data = np.ma.min(month_data, axis = 0)
+    #         # take appropriate seasonal value
+    #         if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+    #             season_cube.data = np.ma.mean(month_data, axis = 0)
+    #         elif index in ["TXx", "TNx"]:
+    #             season_cube.data = np.ma.max(month_data, axis = 0)
+    #         elif index in ["TXn", "TNn"]:
+    #             season_cube.data = np.ma.min(month_data, axis = 0)
 
-            # mask if fewer that 2 months present
-            nmonths_locs = np.ma.count(month_data, axis = 0)
-            season_cube.data = np.ma.masked_where(nmonths_locs < 2, season_cube.data)
+    #         # mask if fewer that 2 months present
+    #         nmonths_locs = np.ma.count(month_data, axis = 0)
+    #         season_cube.data = np.ma.masked_where(nmonths_locs < 2, season_cube.data)
 
-            # make anomalies
-            season_cube = ApplyClimatology(season_cube)
+    #         # make anomalies
+    #         season_cube = ApplyClimatology(season_cube)
 
-            # fix for plotting
-            season_cube.coord('latitude').guess_bounds()
-            season_cube.coord('longitude').guess_bounds()
+    #         # fix for plotting
+    #         season_cube.coord('latitude').guess_bounds()
+    #         season_cube.coord('longitude').guess_bounds()
 
-            # select the year to plot
-            years = GetYears(cube)
-            loc, = np.where(years == SELECTED_YEAR)
+    #         # select the year to plot
+    #         years = GetYears(cube)
+    #         loc, = np.where(years == SELECTED_YEAR)
 
-            # add to list
-            season_list += [season_cube[loc[0]]]
+    #         # add to list
+    #         season_list += [season_cube[loc[0]]]
 
-        # sort the bounds and colourbars
-        if index in ["TX90p", "TN90p"]:
-            bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
-        elif index in ["TX10p", "TN10p"]:
-            bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
-        elif index in ["TXx", "TNx", "TXn", "TNn"]:
-            bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+    #     # sort the bounds and colourbars
+    #     if index in ["TX90p", "TN90p"]:
+    #         bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
+    #     elif index in ["TX10p", "TN10p"]:
+    #         bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
+    #     elif index in ["TXx", "TNx", "TXn", "TNn"]:
+    #         bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
 
-        # pass to plotting routine
-        utils.plot_smooth_map_iris_multipanel(image_loc + "TEX_{}_{}_seasons_erai".format(index, settings.YEAR), season_list, cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), shape = (2,2), title = SEASONS, figtext = SEASON_LABELS[index], figtitle = "{} - {}".format(index, INDEX_LABELS[index]))
+    #     # pass to plotting routine
+    #     utils.plot_smooth_map_iris_multipanel(settings.IMAGELOC + "TEX_{}_{}_seasons_erai".format(index, settings.YEAR), season_list, cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), shape = (2,2), title = SEASONS, figtext = SEASON_LABELS[index], figtitle = "{} - {}".format(index, INDEX_LABELS[index]))
 
     #*************
     # timeseries ERA5
-
     ERA5LOCTEMP = "/data/users/rdunn/reanalyses/data/era5/indices/"
+#    ERA5LOCTEMP = "/scratch/rdunn/reanalyses/era5/final/"
+    if True:
+ 
+        for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
 
-    for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
+            fig, axes = plt.subplots(2, figsize=(8, 6.5), sharex=True)
 
-        fig, axes = plt.subplots(2, figsize = (10, 8), sharex=True)
+            for ix, index in enumerate(index_pair):
 
-        for ix, index in enumerate(index_pair):
+                index_ts, cover_ts = obtain_timeseries(ERA5LOCTEMP + "ERA5_{}_1979-{}.nc".format(index, settings.YEAR), "Ann", "ERA5", index, is_era5 = True)
 
-            index_ts, cover_ts = obtain_timeseries(ERA5LOCTEMP + "ERA5_{}_1979-{}.nc".format(index, settings.YEAR), "Ann", "ERA5", index, is_era5 = True)
+                utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
 
-            utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
+                axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
 
-            axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
+                # and smoothed
+                index_ts.data.fill_value = -99.9
+                smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
+                smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
 
-            # and smoothed
-            index_ts.data.fill_value = -99.9
-            smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
-            smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
+                axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
 
-            axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
+            # prettify
+            plt.xlim([1950, int(settings.YEAR)+1])
+            axes[0].set_ylim([15,None])
+            axes[1].set_ylim([16,59])
 
-        # prettify
-        plt.xlim([1950,2019])
-        axes[0].set_ylim([15,None])
-        axes[1].set_ylim([16,59])
+            fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
-        fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
-
-        for ax in axes:
-            for tick in ax.yaxis.get_major_ticks():
+            for ax in axes:
+                for tick in ax.yaxis.get_major_ticks():
+                    tick.label.set_fontsize(settings.FONTSIZE)
+            for tick in axes[1].xaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE)
-        for tick in axes[1].xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
 
-        fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
+            fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
 
-        plt.savefig(image_loc+"TEX_{}+{}_ts_era5{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
-        plt.close()
+            plt.savefig(settings.IMAGELOC+"TEX_{}+{}_ts_era5{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
+            plt.close()
 
 
     #*************
     # ERA Maps (annual only)
+    if True:
+        for index in INDICES:
 
-    for index in INDICES:
+            # sort the bounds and colourbars
+            if index in ["TX90p", "TN90p"]:
+                bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+                cmap=settings.COLOURMAP_DICT["temperature"]
+            elif index in ["TX10p", "TN10p"]:
+                bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+                cmap=settings.COLOURMAP_DICT["temperature_r"]
+            elif index in ["TXx", "TNx", "TXn", "TNn"]:
+                bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+                cmap=settings.COLOURMAP_DICT["temperature"]
 
-        # sort the bounds and colourbars
-        if index in ["TX90p", "TN90p"]:
-            bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
-            cmap=settings.COLOURMAP_DICT["temperature"]
-        elif index in ["TX10p", "TN10p"]:
-            bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
-            cmap=settings.COLOURMAP_DICT["temperature_r"]
-        elif index in ["TXx", "TNx", "TXn", "TNn"]:
-            bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
-            cmap=settings.COLOURMAP_DICT["temperature"]
+            cube_list = iris.load(ERA5LOCTEMP + "ERA5_{}_1979-{}.nc".format(index, settings.YEAR))
+            names = np.array([cube.var_name for cube in cube_list])
 
-        cube_list = iris.load(ERA5LOCTEMP + "ERA5_{}_1979-{}.nc".format(index, settings.YEAR))
-        names = np.array([cube.var_name for cube in cube_list])
+            #*************
+            # plot annual map
 
-        #*************
-        # plot annual map
+            selected_cube, = np.where(names == "Ann")[0]
 
-        selected_cube, = np.where(names == "Ann")[0]
+            cube = cube_list[selected_cube]
+            cube.coord('latitude').guess_bounds()
+            cube.coord('longitude').guess_bounds()  
 
-        cube = cube_list[selected_cube]
-        cube.coord('latitude').guess_bounds()
-        cube.coord('longitude').guess_bounds()  
-
-        if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-            # change from % to days
-            cube.data = cube.data * 3.65
-
-        cube = ApplyClimatology(cube, is_era5=True)
-
-        # select the year to plot
-        years = GetYears(cube, is_era5 = True)
-        loc, = np.where(years == SELECTED_YEAR)
-
-        utils.plot_smooth_map_iris(image_loc + "TEX_{}_{}_anoms_era5".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), title = "ERA5 {} - {}".format(index, INDEX_LABELS[index]), figtext = FIGURE_LABELS[index])
-
-
-        #*************
-        # plot season maps (2x2)
-
-        season_list = []
-        for season in SEASONS:
-
-            # extract each month
-            month_data = []
-            months = SEASON_DICT[season]
-            for month in months:
-
-                selected_cube, = np.where(names == month)[0]
-                cube = cube_list[selected_cube]
-
-                if month  == "December":
-                    # need to extract from previous year - cheat by rolling data around
-                    cube.data = np.roll(cube.data, 1, axis = 0)
-                    cube.data.mask[0,:,:] = True # and mask out the previous years'
-
-                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-                    # change from % to days
-                    cube.data = cube.data * (3.65/4.) # assume a season is 1/4 of a year
-
-                month_data += [cube.data]
-
-            # finished getting all months, make a dummy cube to populate
-            month_data = np.ma.array(month_data)
-            season_cube = copy.deepcopy(cube)
-
-            # take appropriate seasonal value
             if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
-                season_cube.data = np.ma.mean(month_data, axis = 0)
-            elif index in ["TXx", "TNx"]:
-                season_cube.data = np.ma.max(month_data, axis = 0)
-            elif index in ["TXn", "TNn"]:
-                season_cube.data = np.ma.min(month_data, axis = 0)
+                # change from % to days
+                cube.data = cube.data * 3.65
 
-            # mask if fewer that 2 months present
-            nmonths_locs = np.ma.count(month_data, axis = 0)
-            season_cube.data = np.ma.masked_where(nmonths_locs < 2, season_cube.data)
-
-            # make anomalies
-            season_cube = ApplyClimatology(season_cube, is_era5=True)
-
-            # fix for plotting
-            season_cube.coord('latitude').guess_bounds()
-            season_cube.coord('longitude').guess_bounds()
+            cube = ApplyClimatology(cube, is_era5=True)
 
             # select the year to plot
             years = GetYears(cube, is_era5 = True)
             loc, = np.where(years == SELECTED_YEAR)
 
-            # add to list
-            season_list += [season_cube[loc[0]]]
+            utils.plot_smooth_map_iris(settings.IMAGELOC + "TEX_{}_{}_anoms_era5".format(index, settings.YEAR), cube[loc[0]], cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), title = "ERA5 {} - {}".format(index, INDEX_LABELS[index]), figtext = FIGURE_LABELS[index])
 
-        # sort the bounds and colourbars
-        if index in ["TX90p", "TN90p"]:
-            bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
-        elif index in ["TX10p", "TN10p"]:
-            bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
-        elif index in ["TXx", "TNx", "TXn", "TNn"]:
-            bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
 
-        # pass to plotting routine
-        utils.plot_smooth_map_iris_multipanel(image_loc + "TEX_{}_{}_seasons_era5".format(index, settings.YEAR), season_list, cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), shape = (2,2), title = SEASONS, figtext = SEASON_LABELS[index], figtitle = "ERA5 {} - {}".format(index, INDEX_LABELS[index]))
+            #*************
+            # plot season maps (2x2)
 
+            season_list = []
+            for season in SEASONS:
+
+                # extract each month
+                month_data = []
+                months = SEASON_DICT[season]
+                for month in months:
+
+                    selected_cube, = np.where(names == month)[0]
+                    cube = cube_list[selected_cube]
+
+                    if month  == "December":
+                        # need to extract from previous year - cheat by rolling data around
+                        cube.data = np.roll(cube.data, 1, axis = 0)
+                        cube.data.mask[0,:,:] = True # and mask out the previous years'
+
+                    if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+                        # change from % to days
+                        cube.data = cube.data * (3.65/4.) # assume a season is 1/4 of a year
+
+                    month_data += [cube.data]
+
+                # finished getting all months, make a dummy cube to populate
+                month_data = np.ma.array(month_data)
+                season_cube = copy.deepcopy(cube)
+
+                # take appropriate seasonal value
+                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+                    season_cube.data = np.ma.mean(month_data, axis = 0)
+                elif index in ["TXx", "TNx"]:
+                    season_cube.data = np.ma.max(month_data, axis = 0)
+                elif index in ["TXn", "TNn"]:
+                    season_cube.data = np.ma.min(month_data, axis = 0)
+
+                # mask if fewer that 2 months present
+                nmonths_locs = np.ma.count(month_data, axis = 0)
+                season_cube.data = np.ma.masked_where(nmonths_locs < 2, season_cube.data)
+
+                # make anomalies
+                season_cube = ApplyClimatology(season_cube, is_era5=True)
+
+                # fix for plotting
+                season_cube.coord('latitude').guess_bounds()
+                season_cube.coord('longitude').guess_bounds()
+
+                # select the year to plot
+                years = GetYears(cube, is_era5 = True)
+                loc, = np.where(years == SELECTED_YEAR)
+
+                # add to list
+                season_list += [season_cube[loc[0]]]
+
+            # sort the bounds and colourbars
+            if index in ["TX90p", "TN90p"]:
+                bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
+            elif index in ["TX10p", "TN10p"]:
+                bounds = [-100, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 100]
+            elif index in ["TXx", "TNx", "TXn", "TNn"]:
+                bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]
+
+            # pass to plotting routine
+            utils.plot_smooth_map_iris_multipanel(settings.IMAGELOC + "TEX_{}_{}_seasons_era5".format(index, settings.YEAR), season_list, cmap, bounds, "Anomalies from 1981-2010 ({})".format(INDEX_UNITS[index]), shape = (2,2), title = SEASONS, figtext = SEASON_LABELS[index], figtitle = "ERA5 {} - {}".format(index, INDEX_LABELS[index]))
 
     #*************
-    # timeseries ERA5 & ERAI
+    # timeseries obs with uncertainties
+    if True:
+        for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
 
-    ERA5LOCTEMP = "/data/users/rdunn/reanalyses/data/era5/indices/"
+            fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6.5), sharex=True)
 
-    for index_pair in [["TX90p", "TN10p"], ["TN90p", "TX10p"]]:
+            ax3 = ax1.twinx()
+            ax4 = ax2.twinx()
 
-        fig, axes = plt.subplots(2, figsize = (10, 8), sharex=True)
+            axes = (ax1, ax2, ax3, ax4)
 
-        for ix, index in enumerate(index_pair):
+            for ix, index in enumerate(index_pair):
 
-            index_ts_5, cover_ts_5 = obtain_timeseries(ERA5LOCTEMP + "ERA5_{}_1979-{}.nc".format(index, settings.YEAR), "Ann", "ERA5", index, is_era5 = True)
-            index_ts_i, cover_ts_i = obtain_timeseries(data_loc + "ERA-Int_1979-{}_{}_LSmask.nc".format(settings.YEAR, index), "Annual", "ERA-Interim", index)
+                index_ts, cover_ts = obtain_timeseries(DATALOC + "GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format(index, int(settings.YEAR) + 1), "Ann", "GHCNDEX", index)
 
-            index_ts_i.ls = "--"
-            cover_ts_i.ls = "--"
+                utils.plot_ts_panel(axes[ix], [index_ts], "-", "temperature", loc = "", bbox = BBOX) # no legend as single line
+                axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
 
-            utils.plot_ts_panel(axes[ix], [index_ts_5, index_ts_i], "-", "temperature", loc = LEGEND_LOC, bbox = BBOX)
+                # obs cube
+                cube_list = iris.load(DATALOC + "GHCND_{}_1951-{}_RegularGrid_global_2.5x2.5deg_LSmask.nc".format(index, int(settings.YEAR) + 1))
+                names = np.array([cube.var_name for cube in cube_list])
+                selected_cube, = np.where(names == "Ann")[0]
 
-            axes[ix].text(0.02, 0.9, "({}) {}".format(string.ascii_lowercase[ix], index), transform = axes[ix].transAxes, fontsize = settings.FONTSIZE)
+                ghcndex_cube = cube_list[selected_cube]
+                ghcndex_cube.coord('latitude').guess_bounds()
+                ghcndex_cube.coord('longitude').guess_bounds() 
+                ghcndex_cube = fix_time_coord(ghcndex_cube)
 
-            # and smoothed
-            for ts in [index_ts_i, index_ts_5]:
-                ts.data.fill_value = -99.9
-                smoothed = binomialfilter(ts.data.filled(), -99.9, 5, pad = False)
+                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+                    # change from % to days
+                    ghcndex_cube.data = ghcndex_cube.data * 3.65
+
+                # era5 cube
+                cube_list = iris.load(ERA5LOCTEMP + "ERA5_{}_1979-{}.nc".format(index, settings.YEAR))
+                names = np.array([cube.var_name for cube in cube_list])
+                selected_cube, = np.where(names == "Ann")[0]
+
+                era5_cube = cube_list[selected_cube]
+                era5_cube.coord('latitude').guess_bounds()
+                era5_cube.coord('longitude').guess_bounds()  
+
+                if index in ["TX90p", "TN90p", "TX10p", "TN10p"]:
+                    # change from % to days
+                    era5_cube.data = era5_cube.data * 3.65
+
+                # need to regrid
+                era5_cube = era5_cube.regrid(ghcndex_cube, iris.analysis.Linear(extrapolation_mode="mask"))
+
+                coverage_offset, coverage_stdev = compute_coverage_error(ghcndex_cube, era5_cube)
+                coverage_stdev *= 2. # 90%, 2s.d.
+                axes[ix].fill_between(index_ts.times, index_ts.data-coverage_stdev, index_ts.data+coverage_stdev, color='mistyrose', label="ERA5 coverage uncertainty")
+
+
+                # red tickmarks
+                axes[ix].tick_params(axis='y', colors='red', direction="in")
+
+                # and smoothed
+                index_ts.data.fill_value = -99.9
+                smoothed = binomialfilter(index_ts.data.filled(), -99.9, 5, pad = False)
                 smoothed = np.ma.masked_where(smoothed == -99.9, smoothed)
 
-                if ts.name == "ERA-Interim":
-                    axes[ix].plot(ts.times, smoothed, "r--", lw = LW)
-                else:
-                    axes[ix].plot(ts.times, smoothed, "r-", lw = LW)
+                axes[ix].plot(index_ts.times, smoothed, "r--", lw = LW)
 
-        # prettify
-        plt.xlim([1950,2019])
-        axes[0].set_ylim([15,None])
-        axes[1].set_ylim([16,59])
+                # print the index, the current anomaly and the rank information
+                print(index, index_ts.data.compressed()[-1]/36.5, np.argsort(np.argsort(index_ts.data.compressed())) + 1)
 
-        fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+                axes[ix+2].plot(cover_ts.times, cover_ts.data, "k:", lw = 2)
+                axes[ix+2].yaxis.set_label_position("right")
+                axes[ix+2].yaxis.set_ticks_position('right')
 
-        for ax in axes:
-            for tick in ax.yaxis.get_major_ticks():
+
+            # prettify
+            plt.xlim([1950, int(settings.YEAR)+1])
+            axes[0].set_ylim([15,None])
+            if "X" in index:
+                axes[1].set_ylim([19,59])
+            elif "N" in index:
+                axes[1].set_ylim([11,59])
+
+            ax3.set_ylim([0,98])
+            ax4.set_ylim([0,98])
+
+
+            fig.text(0.03, 0.5, "Number of Days", va='center', rotation='vertical', fontsize = settings.FONTSIZE, color="r")
+            fig.text(0.97, 0.5, "% land covered", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
+
+            for ax in axes:
+                for tick in ax.yaxis.get_major_ticks():
+                    tick.label.set_fontsize(settings.FONTSIZE)
+                    tick.label2.set_fontsize(settings.FONTSIZE)
+            for tick in axes[1].xaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE)
-        for tick in axes[1].xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE)
 
-        fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
+            fig.subplots_adjust(left=0.1, right = 0.9, top = 0.98, bottom = 0.05, hspace = 0.001)
 
-        plt.savefig(image_loc+"TEX_{}+{}_ts_eras{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
-        plt.close()
+            plt.savefig(settings.IMAGELOC+"TEX_{}+{}_ts_ghcndex_uncertainties{}".format(index_pair[0], index_pair[1], settings.OUTFMT))
+            plt.close()
+
 
     return # run_all_plots
 

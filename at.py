@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for lower stratosphere temperature (LST) section.
@@ -20,9 +20,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/AT/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/AT/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = "lower left"
 LW = 3
@@ -33,17 +31,14 @@ def read_csv(filename):
     Read user supplied CSV for LST into Timeseries object
     """
 
-    indata = np.genfromtxt(filename, dtype=(float), skip_header = 1)
+    indata = np.genfromtxt(filename, delimiter=",", dtype=(float), skip_header = 1, encoding="latin-1")
 
-    years = indata[:,0] 
-    months = indata[:,1]
+    times = indata[:,0] 
 
-    data = indata[:,2]
-    stdev = indata[:,3]
+    data = indata[:,1]
+    fit = indata[:,2]
 
-    times = years + (months - 1.)/12.
-
-    return utils.Timeseries("AT", times, data)
+    return utils.Timeseries("AT", times, data), utils.Timeseries("AT", times, fit)
 
 
 #************************************************************************
@@ -87,16 +82,18 @@ def run_all_plots():
     # Timeseries figures
 
 
-    at = read_csv(data_loc + "apparentTransmissionMLO_monthly.txt")
+    at, at24 = read_csv(DATALOC + "mlo_trans_csv.txt")
 
     # get 6 and 24 month smoothed curves
-    at6 = make_smoothed_ts(at, 6)
-    at24 = make_smoothed_ts(at, 24)
+    # at6 = make_smoothed_ts(at, 6)
+    # at24 = make_smoothed_ts(at, 24)
 
-    at_mean = np.mean(at.data[at.times < 1973])
+    at_mean = np.mean(at.data[at.times < 1962])
 
 
-    fig, (ax1, ax2) = plt.subplots(2, figsize = (10,8), sharex=True)
+    # fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6.5), sharex=True)
+    fig = plt.figure(figsize=(8, 5))
+    ax1 = plt.axes([0.15, 0.1, 0.8, 0.85])
 
     minor_tick_interval = 1
     minorLocator = MultipleLocator(minor_tick_interval)
@@ -108,33 +105,47 @@ def run_all_plots():
     ax1.xaxis.set_minor_locator(minorLocator)
     utils.thicken_panel_border(ax1)
     ax1.set_ylim([0.8,0.95])
+    ax1.plot(at24.times, at24.data, c = "0.3", ls = "-")
 
+    # # zoomed y
+    # ax2.plot(at.times, at.data, c = COLOURS[at.name], marker = ".", label = at.name, ls = "")
 
-    # zoomed y
-    ax2.plot(at.times, at.data, c = COLOURS[at.name], marker = ".", label = at.name, ls = "")
+    # ax2.plot(at6.times, at6.data, c = "r", ls = "-")
+    # ax2.plot(at24.times, at24.data, c = "b", ls = "-")
 
-    ax2.plot(at6.times, at6.data, c = "r", ls = "-")
-    ax2.plot(at24.times, at24.data, c = "b", ls = "-")
-
-    ax2.axhline(at_mean, c = '0.5', ls = '--')
-    ax2.xaxis.set_minor_locator(minorLocator)
-    utils.thicken_panel_border(ax2)
-    ax2.set_ylim([0.9,0.949])
+    # ax2.axhline(at_mean, c = '0.5', ls = '--')
+    # ax2.xaxis.set_minor_locator(minorLocator)
+    # utils.thicken_panel_border(ax2)
+    # ax2.set_ylim([0.9,0.949])
 
     # prettify
 
     fig.text(0.03, 0.5, "Apparent Transmission", va='center', rotation='vertical', fontsize = settings.FONTSIZE)
 
-    plt.xlim([1954,int(settings.YEAR)+1])
-    for ax in [ax1, ax2]:
-        for tick in ax.yaxis.get_major_ticks():
+    ax1.text(1961, 0.9, "Agung", fontsize=settings.FONTSIZE)
+    ax1.text(1970, 0.88, "El Chichon", fontsize=settings.FONTSIZE)
+    ax1.text(1993, 0.88, "Pinatubo", fontsize=settings.FONTSIZE)
+
+    ax1.text(2010, 0.9, "Nabro", fontsize=settings.FONTSIZE)
+    ax1.plot([2012.5, 2012], [0.908, 0.92], "k-")
+
+    ax1.fill_between([2002, 2012], [0.7, 0.7], [1.0, 1.0], color="0.7")
+    ax1.fill_between([2017, 2020], [0.7, 0.7], [1.0, 1.0], color="0.7")
+
+    plt.xlim([1954,int(settings.YEAR)+2])
+    for tick in ax1.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE)
-    for tick in ax2.xaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
+    for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
 
-    fig.subplots_adjust(right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.001)
+    # for tick in ax2.yaxis.get_major_ticks():
+    #         tick.label.set_fontsize(settings.FONTSIZE)
+    # for tick in ax2.xaxis.get_major_ticks():
+    #     tick.label.set_fontsize(settings.FONTSIZE)
 
-    plt.savefig(image_loc + "AT_ts{}".format(settings.OUTFMT))
+    fig.subplots_adjust(right=0.96, top=0.98, bottom=0.04, hspace=0.001)
+
+    plt.savefig(settings.IMAGELOC + "AT_ts{}".format(settings.OUTFMT))
     plt.close()
 
     return # run_all_plots

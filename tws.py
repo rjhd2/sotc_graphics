@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Terrestrial Water Storage (TWS) section.
@@ -25,7 +25,7 @@ import utils # RJHD utilities
 import settings
 
 
-data_loc = "{}/{}/data/TWS/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/TWS/".format(settings.ROOTLOC, settings.YEAR)
 reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
 image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 
@@ -40,7 +40,9 @@ NOGRACE = [dt.datetime(2002, 6, 15), dt.datetime(2002, 7, 15), dt.datetime(2003,
                dt.datetime(2013, 8, 15), dt.datetime(2013, 9, 15), dt.datetime(2014, 2, 15), dt.datetime(2014, 7, 15), \
                dt.datetime(2014, 12, 15), dt.datetime(2015, 6, 15), dt.datetime(2015, 10, 15), dt.datetime(2015, 11, 15), \
                dt.datetime(2016, 4, 15), dt.datetime(2016, 9, 15), dt.datetime(2016, 10, 15), dt.datetime(2016, 11, 3), \
-               dt.datetime(2017, 2, 28)]
+               dt.datetime(2017, 2, 28), dt.datetime(2017, 7, 17), dt.datetime(2017, 8, 22), dt.datetime(2017, 9, 28), \
+               dt.datetime(2017, 11, 29), dt.datetime(2017, 12, 10), dt.datetime(2018, 1, 15), dt.datetime(2018, 2, 21), \
+               dt.datetime(2018, 3, 29), dt.datetime(2018, 5, 5), dt.datetime(2018, 8, 15), dt.datetime(2018, 9, 20)]
 
 #************************************************************************
 def decimal_to_dt(date):
@@ -136,7 +138,7 @@ def read_hovmuller_2015(data_loc):
 
         # if file exists, read in, else read in dummy data of same size
         try:
-            indata = np.genfromtxt(data_loc + "avg_lat_csr05_ds_{:04g}{:02g}.txt".format(today.year, today.month), dtype=(float))
+            indata = np.genfromtxt(DATALOC + "avg_lat_csr05_ds_{:04g}{:02g}.txt".format(today.year, today.month), dtype=(float))
 
             data += [indata[:, 1]]
             lats += [indata[:, 0]]     
@@ -185,7 +187,7 @@ def read_hovmuller_2017(data_loc):
     time = []
 
     # start at the beginning
-    infiles = glob.glob(data_loc + "avg_lat_JPLM05_*.txt")
+    infiles = glob.glob(DATALOC + "avg_lat_JPLM06v2_*.txt")
     infiles.sort()
 
     print("SORT MISSING MONTHS IN HOVMULLER - ACCOUNT FOR SATELLITE DRIFT")
@@ -213,7 +215,6 @@ def read_hovmuller_2017(data_loc):
             print(file_time, dt.datetime.strftime(dt_time, "%Y-%m-%d"), ndays)
 
             while ndays > 45: # if more than 45 days (expecting roughly every 30 or so)
-
                 inserted_time = time[-1] + 0.1 # add increment of 36 days to test
 
                 # only add blank data if the missing month is one of the listed ones
@@ -325,51 +326,71 @@ def run_all_plots():
 
     #************************************************************************
     # GRACE timeseries
+    if True:
 
-    model = read_ts(data_loc + "glb_avg_tws_2003-2018_model.txt", "Model")
-    model.ls = "--"
-    grace = read_ts(data_loc + "glb_avg_tws_2002-2017_GRACE.txt", "GRACE")
+#       model = read_ts(DATALOC + "glb_avg_tws_2003-2018_model.txt", "Model")
+#        model.ls = "--"
+        grace = read_ts(DATALOC + "avg_JPLM06v2_land.txt", "GRACE")
+        grace_fo = utils.Timeseries("GRACE FO", grace.times[:], grace.data[:])
 
-    fig = plt.figure(figsize=(10, 6))
+        # post 2018
+        locs, = np.where(grace_fo.times > 2018)
+        grace_fo.times = grace_fo.times[locs]
+        grace_fo.data = grace_fo.data[locs]       
 
-    ax1 = plt.axes([0.1, 0.1, 0.88, 0.88])
+        # pre 2018
+        locs, = np.where(grace.times < 2018)
+        grace.times = grace.times[locs]
+        grace.data = grace.data[locs]       
 
-    utils.plot_ts_panel(ax1, [grace, model], "-", "hydrological", loc=LEGEND_LOC)
+        fig = plt.figure(figsize=(8, 5))
 
-    #*******************
-    # prettify
-    ax1.set_ylim([-5.2, 2.3])
-    ax1.set_xlim([2003, int(settings.YEAR)+1.3])
-    ax1.set_ylabel("Anomaly (cm)", fontsize=settings.FONTSIZE)
+        ax1 = plt.axes([0.1, 0.1, 0.88, 0.88])
 
-    for tick in ax1.yaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE) 
-    for tick in ax1.xaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE) 
+        utils.plot_ts_panel(ax1, [grace, grace_fo], "-", "hydrological", loc=LEGEND_LOC)
 
-    plt.savefig(image_loc+"TWS_ts{}".format(settings.OUTFMT))
-    plt.close()
+        #*******************
+        # prettify
+        ax1.set_ylim([-5.2, 2.3])
+        ax1.set_xlim([2003, int(settings.YEAR)+1.3])
+        ax1.set_ylabel("Anomaly (cm)", fontsize=settings.FONTSIZE)
+
+        for tick in ax1.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
+        for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
+
+        plt.savefig(settings.IMAGELOC+"TWS_ts{}".format(settings.OUTFMT))
+        plt.close()
+
+
+    #************************************************************************
+    # Hovmuller - Model
+    if False:
+        times, latitudes, data = read_hovmuller(DATALOC + "zonal_mean_tws.txt")
+
+        bounds = np.array([-200, -12, -9, -6, -3, 0, 3, 6, 9, 12, 200])
+
+        utils.plot_hovmuller(settings.IMAGELOC + "TWS_hovmuller_grace", times, latitudes, data, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (cm)")
 
 
     #************************************************************************
     # GRACE Hovmuller
+    if True:
+        times, latitudes, data = read_hovmuller_2017(DATALOC)
 
+        bounds = np.array([-200, -12, -9, -6, -3, 0, 3, 6, 9, 12, 200])
 
-    times, latitudes, data = read_hovmuller(data_loc + "zonal_mean_tws.txt")
-
-    bounds = np.array([-200, -12, -9, -6, -3, 0, 3, 6, 9, 12, 200])
-
-    utils.plot_hovmuller(image_loc + "TWS_hovmuller_grace", times, latitudes, data, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (cm)")
-
+        utils.plot_hovmuller(settings.IMAGELOC + "TWS_hovmuller_grace", times, latitudes, data.T, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (cm)")
 
     #************************************************************************
     # Difference Map
+    if True:
+        cube = read_map_data(DATALOC + "tws_changes_{}-{}_2.txt".format(settings.YEAR, int(settings.YEAR)-1))
 
-    cube = read_map_data(data_loc + "tws_changes_{}-{}.txt".format(settings.YEAR, int(settings.YEAR)-1))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between {} and {} Equivalent Depth of Water (cm)".format(settings.YEAR, int(settings.YEAR)-1), figtext="(q) Terrestrial Water Storage")
 
-    utils.plot_smooth_map_iris(image_loc + "p2.1_TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between {} and {} Equivalent Depth of Water (cm)".format(settings.YEAR, int(settings.YEAR)-1), figtext="(q) Terrestrial Water Storage")
-
-    utils.plot_smooth_map_iris(image_loc + "TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between {} and {} Equivalent Depth of Water (cm)".format(settings.YEAR, int(settings.YEAR)-1))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between {} and {} Equivalent Depth of Water (cm)".format(settings.YEAR, int(settings.YEAR)-1))
 
     return # run_all_plots
 

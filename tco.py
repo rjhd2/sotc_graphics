@@ -25,9 +25,7 @@ import numpy as np
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/TCO/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/TCO/".format(settings.ROOTLOC, settings.YEAR)
 
 LW = 3
 LEGEND_LOC = "center right"
@@ -148,10 +146,10 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
 
     norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-    fig = plt.figure(figsize=(10, 6.5))
+    fig = plt.figure(figsize=(8, 5.5))
 
     plt.clf()
-    ax = plt.axes([0.05, 0.10, 0.90, 0.90], projection=cartopy.crs.Robinson())
+    ax = plt.axes([0.01, 0.12, 0.98, 0.88], projection=cartopy.crs.Robinson())
     ax.gridlines() #draw_labels=True)
     ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
     ax.coastlines()
@@ -179,10 +177,12 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], \
 
 
     cb = plt.colorbar(mesh, orientation='horizontal', pad=0.05, fraction=0.05, \
-                        aspect=30, ticks=bounds[1:-1], label=cb_label, drawedges=True)
+                        aspect=30, ticks=bounds[1:-1], drawedges=True)
     # thicken border of colorbar and the dividers
     # http://stackoverflow.com/questions/14477696/customizing-colorbar-border-color-on-matplotlib
     cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in', size=0)
+    cb.set_label(label=cb_label, fontsize=settings.FONTSIZE)
 
 #    cb.outline.set_color('k')
     cb.outline.set_linewidth(2)
@@ -210,55 +210,55 @@ def run_all_plots():
     #************************************************************************
     # Global Anomaly map
 
-    cube = read_map(data_loc + "tco_omimls_anomaly_{}.txt".format(settings.YEAR), "TCO_anom", "DU")
+    cube = read_map(DATALOC + "tco_omimls_anomaly_{}.txt".format(settings.YEAR), "TCO_anom", "DU")
 
     bounds = np.array([-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100])
     bounds = np.array([-100, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0, 100])
 
-    utils.plot_smooth_map_iris(image_loc + "TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-{} (DU)".format(int(settings.YEAR[2:])-1), contour=True)
-    utils.plot_smooth_map_iris(image_loc + "p2.1_TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-{} (DU)".format(int(settings.YEAR[2:])-1), figtext="(ab) OMI/MLS Tropospheric Column Ozone", contour=True)
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2004-08 (DU)", contour=True)
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2004-08 (DU)", figtext="(aa) OMI/MLS Tropospheric Column Ozone", contour=True)
 
 
     #************************************************************************
     # Global Trend map
-    cube = read_map(data_loc + "tco_omimls_trends_{}.txt".format(settings.YEAR), "TCO_trend", "DU")
+    cube = read_map(DATALOC + "tco_omimls_trends_{}.txt".format(settings.YEAR), "TCO_trend", "DU")
 
     bounds = np.array([-100, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 100])
-#    utils.plot_smooth_map_iris(image_loc + "TCO_trend_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)")
+#    utils.plot_smooth_map_iris(settings.IMAGELOC + "TCO_trend_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)")
 
-    sig_lats, sig_lons, sig_data = read_significance(data_loc + "tco_omimls_trends_{}.txt".format(settings.YEAR), data_loc + "tco_omimls_trends_95pct_signficance_{}.txt".format(settings.YEAR))
+    sig_lats, sig_lons, sig_data = read_significance(DATALOC + "tco_omimls_trends_{}.txt".format(settings.YEAR), DATALOC + "tco_omimls_trends_95pct_signficance_{}.txt".format(settings.YEAR))
     # use local adapted routine.
-    plot_smooth_map_iris(image_loc + "TCO_trend_significance_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)", scatter = (sig_lons, sig_lats, sig_data))
+    plot_smooth_map_iris(settings.IMAGELOC + "TCO_trend_significance_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "(DU per decade)", scatter = (sig_lons, sig_lats, sig_data))
 
 
     #************************************************************************
     # Timeseries
-    # monthly_global, annual_global, monthly_NH, annual_NH, monthly_SH, annual_SH = read_data(data_loc + "OMI_MLS_trop_ozone_burden_2004_2015.txt")
+    # monthly_global, annual_global, monthly_NH, annual_NH, monthly_SH, annual_SH = read_data(DATALOC + "OMI_MLS_trop_ozone_burden_2004_2015.txt")
 
-    monthly_global = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_60Sto60N_{}.txt".format(settings.YEAR), "mg")
-    monthly_SH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60S_{}.txt".format(settings.YEAR), "msh")
-    monthly_NH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60N_{}.txt".format(settings.YEAR), "mnh")
+    monthly_global = read_data(DATALOC + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_60Sto60N_{}.txt".format(settings.YEAR), "mg")
+    monthly_SH = read_data(DATALOC + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60S_{}.txt".format(settings.YEAR), "msh")
+    monthly_NH = read_data(DATALOC + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_0to60N_{}.txt".format(settings.YEAR), "mnh")
 
-    annual_global = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_60Sto60N_{}.txt".format(settings.YEAR), "ag")
-    annual_SH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60S_{}.txt".format(settings.YEAR), "ash")
-    annual_NH = read_data(data_loc + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60N_{}.txt".format(settings.YEAR), "anh")
+    annual_global = read_data(DATALOC + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_60Sto60N_{}.txt".format(settings.YEAR), "ag")
+    annual_SH = read_data(DATALOC + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60S_{}.txt".format(settings.YEAR), "ash")
+    annual_NH = read_data(DATALOC + "BAMS_SOTC_TROPOSPHERIC_OZONE_TG_RUNNING_MEAN_0to60N_{}.txt".format(settings.YEAR), "anh")
 
     minor_tick_interval = 1
     minorLocator = MultipleLocator(minor_tick_interval)
     COLOURS = settings.COLOURS["composition"]
 
-    fig = plt.figure(figsize=(10, 7))
-    ax = plt.axes([0.13, 0.07, 0.75, 0.86])
+    fig = plt.figure(figsize=(8, 6))
+    ax = plt.axes([0.14, 0.07, 0.84, 0.90])
 
-    plt.plot(monthly_global.times, monthly_global.data, 'k', ls='-', label=r"1.78$\pm$0.59 Tg yr$^{-1}$", lw=LW)
+    plt.plot(monthly_global.times, monthly_global.data, 'k', ls='-', label=r"1.79$\pm$0.47 Tg yr$^{-1}$", lw=LW)
     plt.plot(annual_global.times, annual_global.data, 'k', ls='--', lw=LW)
     plt.text(2004, 250, "60"+r'$^{\circ}$'+"S - 60"+r'$^{\circ}$'+"N", va='center', color='k', fontsize=settings.FONTSIZE)
 
-    plt.plot(monthly_NH.times, monthly_NH.data, 'r', ls='-', label=r"0.94$\pm$0.49 Tg yr$^{-1}$", lw=LW)
+    plt.plot(monthly_NH.times, monthly_NH.data, 'r', ls='-', label=r"0.89$\pm$0.39 Tg yr$^{-1}$", lw=LW)
     plt.plot(annual_NH.times, annual_NH.data, 'r', ls='--', lw=LW)
     plt.text(2004, 180, "0"+r'$^{\circ}$'+" - 60"+r'$^{\circ}$'+"N", va='center', color='r', fontsize=settings.FONTSIZE)
 
-    plt.plot(monthly_SH.times, monthly_SH.data, 'c', ls='-', label=r"0.83$\pm$0.58 Tg yr$^{-1}$", lw=LW)
+    plt.plot(monthly_SH.times, monthly_SH.data, 'c', ls='-', label=r"0.90$\pm$0.46 Tg yr$^{-1}$", lw=LW)
     plt.plot(annual_SH.times, annual_SH.data, 'c', ls='--', lw=LW)
     plt.text(2004, 110, "60"+r'$^{\circ}$'+"S - 0"+r'$^{\circ}$'+"", va='center', color='c', fontsize=settings.FONTSIZE)
 
@@ -268,7 +268,7 @@ def run_all_plots():
     ax.xaxis.set_minor_locator(minorLocator)
     utils.thicken_panel_border(ax)
 
-    fig.text(0.035, 0.5, "Tropospheric Ozone Mass\n(Tg)", va='center', rotation='vertical', ha="center", fontsize=settings.FONTSIZE)
+    fig.text(0.04, 0.5, "Tropospheric Ozone\n(Tg)", va='center', rotation='vertical', ha="center", fontsize=settings.FONTSIZE)
 
     plt.xlim([2003.5, int(settings.YEAR)+1.5])
     plt.ylim([90, 340])
@@ -277,7 +277,7 @@ def run_all_plots():
     for tick in ax.xaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)
 
-    plt.savefig(image_loc + "TCO_ts{}".format(settings.OUTFMT))
+    plt.savefig(settings.IMAGELOC + "TCO_ts{}".format(settings.OUTFMT))
     plt.close()
 
     return # run_all_plots

@@ -18,7 +18,8 @@ from __future__ import print_function
 import matplotlib.pyplot as plt
 import numpy as np
 
-
+import os
+import configparser
 
 #************************************************************************
 def adjust_RdYlBu():
@@ -156,18 +157,33 @@ def make_BrBG():
 
 #************************************************************************
 #************************************************************************
-YEAR = "2018"
-OUTFMT = ".png"
-OUTFMT = ".eps"
-#OUTFMT = ".pdf"
+CONFIG_FILE = os.path.join(os.getcwd(), "configuration.txt")
 
+if not os.path.exists(CONFIG_FILE):
+    print("Configuration file missing - {}".format(CONFIG_FILE))
+    sys.exit
 
-FONTSIZE = 20
+# read in configuration file
+config = configparser.ConfigParser()
+config.read(CONFIG_FILE)
+
+# main settings
+ROOTLOC = config.get("Paths", "rootloc")
+YEAR = config.get("Misc", "year")
+OUTFMT = config.get("Format", "outfmt")
+FONTSIZE = config.getint("Format", "fontsize")
+
+# derived settings
 LEGEND_FONTSIZE = 0.8 * FONTSIZE
 LABEL_FONTSIZE = 0.9 * FONTSIZE
 
+IMAGELOC = "{}/{}/images/".format(ROOTLOC, YEAR)
+REANALYSISLOC = "{}/{}/data/RNL/".format(ROOTLOC, YEAR)
+
+#************************************************************************
 COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                 "ERA5" : "orange", \
+                                "20CRv3" : "lime", \
                                 "MERRA-2" : "m", \
                                 "JRA-55" : "c", \
                                 "UAH v6.0" : "b", \
@@ -178,6 +194,8 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                 "RICH v1.7" : "y", \
                                 "RATPAC A2" : "m", \
                                 "UNSW v1.0" : "c", \
+                                "SSU+AMSU" : "k", \
+                                "SSU+MLS" : "r", \
                                 "CFSR" : "lime", \
                                 "NOAA/NCEI" : "r", \
                                 "NASA/GISS" : "b", \
@@ -200,12 +218,17 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                    "Eurasia" : 'r', \
                                    "N America" : 'b', \
                                    "Cumulative Balance" : "k", \
-                                   "Balance" : "r"},\
+                                   "Balance" : "r",\
+                                   "Lake" : "0.7",\
+                                   "All" : "k",\
+                               "ERA5" : "purple",\
+                               "In Situ" : "0.3"},\
                "hydrological" : {"ERA-Interim" : "purple", \
                                      "ERA5" : "purple", \
                                      "JRA-55" : "c", \
                                      "MERRA" : "lime", \
                                      "MERRA-2" : "lime", \
+                                     "20CRv3" : "orange", \
                                      "COSMIC RO" : "b", \
                                      "GNSS (Ground Based)" : "r", \
                                      "RSS Satellite" : '0.5', \
@@ -225,9 +248,10 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "SatCORPS" : "lime", \
                                      "CLARA-A2": "purple", \
                                      "Cloud CCI AVHRR-PMv3": "g", \
-                                     "GRACE" : "k", \
+                                     "GRACE FO" : "k", \
+                                     "GRACE" : "0.5", \
                                      "Model" : "0.5", \
-                                     "HadISDH" : "0.5", \
+                                     "HadISDH" : "0.3", \
                                      "HadCRUH" : "k", \
                                      "HadCRUHExt" : "k", \
                                      "Dai" : "r", \
@@ -240,7 +264,7 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "S. Hemisphere" : "m", \
                                      "ERA5 mask" : "purple", \
                                      "MERRA-2 mask" : "lime"},\
-               "circulation" : {"SSM/I+SSMIS" : "k", \
+               "circulation" : {"Satellite MW Radiometers" : "k", \
                                     "NOCSv2.0" : "b", \
                                     "WASwind" : "r", \
                                     "ERA-Interim" : "orange", \
@@ -248,11 +272,12 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                     "JRA-55" : "c", \
                                     "MERRA-2" : "m", \
                                     "MERRA" : "m", \
+                                    "20CRv3" : "lime", \
                                     "ERApreSAT" : "purple", \
                                     "CERA20C" : "purple", \
                                     "GRASP" : 'k', \
                                     "GIUB" : "lime"},\
-               "radiation" : {"AT" : "k"},\
+               "radiation" : {"AT" : "r"},\
                "composition" : {"AOD monthly" : "r", \
                                 "AOD annual" : "b"},\
                "land_surface" : {"Globe" : "k", \
@@ -291,7 +316,10 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "South Basin" : "m", \
                                      "Duke GCC" : "k",\
                                      "SOS" : "g",\
-                                     "Spring T": "m"}} #  note space in second Q. robur
+                                     "Spring T": "m",
+                                     "EOS" : "g",\
+                                     "Fall T": "m",\
+                                     "MODIS": "k"}} #  note space in second Q. robur
 
 # all maps have 10 colours - or 11 with white as central.  
 # Can probably make up from Kate's code if better match needed.
@@ -313,4 +341,4 @@ COLOURMAP_DICT = {"temperature" : RdYlBu_r, "temperature_r" : RdYlBu, \
                       "phenological" : BrBG, "phenological_r" : BrBG_r}
 
 
-ROOTLOC = "/data/users/rdunn/SotC"
+

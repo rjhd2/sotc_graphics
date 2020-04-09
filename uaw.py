@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 # python3
 from __future__ import absolute_import
 from __future__ import print_function
@@ -27,9 +27,7 @@ import iris
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/UAW/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/UAW/".format(settings.ROOTLOC, settings.YEAR)
 
 CLIM_PERIOD = "8110"
 LEGEND_LOC = "upper right"
@@ -96,7 +94,7 @@ def read_uaw_ts(filename, smooth=False, annual=False):
         points = 12
         merra = make_masked_smoothed_ts("MERRA-2", times, ncfile.variables["MERRA2"][:], points)
 #        grasp = make_masked_smoothed_ts("GRASP", times, ncfile.variables["GRASP"][:], points)
-        cera20c = make_masked_smoothed_ts("CERA20C", times, ncfile.variables["CERA20C"][:], points)
+#        cera20c = make_masked_smoothed_ts("CERA20C", times, ncfile.variables["CERA20C"][:], points)
         jra55 = make_masked_smoothed_ts("JRA-55", times, ncfile.variables["JRA55"][:], points)
         erai = make_masked_smoothed_ts("ERA-Interim", times, ncfile.variables["ERAI"][:], points)
         era5 = make_masked_smoothed_ts("ERA5", times, ncfile.variables["ERA5"][:], points)
@@ -104,7 +102,7 @@ def read_uaw_ts(filename, smooth=False, annual=False):
     if annual:
         merra = make_masked_annual_ts("MERRA-2", times, ncfile.variables["MERRA2"][:])
 #        grasp = make_masked_annual_ts("GRASP", times, ncfile.variables["GRASP"][:])
-        cera20c = make_masked_annual_ts("CERA20C", times, ncfile.variables["CERA20C"][:])
+#        cera20c = make_masked_annual_ts("CERA20C", times, ncfile.variables["CERA20C"][:])
         jra55 = make_masked_annual_ts("JRA-55", times, ncfile.variables["JRA55"][:])
         erai = make_masked_annual_ts("ERA-Interim", times, ncfile.variables["ERAI"][:])
         era5 = make_masked_annual_ts("ERA5", times, ncfile.variables["ERA5"][:])
@@ -112,7 +110,7 @@ def read_uaw_ts(filename, smooth=False, annual=False):
     if not smooth and not annual:
         merra = utils.Timeseries("MERRA-2", times, ncfile.variables["MERRA2"][:])
 #        grasp = utils.Timeseries("GRASP", times, ncfile.variables["GRASP"][:])
-        cera20c = utils.Timeseries("CERA20C", times, ncfile.variables["CERA20C"][:])
+#        cera20c = utils.Timeseries("CERA20C", times, ncfile.variables["CERA20C"][:])
         jra55 = utils.Timeseries("JRA-55", times, ncfile.variables["JRA55"][:])
         erai = utils.Timeseries("ERA-Interim", times, ncfile.variables["ERAI"][:])
         era5 = utils.Timeseries("ERA5", times, ncfile.variables["ERA5"][:])
@@ -123,7 +121,7 @@ def read_uaw_ts(filename, smooth=False, annual=False):
     # set ERA-Interim linestyle
     erai.ls = "--"
 
-    return era5, erai, cera20c, merra, jra55 # read_uaw_ts
+    return era5, erai, merra, jra55 # read_uaw_ts
 
 #************************************************************************
 def read_QBO(filename):
@@ -151,345 +149,401 @@ def run_all_plots():
 
     #************************************************************************
     # Timeseries - 2016
-    # grasp, erai, era_presat, merra, jra55 = read_uaw_ts(data_loc + "20N-40N300.nc", smooth = True)
-    # qbo = read_QBO(data_loc + "qbo_1908_2015_REC_ERA40_ERAINT.txt")
+    if False:
+        grasp, erai, era_presat, merra, jra55 = read_uaw_ts(DATALOC + "20N-40N300.nc", smooth = True)
+        qbo = read_QBO(DATALOC + "qbo_1908_2015_REC_ERA40_ERAINT.txt")
 
-    # fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, figsize = (10,15), sharex=True)
+        fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, figsize = (8, 12), sharex=True)
 
-    # # Observations
-    # utils.plot_ts_panel(ax1, [grasp], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = [" (0.02)"])
+        # Observations
+        utils.plot_ts_panel(ax1, [grasp], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = [" (0.02)"])
 
-    # # Reanalyses
-    # utils.plot_ts_panel(ax2, [erai, era_presat, jra55, merra], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = [" (-0.20)", " (0.33)", " (-0.13)", " (-0.07)"])
+        # Reanalyses
+        utils.plot_ts_panel(ax2, [erai, era_presat, jra55, merra], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = [" (-0.20)", " (0.33)", " (-0.13)", " (-0.07)"])
 
-    # grasp, erai, era_presat, merra, jra55 = read_uaw_ts(data_loc + "10S-10N50.nc", smooth = False)
+        grasp, erai, era_presat, merra, jra55 = read_uaw_ts(DATALOC + "10S-10N50.nc", smooth = False)
 
-    # # Observations
-    # utils.plot_ts_panel(ax3, [qbo, grasp], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = ["", " (-0.31)"])
-    # ax3.set_ylabel("Zonal Anomaly (m s"+r'$^{-1}$'+")", fontsize = settings.FONTSIZE)
+        # Observations
+        utils.plot_ts_panel(ax3, [qbo, grasp], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = ["", " (-0.31)"])
+        ax3.set_ylabel("Zonal Anomaly (m s"+r'$^{-1}$'+")", fontsize = settings.FONTSIZE)
 
-    # # Reanalyses
-    # utils.plot_ts_panel(ax4, [erai, era_presat, jra55, merra], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = [" (-0.33)"," (-0.16)", " (-0.37)", " (0.30)"])
+        # Reanalyses
+        utils.plot_ts_panel(ax4, [erai, era_presat, jra55, merra], "-", "circulation", loc = LEGEND_LOC, ncol=2, extra_labels = [" (-0.33)"," (-0.16)", " (-0.37)", " (0.30)"])
 
-    # fig.subplots_adjust(left = 0.11, right = 0.99, top = 0.99, hspace = 0.001)
+        fig.subplots_adjust(left = 0.11, right = 0.99, top = 0.99, hspace = 0.001)
 
-    # # turn on 4th axis ticks
+        # turn on 4th axis ticks
 
-    # for tick in ax4.get_xticklabels():
-    #     tick.set_visible(True)
+        for tick in ax4.get_xticklabels():
+            tick.set_visible(True)
 
-    # # delete the 5th axis and recreate - to break the sharex link
-    # fig.delaxes(ax5)
-    # ax5 = fig.add_subplot(515)
-    # pos = ax5.get_position()
-    # new_pos = [pos.x0, pos.y0 - 0.05, pos.width, pos.height]
-    # ax5.set_position(new_pos)
+        # delete the 5th axis and recreate - to break the sharex link
+        fig.delaxes(ax5)
+        ax5 = fig.add_subplot(515)
+        pos = ax5.get_position()
+        new_pos = [pos.x0, pos.y0 - 0.05, pos.width, pos.height]
+        ax5.set_position(new_pos)
 
-    # # Obs & Reanalyses
-    # utils.plot_ts_panel(ax5, [grasp, erai, jra55, merra], "-", "circulation", loc = LEGEND_LOC, ncol=2)
+        # Obs & Reanalyses
+        utils.plot_ts_panel(ax5, [grasp, erai, jra55, merra], "-", "circulation", loc = LEGEND_LOC, ncol=2)
 
-    # # sort formatting
-    # for ax in [ax4, ax5]:
-    #     for tick in ax.xaxis.get_major_ticks():
-    #         tick.label.set_fontsize(settings.FONTSIZE) 
+        # sort formatting
+        for ax in [ax4, ax5]:
+            for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE) 
 
-    # for ax in [ax1, ax2, ax3, ax4, ax5]:
-    #     for tick in ax.yaxis.get_major_ticks():
-    #         tick.label.set_fontsize(settings.FONTSIZE) 
+        for ax in [ax1, ax2, ax3, ax4, ax5]:
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE) 
 
-    # # x + y limit
-    # ax1.set_xlim([1930,2017.9])
-    # ax1.set_ylim([-13,6])
-    # ax1.yaxis.set_ticks([-10, -5, 0])
-    # ax2.set_ylim([-3.8,3.8])
-    # ax2.yaxis.set_ticks([-2, 0, 2, 4])
-    # ax3.set_ylim([-34,24])
-    # ax4.set_ylim([-34,24])
-    # ax5.set_ylim([-34,24])
+        # x + y limit
+        ax1.set_xlim([1930,2017.9])
+        ax1.set_ylim([-13,6])
+        ax1.yaxis.set_ticks([-10, -5, 0])
+        ax2.set_ylim([-3.8,3.8])
+        ax2.yaxis.set_ticks([-2, 0, 2, 4])
+        ax3.set_ylim([-34,24])
+        ax4.set_ylim([-34,24])
+        ax5.set_ylim([-34,24])
 
-    # ax5.set_xlim([2000,2017.9])
+        ax5.set_xlim([2000,2017.9])
 
-    # # sort labelling
-    # ax1.text(0.02, 0.87, "(a) Observations 20"+r'$^\circ$'+" - 40"+r'$^\circ$'+"N 300hPa", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    # ax2.text(0.02, 0.87, "(b) Reanalyses 20"+r'$^\circ$'+" - 40"+r'$^\circ$'+"N 300hPa", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    # ax3.text(0.02, 0.87, "(c) Observations & Reconstructions 10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    # ax4.text(0.02, 0.87, "(d) Reanalyses 10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", transform = ax4.transAxes, fontsize = settings.LABEL_FONTSIZE)
-    # ax5.text(0.02, 0.87, "(e) Observations & Reanalyses 10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", transform = ax5.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        # sort labelling
+        ax1.text(0.02, 0.87, "(a) Observations 20"+r'$^\circ$'+" - 40"+r'$^\circ$'+"N 300hPa", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax2.text(0.02, 0.87, "(b) Reanalyses 20"+r'$^\circ$'+" - 40"+r'$^\circ$'+"N 300hPa", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax3.text(0.02, 0.87, "(c) Observations & Reconstructions 10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax4.text(0.02, 0.87, "(d) Reanalyses 10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", transform = ax4.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax5.text(0.02, 0.87, "(e) Observations & Reanalyses 10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", transform = ax5.transAxes, fontsize = settings.LABEL_FONTSIZE)
 
 
-    # plt.savefig(image_loc+"UAW_ts{}".format(settings.OUTFMT))
+        plt.savefig(settings.IMAGELOC+"UAW_ts{}".format(settings.OUTFMT))
 
     #************************************************************************
     # Timeseries - 2018
+    if True:
+        plt.figure(figsize=(8, 5))
+        plt.clf()
+        ax = plt.axes([0.12, 0.10, 0.87, 0.87])
 
-    plt.figure(figsize=(10, 6))
-    plt.clf()
-    ax = plt.axes([0.12, 0.10, 0.87, 0.87])
- 
-    # Globe
-#    grasp, erai, cera, merra, jra55 = read_uaw_ts(data_loc + "Globe850.nc", annual=True)
-    era5, erai, cera, merra, jra55 = read_uaw_ts(data_loc + "Globe850.nc", annual=True)
-    utils.plot_ts_panel(ax, [merra, erai, era5, jra55, cera], "-", "circulation", \
-                        loc=LEGEND_LOC, ncol=2, extra_labels=[" (0.03)", " (0.07)", \
-                                                                  " (0.03)", " (0.06)", ""])
+        # Globe
+    #    grasp, erai, cera, merra, jra55 = read_uaw_ts(DATALOC + "Globe850.nc", annual=True)
+        era5, erai, merra, jra55 = read_uaw_ts(DATALOC + "Globe850.nc", annual=True)
+        utils.plot_ts_panel(ax, [merra, erai, era5, jra55], "-", "circulation", \
+                            loc=LEGEND_LOC, ncol=2, extra_labels=[" (0.03)", " (0.07)", \
+                                                                      " (0.03)", " (0.06)"])
 
-    # sort formatting
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE) 
+        # sort formatting
+        for tick in ax.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
 
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE) 
+        for tick in ax.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
 
-    # x + y limit
-    ax.set_xlim([1958, int(settings.YEAR)+0.9])
-    ax.set_ylim([-0.39, 1.0])
-    ax.yaxis.set_ticks_position('left')
-    ax.set_ylabel("Wind Anomaly (m s"+r'$^{-1}$'+")", fontsize=settings.LABEL_FONTSIZE)
- 
-    # # sort labelling
-    ax.text(0.02, 0.87, "Globe 850hPa", transform=ax.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        # x + y limit
+        ax.set_xlim([1958, int(settings.YEAR)+0.9])
+        ax.set_ylim([-0.39, 1.0])
+        ax.yaxis.set_ticks_position('left')
+        ax.set_ylabel("Wind Anomaly (m s"+r'$^{-1}$'+")", fontsize=settings.LABEL_FONTSIZE)
 
-    plt.savefig(image_loc+"UAW_globe_ts{}".format(settings.OUTFMT))
+        # # sort labelling
+        ax.text(0.02, 0.87, "Globe 850hPa", transform=ax.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-    # #*******
-    # # Tropics timeseries
+        plt.savefig(settings.IMAGELOC+"UAW_globe_ts{}".format(settings.OUTFMT))
 
-    # fig = plt.figure(figsize=(10, 6))
-    # plt.clf()
-    # ax = plt.axes([0.10, 0.10, 0.87, 0.87])
- 
-    # # 10N to 10S
-    # grasp, erai, cera, merra, jra55 = read_uaw_ts(data_loc + "10S-10N50.nc")
-    # utils.plot_ts_panel(ax, [merra, erai, jra55, grasp], "-", "circulation",\
-    #                         loc=LEGEND_LOC, ncol=2, extra_labels=[" (0.17)", " (-0.40)", \
-    #                                                                   " (-0.51)", " (-0.30)"])
+    #*******
+    # Tropics timeseries
+    if False:
+        fig = plt.figure(figsize=(8, 5))
+        plt.clf()
+        ax = plt.axes([0.10, 0.10, 0.87, 0.87])
 
-    # # sort formatting
-    # for tick in ax.xaxis.get_major_ticks():
-    #     tick.label.set_fontsize(settings.FONTSIZE) 
+        # 10N to 10S
+        grasp, erai, cera, merra, jra55 = read_uaw_ts(DATALOC + "10S-10N50.nc")
+        utils.plot_ts_panel(ax, [merra, erai, jra55, grasp], "-", "circulation",\
+                                loc=LEGEND_LOC, ncol=2, extra_labels=[" (0.17)", " (-0.40)", \
+                                                                          " (-0.51)", " (-0.30)"])
 
-    # for tick in ax.yaxis.get_major_ticks():
-    #     tick.label.set_fontsize(settings.FONTSIZE) 
+        # sort formatting
+        for tick in ax.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
 
-    # # x + y limit
-    # ax.set_xlim([2000, int(settings.YEAR)+2])
-    # ax.set_ylim([-28, 18])
-    # ax.yaxis.set_ticks_position('left')
-    # ax.set_ylabel("Wind Anomaly (m s"+r'$^{-1}$'+")", fontsize=settings.LABEL_FONTSIZE)
- 
-    # # # sort labelling
-    # ax.text(0.02, 0.87, "10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", \
-    #             transform=ax.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        for tick in ax.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
 
-    # plt.savefig(image_loc+"UAW_tropics_ts{}".format(settings.OUTFMT))
+        # x + y limit
+        ax.set_xlim([2000, int(settings.YEAR)+2])
+        ax.set_ylim([-28, 18])
+        ax.yaxis.set_ticks_position('left')
+        ax.set_ylabel("Wind Anomaly (m s"+r'$^{-1}$'+")", fontsize=settings.LABEL_FONTSIZE)
 
-    #************************************************************************
-    # Global Map - ERA-I Anomaly figure
+        # # sort labelling
+        ax.text(0.02, 0.87, "10"+r'$^\circ$'+"S - 10"+r'$^\circ$'+"N 50hPa", \
+                    transform=ax.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-    # Read in ERA-I anomalies
+        plt.savefig(settings.IMAGELOC+"UAW_tropics_ts{}".format(settings.OUTFMT))
 
-    # IRIS doesn't like the Conventions attribute
-    ncfile = ncdf.Dataset(data_loc + "ERAI_850.nc", 'r')
-
-    var = ncfile.variables["ws"][:] # this is a masked array
-    lons = ncfile.variables["longitude"][:]
-    lats = ncfile.variables["latitude"][:]
-
-    ncfile.close()
-
-    # monthly data, so take mean
-    mean = np.mean(var, axis=0)
-
-    cube = utils.make_iris_cube_2d(mean, lats, lons, "UAW_ANOM", "m/s")
-
-    bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
-
-    utils.plot_smooth_map_iris(image_loc + "p2.1_UAW_{}_anoms_erai".format(settings.YEAR), \
-                                   cube, settings.COLOURMAP_DICT["circulation"], bounds, \
-                                   "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")", \
-                                   figtext="(w) Upper Air (850-hPa) Winds")
-    utils.plot_smooth_map_iris(image_loc + "UAW_{}_anoms_erai".format(settings.YEAR), \
-                                   cube, settings.COLOURMAP_DICT["circulation"], bounds, \
-                                   "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")")
 
     #************************************************************************
     # Global Map - ERA5 Anomaly figure
+    if True:
+        # Read in ERA5 anomalies
 
-    # Read in ERA5 anomalies
+        # IRIS doesn't like the Conventions attribute
+        ncfile = ncdf.Dataset(DATALOC + "ERA5_850_u.nc", 'r')
 
-    # IRIS doesn't like the Conventions attribute
-    ncfile = ncdf.Dataset(data_loc + "ERA5_850.nc", 'r')
+        var = ncfile.variables["u"][:] # this is a masked array
+        lons = ncfile.variables["longitude"][:]
+        lats = ncfile.variables["latitude"][:]
 
-    var = ncfile.variables["ws"][:] # this is a masked array
-    lons = ncfile.variables["longitude"][:]
-    lats = ncfile.variables["latitude"][:]
+        ncfile.close()
 
-    ncfile.close()
+        # monthly data, so take mean
+        print("not complete year used in 2019")
+        mean = np.mean(var[7:], axis=0)
 
-    # monthly data, so take mean
-    mean = np.mean(var, axis=0)
+        cube = utils.make_iris_cube_2d(mean, lats, lons, "UAW_ANOM", "m/s")
 
-    cube = utils.make_iris_cube_2d(mean, lats, lons, "UAW_ANOM", "m/s")
+        bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
-    bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
-
-    utils.plot_smooth_map_iris(image_loc + "p2.1_UAW_{}_anoms_era5".format(settings.YEAR), \
-                                   cube, settings.COLOURMAP_DICT["circulation"], bounds, \
-                                   "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")", \
-                                   figtext="(w) Upper Air (850-hPa) Winds")
-    utils.plot_smooth_map_iris(image_loc + "UAW_{}_anoms_era5".format(settings.YEAR), \
-                                   cube, settings.COLOURMAP_DICT["circulation"], bounds, \
-                                   "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UAW_{}_anoms_era5".format(settings.YEAR), \
+                                       cube, settings.COLOURMAP_DICT["circulation"], bounds, \
+                                       "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")", \
+                                       figtext="(w) Upper Air (850-hPa) Eastward Winds (ASOND)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "UAW_{}_anoms_era5".format(settings.YEAR), \
+                                       cube, settings.COLOURMAP_DICT["circulation"], bounds, \
+                                       "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")")
 
     #************************************************************************
     # QBO plot - https://www.geo.fu-berlin.de/en/met/ag/strat/produkte/qbo/index.html
-    
-    levels = np.array([70., 50., 40., 30., 20., 15., 10.])
-    times = []
-    dttimes = []
-    data = np.zeros((levels.shape[0], 13))
-    factor = 0.1
-    j = 0
-    
-    with open(data_loc + "qbo.dat", "r") as infile:
+    if False:
+        levels = np.array([70., 50., 40., 30., 20., 15., 10.])
+        times = []
+        dttimes = []
+        data = np.zeros((levels.shape[0], 13))
+        factor = 0.1
+        j = 0
 
-        for line in infile:
-            line = line.split()
+        with open(DATALOC + "qbo.dat", "r") as infile:
 
-            if len(line) > 0:
-                    
-                # get current year
-                try:
-                    if int(line[1][:2]) >= int(settings.YEAR[-2:]) and int(line[1][:2]) <= int(settings.YEAR[-2:])+1:
-                        month = int(line[1][-2:])
-                        times += [month]
-                        dttimes += [dt.datetime(int(settings.YEAR), month, 1)]
-                        data[:, j] = [float(i)*factor for i in line[2:]]
-                        j += 1
-                except ValueError:
-                    pass
+            for line in infile:
+                line = line.split()
 
-    data = np.array(data)
-    times = np.array(times)
-    times[-1] += 12
+                if len(line) > 0:
 
-    # And now plot
-    cmap = settings.COLOURMAP_DICT["circulation"]
-    bounds = [-100., -45., -30., -15., -10., -5., 0., 5., 10., 15., 30., 45., 100]
-    norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+                    # get current year
+                    try:
+                        if int(line[1][:2]) >= int(settings.YEAR[-2:]) and int(line[1][:2]) <= int(settings.YEAR[-2:])+1:
+                            month = int(line[1][-2:])
+                            times += [month]
+                            dttimes += [dt.datetime(int(settings.YEAR), month, 1)]
+                            data[:, j] = [float(i)*factor for i in line[2:]]
+                            j += 1
+                    except ValueError:
+                        pass
 
-    fig = plt.figure(figsize=(8, 8))
-    plt.clf()
-    ax = plt.axes([0.12, 0.07, 0.8, 0.9])
+        data = np.array(data)
+        times = np.array(times)
+        times[-1] += 12
 
-    times, levels = np.meshgrid(times, levels)
+        # And now plot
+        cmap = settings.COLOURMAP_DICT["circulation"]
+        bounds = [-100., -45., -30., -15., -10., -5., 0., 5., 10., 15., 30., 45., 100]
+        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-    con = plt.contourf(times, levels, data, bounds, cmap=cmap, norm=norm, vmax=bounds[-1], vmin=bounds[1])
+        fig = plt.figure(figsize=(8, 8))
+        plt.clf()
+        ax = plt.axes([0.12, 0.07, 0.8, 0.9])
 
-    plt.ylabel("Pressure (hPa)", fontsize=settings.FONTSIZE)
-    plt.xlabel(settings.YEAR, fontsize=settings.FONTSIZE)
-    plt.xticks(times[0], [dt.datetime.strftime(d, "%b") for d in dttimes], fontsize=settings.FONTSIZE*0.8)
+        times, levels = np.meshgrid(times, levels)
 
-    plt.xlim([1, 13])
-    plt.ylim([70, 10])
+        con = plt.contourf(times, levels, data, bounds, cmap=cmap, norm=norm, vmax=bounds[-1], vmin=bounds[1])
 
-    ax.set_yscale("log", subsy=[])
-    plt.gca().yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10))
-    plt.gca().yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-    plt.gca().yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        plt.ylabel("Pressure (hPa)", fontsize=settings.FONTSIZE)
+        plt.xlabel(settings.YEAR, fontsize=settings.FONTSIZE)
+        plt.xticks(times[0], [dt.datetime.strftime(d, "%b") for d in dttimes], fontsize=settings.FONTSIZE*0.8)
 
-    plt.yticks(np.arange(70, 0, -10), ["{}".format(l) for l in np.arange(70, 0, -10)], fontsize=settings.FONTSIZE)
+        plt.xlim([1, 13])
+        plt.ylim([70, 10])
 
-    # colourbar and prettify
-    cb = plt.colorbar(con, orientation='horizontal', pad=0.1, fraction=0.05, aspect=30, \
-                          ticks=bounds[1:-1], label="zonal wind (m/s)", drawedges=True)
+        ax.set_yscale("log", subsy=[])
+        plt.gca().yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10))
+        plt.gca().yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+        plt.gca().yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
 
-    cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE*0.6, direction='in')
+        plt.yticks(np.arange(70, 0, -10), ["{}".format(l) for l in np.arange(70, 0, -10)], fontsize=settings.FONTSIZE)
 
-    cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE*0.6)
-#    cb.outline.set_color('k')
-    cb.outline.set_linewidth(2)
-    cb.dividers.set_color('k')
-    cb.dividers.set_linewidth(2)
-                
-    utils.thicken_panel_border(ax)
+        # colourbar and prettify
+        cb = plt.colorbar(con, orientation='horizontal', pad=0.1, fraction=0.05, aspect=30, \
+                              ticks=bounds[1:-1], label="zonal wind (m/s)", drawedges=True)
 
-    plt.savefig(image_loc+"UAW_QBO_levels{}".format(settings.OUTFMT))    
+        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+        cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE*0.6, direction='in')
+
+        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE*0.6)
+    #    cb.outline.set_color('k')
+        cb.outline.set_linewidth(2)
+        cb.dividers.set_color('k')
+        cb.dividers.set_linewidth(2)
+
+        utils.thicken_panel_border(ax)
+
+        plt.savefig(settings.IMAGELOC+"UAW_QBO_levels{}".format(settings.OUTFMT))    
 
 
     #************************************************************************
+    # https://www.geo.fu-berlin.de/met/ag/strat/produkte/qbo/singapore2019.dat
+    if True:
+        levels = []
+        times = np.arange(1, 13, 1)
+        data = []
+        factor = 0.1
+        j = 0
+
+        with open(DATALOC + "singapore{}.dat".format(settings.YEAR), "r") as infile:
+            read = False
+            for line in infile:
+                line = line.split()
+                if len(line) == 0:
+                    continue
+
+                if line[0] == "hPa":
+                    read = True
+                    continue
+                elif read:
+                    
+                    if len(line) > 0:
+
+                        levels += [int(line[0])]
+                        data += [[float(l)*0.1 for l in line[1:]]]
+                        
+                else:
+                    continue
+
+        # convert ot arrays and reorder
+        levels = np.array(levels)
+        levels = levels[::-1]
+        data = np.array(data)
+        data = data[::-1, :]
+
+        # And now plot
+        cmap = settings.COLOURMAP_DICT["circulation"]
+        bounds = [-100., -45., -30., -15., -10., -5., 0., 5., 10., 15., 30., 45., 100]
+        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+
+        fig = plt.figure(figsize=(8, 8))
+        plt.clf()
+        ax = plt.axes([0.12, 0.07, 0.85, 0.9])
+
+        times, levels = np.meshgrid(times, levels)
+
+        con = plt.contourf(times, levels, data, bounds, cmap=cmap, norm=norm, vmax=bounds[-1], vmin=bounds[1])
+
+        plt.ylabel("Pressure (hPa)", fontsize=settings.FONTSIZE)
+        plt.xlabel(settings.YEAR, fontsize=settings.FONTSIZE)
+        dttimes = [dt.datetime(int(settings.YEAR), m+1, 1) for m in range(12)]
+        plt.xticks(times[0], [dt.datetime.strftime(d, "%b") for d in dttimes], fontsize=settings.FONTSIZE)
+
+        plt.xlim([1, 12])
+        plt.ylim([100, 10])
+
+        ax.set_yscale("log", subsy=[])
+        plt.gca().yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10))
+        plt.gca().yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+        plt.gca().yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+
+        plt.yticks(np.arange(100, 0, -10), ["{}".format(l) for l in np.arange(100, 0, -10)], fontsize=settings.FONTSIZE)
+
+        # colourbar and prettify
+        cb = plt.colorbar(con, orientation='horizontal', pad=0.1, fraction=0.05, aspect=30, \
+                              ticks=bounds[1:-1], drawedges=True)
+
+        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
+        cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in')
+
+        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
+    #    cb.outline.set_color('k')
+        cb.outline.set_linewidth(2)
+        cb.dividers.set_color('k')
+        cb.dividers.set_linewidth(2)
+
+        utils.thicken_panel_border(ax)
+
+        plt.savefig(settings.IMAGELOC+"UAW_levels{}".format(settings.OUTFMT))    
+
+    #************************************************************************
     # 200hPa winds in 1980 and 2018    
+    if False:
+        cube_list = iris.load(DATALOC + "ws200_spread_197901_201801.nc")
+        names = np.array([str(cube.var_name) for cube in cube_list])
 
-    cube_list = iris.load(data_loc + "ws200_spread_197901_201801.nc")
-    names = np.array([str(cube.var_name) for cube in cube_list])
+        # hard coded labels
+        mu = {"1980":"1.8", "2018": "1.0"}
+        rms = {"1980":"2.0", "2018": "1.1"}
+        label = {"1980":"(a)", "2018": "(b)"}
+        bounds = [0, 0.5, 1, 1.5, 2, 2.5, 3.0, 100]
+        for name in names:
+            print(name)
+            cube_index, = np.where(names == name)
+            cube = cube_list[cube_index[0]]
 
-    # hard coded labels
-    mu = {"1980":"1.8", "2018": "1.0"}
-    rms = {"1980":"2.0", "2018": "1.1"}
-    label = {"1980":"(a)", "2018": "(b)"}
-    bounds = [0, 0.5, 1, 1.5, 2, 2.5, 3.0, 100]
-    for name in names:
-        print(name)
-        cube_index, = np.where(names == name)
-        cube = cube_list[cube_index[0]]
-        
-        year = name.split("_")[-1][:4]
-        
-        utils.plot_smooth_map_iris(image_loc + "UAW_200hPa_Jan{}".format(year), cube, plt.cm.BuPu, bounds, "m/s", figtext="{} January {}, mean={}, RMS={}".format(label[year], year, mu[year], rms[year]))
+            year = name.split("_")[-1][:4]
+
+            utils.plot_smooth_map_iris(settings.IMAGELOC + "UAW_200hPa_Jan{}".format(year), cube, plt.cm.BuPu, bounds, "m/s", figtext="{} January {}, mean={}, RMS={}".format(label[year], year, mu[year], rms[year]))
        
 
 
     #************************************************************************
     # Plots
-    label = {"1980":"(c)", "2018": "(d)"}
-    for year in ["1980", "2018"]:
+    if False:
+        label = {"1980":"(c)", "2018": "(d)"}
+        for year in ["1980", "2018"]:
 
-        cube_list = iris.load(data_loc + "v200_zonal_{}01.nc".format(year))
+            cube_list = iris.load(DATALOC + "v200_zonal_{}01.nc".format(year))
 
-        for cube in cube_list:
-            if cube.var_name == "products":
-                names = cube
-            elif cube.var_name == "v200_array":
-                data_array = cube
+            for cube in cube_list:
+                if cube.var_name == "products":
+                    names = cube
+                elif cube.var_name == "v200_array":
+                    data_array = cube
 
-        latitudes = data_array.coord("latitude").points
-        plt.figure()
-        ax=plt.axes([0.13, 0.13, 0.85, 0.85])
+            latitudes = data_array.coord("latitude").points
+            plt.figure()
+            ax=plt.axes([0.13, 0.13, 0.85, 0.85])
 
-        COLOURS = {"ERA5 ens. mean": "red", "ERA5 ensemble": "orange", "ERA5 HRES": "orange", "JRA55": "c", "MERRA-2": "m", "ERA-Interim": "orange"}
+            COLOURS = {"ERA5 ens. mean": "red", "ERA5 ensemble": "orange", "ERA5 HRES": "orange", "JRA55": "c", "MERRA-2": "m", "ERA-Interim": "orange"}
 
-        for name, data in zip(names.data, data_array.data):
+            for name, data in zip(names.data, data_array.data):
 
-            str_name = "".join(str(name.compressed(), "latin-1").rstrip())
-            # manually fix names
-            if str_name == "ERAI":
-                str_name = "ERA-Interim"
-            elif str_name == "ERA5 ens mean":
-                str_name = "ERA5 ens. mean"
+                str_name = "".join(str(name.compressed(), "latin-1").rstrip())
+                # manually fix names
+                if str_name == "ERAI":
+                    str_name = "ERA-Interim"
+                elif str_name == "ERA5 ens mean":
+                    str_name = "ERA5 ens. mean"
 
-            if str_name[:3] == "mem":
-                plt.plot(latitudes[1:], data[1:], c="orange")
-            elif str_name == "ERA-Interim":
-                plt.plot(latitudes[1:], data[1:], c=COLOURS[str_name], label=str_name, lw=2, ls="--")
-            else:
-                plt.plot(latitudes[1:], data[1:], c=COLOURS[str_name], label=str_name, lw=2)
+                if str_name[:3] == "mem":
+                    plt.plot(latitudes[1:], data[1:], c="orange")
+                elif str_name == "ERA-Interim":
+                    plt.plot(latitudes[1:], data[1:], c=COLOURS[str_name], label=str_name, lw=2, ls="--")
+                else:
+                    plt.plot(latitudes[1:], data[1:], c=COLOURS[str_name], label=str_name, lw=2)
 
-        plt.legend(loc="upper right", ncol=1, frameon=False)
-        plt.xlabel("Latitude", fontsize=settings.FONTSIZE*0.8)
-        plt.ylabel("m/s", fontsize=settings.FONTSIZE*0.8)
-        plt.text(0.03, 0.92, "{} January {}".format(label[year], year), transform=ax.transAxes, fontsize=settings.FONTSIZE*0.8)
+            plt.legend(loc="upper right", ncol=1, frameon=False)
+            plt.xlabel("Latitude", fontsize=settings.FONTSIZE*0.8)
+            plt.ylabel("m/s", fontsize=settings.FONTSIZE*0.8)
+            plt.text(0.03, 0.92, "{} January {}".format(label[year], year), transform=ax.transAxes, fontsize=settings.FONTSIZE*0.8)
 
-        plt.xlim([-90, 90])
-        plt.xticks(np.arange(-90, 120, 30))
-        plt.ylim([-1, 4])
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8) 
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8) 
-        utils.thicken_panel_border(ax)
+            plt.xlim([-90, 90])
+            plt.xticks(np.arange(-90, 120, 30))
+            plt.ylim([-1, 4])
+            for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE*0.8) 
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE*0.8) 
+            utils.thicken_panel_border(ax)
 
-        plt.savefig(image_loc+"UAW_200hPa_Jan{}_ts{}".format(year, settings.OUTFMT))       
+            plt.savefig(settings.IMAGELOC+"UAW_200hPa_Jan{}_ts{}".format(year, settings.OUTFMT))       
 
     return
 

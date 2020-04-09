@@ -266,7 +266,7 @@ def run_all_plots():
     # alder, chestnut, oak, beech = read_uk_csv(os.path.join(data_loc, "timeseries", "details_for_climate_report.csv"))
     # long_oak = read_uk_oak_csv(os.path.join(data_loc, "timeseries", "NatureCalendar_pedunculate_oak_first_leaf_1753_1999.csv"))
 
-    # fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(10, 9), sharex=True)
+    # fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 7), sharex=True)
 
     # # DWD data - budburst
     # utils.plot_ts_panel(ax1, [betula_out, fagus_out, quercus_out], "-", "phenological", loc="")
@@ -342,7 +342,7 @@ def run_all_plots():
 
     # # up, down, diff = read_bartlett_green(os.path.join(data_loc, "timeseries", "Bartlett_greenupdown.dat"))
 
-    # # fig = plt.figure(figsize = (8,9))
+    # # fig = plt.figure(figsize = (8, 9))
     # # plt.clf()
 
     # # # make axes by hand
@@ -452,7 +452,7 @@ def run_all_plots():
     # #***********************
     # # Bartlett GPP & Duke separate
 
-    # fig = plt.figure(figsize=(10, 8))
+    # fig = plt.figure(figsize=(8, 6.5))
     # plt.clf()
     # ax1 = plt.axes([0.12, 0.52, 0.78, 0.44])
     # ax2 = ax1.twinx()
@@ -543,7 +543,7 @@ def run_all_plots():
     # #***********************
     # # Bartlett GPP & Duke combined
 
-    # # fig = plt.figure(figsize = (10,6))
+    # # fig = plt.figure(figsize = (8, 5))
     # # plt.clf()
     # # ax1 = plt.axes([0.12, 0.1, 0.78, 0.8])
     # # ax2 = ax1.twinx()
@@ -604,7 +604,7 @@ def run_all_plots():
     # bounds = np.arange(80, 160, 10)
     # norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-    # fig = plt.figure(figsize=(6, 8))
+    # fig = plt.figure(figsize=(8, 10.5))
     # plt.clf()
     # ax = plt.axes([0.05, 0.05, 0.9, 0.9], projection=cartopy.crs.LambertConformal(central_longitude=-7.5))
 
@@ -726,7 +726,7 @@ def run_all_plots():
     #         max_cube = utils.regrid_cube(max_cube, regrid_size, regrid_size)
     #         print("New Shape {}".format(max_cube.data.shape))
 
-    # fig = plt.figure(figsize=(6, 6))
+    # fig = plt.figure(figsize=(8, 8))
     # plt.clf()
     # ax = plt.axes([0.05, 0.05, 0.9, 0.9], projection=cartopy.crs.NorthPolarStereo())
 
@@ -826,7 +826,7 @@ def run_all_plots():
     dummy, sos_na = utils.calculate_climatology_and_anomalies_1d(sos_na, 2000, 2010)
     dummy, sos_ea = utils.calculate_climatology_and_anomalies_1d(sos_ea, 2000, 2010)
 
-    fig, (ax1, ax2) = plt.subplots(2, figsize=(10, 8), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6.5), sharex=True)
 
     # North America
     # use un-anomalised spring T to get legend without the data

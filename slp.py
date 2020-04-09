@@ -36,9 +36,7 @@ import cartopy
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/SLP/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/SLP/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'lower left'
 LW = 2
@@ -126,7 +124,6 @@ def doftp(host, remote_loc, filename, local_loc, diagnostics=False):
                    
     # handle the error
     except subprocess.CalledProcessError:
-        print(subprocess.CalledProcessError.message)
         print("waiting 10 sec and trying again")
         import time
         time.sleep(10) # wait 10 seconds and onto next while loop
@@ -271,12 +268,12 @@ def plt_bars(ax, ts, text, w=1./12., invert=False, label=True):
     ax.bar(ts.times[minus], ts.data[minus], color='b', ec="b", width=w, align="center")
     ax.axhline(0, c='0.5', ls='--')
     if label:
-        ax.text(0.02, 0.8, "{} {}".format(text, ts.name), transform=ax.transAxes, fontsize=settings.FONTSIZE*0.7)
+        ax.text(0.03, 0.8, "{} {}".format(text, ts.name), transform=ax.transAxes, fontsize=settings.FONTSIZE)
 
     return # plt_months
 
 #************************************************************************
-def read_winter_nao(data_loc, years):
+def read_winter_nao(DATALOC, years):
     '''
     Read the NAO data, returns Timeseries and smoothed version
 
@@ -287,7 +284,7 @@ def read_winter_nao(data_loc, years):
     
     for y in years:
 
-        all_data = np.genfromtxt(data_loc + "SLP_WinterNAOtimeseries_{}.txt".format(y), dtype=(float), skip_header=1)
+        all_data = np.genfromtxt(DATALOC + "SLP_WinterNAOtimeseries_{}.txt".format(y), dtype=(float), skip_header=1)
 
         days = all_data[:, 1].astype(int)
         months = all_data[:, 0].astype(int)
@@ -311,419 +308,422 @@ def run_all_plots(download=False):
         # download if required
 
         # AAO
-        http("https://www.esrl.noaa.gov/", "psd/data/correlation", "aao.data", data_loc, diagnostics=True)
-        http("https://www.cpc.ncep.noaa.gov", "products/precip/CWlink/daily_ao_index/aao", "monthly.aao.index.b79.current.ascii", data_loc, diagnostics=True)
+        http("https://www.esrl.noaa.gov/", "psd/data/correlation", "aao.data", DATALOC, diagnostics=True)
+        http("https://www.cpc.ncep.noaa.gov", "products/precip/CWlink/daily_ao_index/aao", "monthly.aao.index.b79.current.ascii", DATALOC, diagnostics=True)
         # AO
-        http("https://www.cpc.ncep.noaa.gov", "products/precip/CWlink/daily_ao_index", "monthly.ao.index.b50.current.ascii", data_loc, diagnostics=True)
+        http("https://www.cpc.ncep.noaa.gov", "products/precip/CWlink/daily_ao_index", "monthly.ao.index.b50.current.ascii", DATALOC, diagnostics=True)
         # NAO
-        http("https://climatedataguide.ucar.edu", "sites/default/files", "nao_station_seasonal.txt", data_loc, diagnostics=True)
+        http("https://climatedataguide.ucar.edu", "sites/default/files", "nao_station_seasonal.txt", DATALOC, diagnostics=True)
         print("HadSLP2r & SOI likely to fail")
         # HadSLP2r
-        http("http://www.metoffice.gov.uk", "hadobs/hadslp2/data", "hadslp2r.asc.gz", data_loc, diagnostics=True)
+        http("http://www.metoffice.gov.uk", "hadobs/hadslp2/data", "hadslp2r.asc.gz", DATALOC, diagnostics=True)
         # SOI 
-        doftp("ftp://ftp.bom.gov.au", "/anon/home/ncc/www/sco/soi/", "soiplaintext.html", data_loc, diagnostics=True)
+        doftp("ftp://ftp.bom.gov.au", "/anon/home/ncc/www/sco/soi/", "soiplaintext.html", DATALOC, diagnostics=True)
 
         print("Now check downloads")
         sys.exit()
     #************************************************************************
     # Timeseries figures - winter NAO
     #   initial run usually only Dec + Jan for recent year
+    if True:
+        # tried minor locator
 
-    # tried minor locator
+        YEARS = ["2017", "2018", "2019"]
+        plot_data, smoothed_data = read_winter_nao(DATALOC, YEARS)
 
-    YEARS = ["2016", "2017", "2018"]
-    plot_data, smoothed_data = read_winter_nao(data_loc, YEARS)
+        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 6.5))
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
+        TEXTS = ["(d)", "(e)", "(f)"]
+        for a, ax in enumerate([ax1, ax2, ax3]):
+            year = int(YEARS[a])
 
-    TEXTS = ["(d)", "(e)", "(f)"]
-    for a, ax in enumerate([ax1, ax2, ax3]):
-        year = int(YEARS[a])
+            plt_bars(ax, plot_data[a], TEXTS[a], w=1, invert=False)
+            utils.thicken_panel_border(ax)
+            ax.xaxis.set_ticks([dt.datetime(year, 12, 1), dt.datetime(year+1, 1, 1), dt.datetime(year+1, 2, 1), dt.datetime(year+1, 3, 1)])
 
-        plt_bars(ax, plot_data[a], TEXTS[a], w=1, invert=False)
-        utils.thicken_panel_border(ax)
-        ax.xaxis.set_ticks([dt.datetime(year, 12, 1), dt.datetime(year+1, 1, 1), dt.datetime(year+1, 2, 1), dt.datetime(year+1, 3, 1)])
+            ax.plot(plot_data[a].times+dt.timedelta(hours=12), smoothed_data[a], "k-", lw=LW)
+            ax.set_xlim([dt.datetime(year, 11, 29), dt.datetime(year+1, 2, 1) + dt.timedelta(days=30)])
 
-        ax.plot(plot_data[a].times+dt.timedelta(hours=12), smoothed_data[a], "k-", lw=LW)
-        ax.set_xlim([dt.datetime(year, 11, 29), dt.datetime(year+1, 2, 1) + dt.timedelta(days=30)])
+        ax3.xaxis.set_ticklabels(["Dec", "Jan", "Feb", "Mar"], fontsize=settings.FONTSIZE)
+        ax2.set_ylabel("Winter NAO Index (hPa)", fontsize=settings.FONTSIZE)
 
-    ax3.xaxis.set_ticklabels(["Dec", "Jan", "Feb", "Mar"], fontsize=settings.FONTSIZE*0.8)
-    ax2.set_ylabel("Winter NAO Index (hPa)", fontsize=settings.FONTSIZE)
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 
-    fig.subplots_adjust(right=0.95, top=0.95, bottom=0.05, hspace=0.001)
-    plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+        for ax in [ax1, ax2, ax3]:
+            ax.set_ylim([-69, 99])
+            ax.yaxis.set_ticks_position('left')
 
-    for ax in [ax1, ax2, ax3]:
-        ax.set_ylim([-69, 99])
-        ax.yaxis.set_ticks_position('left')
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
 
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8)
-
-    plt.savefig(image_loc+"SLP_ts_winter_nao{}".format(settings.OUTFMT))
-    plt.close()
+        plt.savefig(settings.IMAGELOC+"SLP_ts_winter_nao{}".format(settings.OUTFMT))
+        plt.close()
 
     #************************************************************************
     # Timeseries figures - different indices
+    if True:
+        SOI = read_soi(DATALOC + "soiplaintext.html")
+        AO = read_a_ao(DATALOC + "monthly.ao.index.b50.current.ascii", "AO", 3)
+        AAO = read_a_ao(DATALOC + "monthly.aao.index.b79.current.ascii", "AAO", 5)
+    #    SNAO = read_snao(DATALOC + "JA STANDARDISED SNAO.txt") # from Chris Folland - unavailable in 2019
+        NAO = read_nao(DATALOC + "nao_station_seasonal.txt")
 
-    SOI = read_soi(data_loc + "soiplaintext.html")
-    AO = read_a_ao(data_loc + "monthly.ao.index.b50.current.ascii", "AO", 3)
-    AAO = read_a_ao(data_loc + "monthly.aao.index.b79.current.ascii", "AAO", 5)
-#    SNAO = read_snao(data_loc + "JA STANDARDISED SNAO.txt") # from Chris Folland - unavailable in 2019
-    NAO = read_nao(data_loc + "nao_station_seasonal.txt")
+        fig = plt.figure(figsize=(8, 6))
 
-    fig = plt.figure(figsize=(10, 7))
+        # manually set up the 10 axes
+        w = 0.42
+        h = 0.23
+        c = 0.51
+        ax1 = plt.axes([c-w, 0.99-h, w, h])
+        ax2 = plt.axes([c, 0.99-h, w, h])
+        ax3 = plt.axes([c-w, 0.99-(2*h), w, h], sharex=ax1)
+        ax4 = plt.axes([c, 0.99-(2*h), w, h], sharex=ax2)
+        ax5 = plt.axes([c-w, 0.99-(3*h), w, h], sharex=ax1)
+        ax6 = plt.axes([c, 0.99-(3*h), w, h], sharex=ax2)
+        ax7 = plt.axes([c-w, 0.99-(4*h), w, h], sharex=ax1)
+        ax8 = plt.axes([c, 0.99-(4*h), w, h], sharex=ax2)
+    #    ax9 = plt.axes([c-w, 0.99-(5*h), w, h], sharex=ax1)
+    #    ax10= plt.axes([c, 0.99-(5*h), w, h], sharex=ax2)
 
-    # manually set up the 10 axes
-    w = 0.42
-    h = 0.19
-    ax1 = plt.axes([0.50-w, 0.99-h, w, h])
-    ax2 = plt.axes([0.50, 0.99-h, w, h])
-    ax3 = plt.axes([0.50-w, 0.99-(2*h), w, h], sharex=ax1)
-    ax4 = plt.axes([0.50, 0.99-(2*h), w, h], sharex=ax2)
-    ax5 = plt.axes([0.50-w, 0.99-(3*h), w, h], sharex=ax1)
-    ax6 = plt.axes([0.50, 0.99-(3*h), w, h], sharex=ax2)
-    ax7 = plt.axes([0.50-w, 0.99-(4*h), w, h], sharex=ax1)
-    ax8 = plt.axes([0.50, 0.99-(4*h), w, h], sharex=ax2)
-#    ax9 = plt.axes([0.50-w, 0.99-(5*h), w, h], sharex=ax1)
-#    ax10= plt.axes([0.50, 0.99-(5*h), w, h], sharex=ax2)
+        plt_bars(ax1, SOI, "(a)", w=1./12, invert=True)
+        plt_bars(ax3, AO, "(c)", w=1./12)
+        plt_bars(ax5, AAO, "(e)", w=1./12)
+        plt_bars(ax7, NAO, "(g)", w=1.)
+    #    plt_bars(ax9, SNAO, "(i)", w=1.)
 
-    plt_bars(ax1, SOI, "(a)", w=1./12, invert=True)
-    plt_bars(ax3, AO, "(c)", w=1./12)
-    plt_bars(ax5, AAO, "(e)", w=1./12)
-    plt_bars(ax7, NAO, "(g)", w=1.)
-#    plt_bars(ax9, SNAO, "(i)", w=1.)
+        ax1.set_xlim([1860, int(settings.YEAR)+1])
 
-    ax1.set_xlim([1850, int(settings.YEAR)+1])
+        plt_bars(ax2, SOI, "(b)", w=1./12, invert=True)
+        plt_bars(ax4, AO, "(d)", w=1./12)
+        plt_bars(ax6, AAO, "(f)", w=1./12)
+        plt_bars(ax8, NAO, "(h)", w=0.9)
+    #    plt_bars(ax10, SNAO, "(j)", w=0.9)
 
-    plt_bars(ax2, SOI, "(b)", w=1./12, invert=True)
-    plt_bars(ax4, AO, "(d)", w=1./12)
-    plt_bars(ax6, AAO, "(f)", w=1./12)
-    plt_bars(ax8, NAO, "(h)", w=0.9)
-#    plt_bars(ax10, SNAO, "(j)", w=0.9)
+        ax2.set_xlim([2006, int(settings.YEAR)+2])
+        for ax in [ax2, ax4, ax6, ax8]:#, ax10]:
+            ax.yaxis.tick_right()
 
-    ax2.set_xlim([2006, int(settings.YEAR)+1])
-    for ax in [ax2, ax4, ax6, ax8]:#, ax10]:
-        ax.yaxis.tick_right()
+        # prettify
+        for ax in [ax1, ax3, ax5, ax7]:#, ax9]:
+            for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+            utils.thicken_panel_border(ax)
+            ax.yaxis.set_ticks_position('left')
 
-    # prettify
-    for ax in [ax1, ax3, ax5, ax7]:#, ax9]:
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8)
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8)
-        utils.thicken_panel_border(ax)
-        ax.yaxis.set_ticks_position('left')
+        for ax in [ax2, ax4, ax6, ax8]:#, ax10]:
+            for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+            ax.yaxis.tick_right()
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label2.set_fontsize(settings.FONTSIZE)
+            utils.thicken_panel_border(ax)
 
-    for ax in [ax2, ax4, ax6, ax8]:#, ax10]:
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label.set_fontsize(settings.FONTSIZE*0.8)
-        ax.yaxis.tick_right()
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label2.set_fontsize(settings.FONTSIZE*0.8)
-        utils.thicken_panel_border(ax)
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-2]], visible=False)
 
-    plt.setp([a.get_xticklabels() for a in fig.axes[:-2]], visible=False)
+        ax1.xaxis.set_ticks([1880, 1920, 1960, 2000])
+        ax2.xaxis.set_ticks([2007, 2010, 2013, 2016, 2019])
+        ax1.yaxis.set_ticks([-40, 0, 40])
+        ax2.yaxis.set_ticks([-40, 0, 40])
+        ax3.yaxis.set_ticks([-4, 0, 4])
+        ax4.yaxis.set_ticks([-4, 0, 4])
+        ax5.yaxis.set_ticks([-2, 0, 2])
+        ax6.yaxis.set_ticks([-2, 0, 2])
+        ax7.yaxis.set_ticks([-4, 0, 4])
+        ax8.yaxis.set_ticks([-4, 0, 4])
+    #    ax9.yaxis.set_ticks([-2, 0, 2])
+    #    ax10.yaxis.set_ticks([-2, 0, 2])
 
-    ax1.xaxis.set_ticks([1850, 1880, 1910, 1940, 1970, 2000])
-    ax2.xaxis.set_ticks([2007, 2010, 2013, 2016])
-    ax1.yaxis.set_ticks([-40, 0, 40])
-    ax2.yaxis.set_ticks([-40, 0, 40])
-    ax3.yaxis.set_ticks([-4, 0, 4])
-    ax4.yaxis.set_ticks([-4, 0, 4])
-    ax5.yaxis.set_ticks([-2, 0, 2])
-    ax6.yaxis.set_ticks([-2, 0, 2])
-    ax7.yaxis.set_ticks([-4, 0, 4])
-    ax8.yaxis.set_ticks([-4, 0, 4])
-#    ax9.yaxis.set_ticks([-2, 0, 2])
-#    ax10.yaxis.set_ticks([-2, 0, 2])
+        minorLocator = MultipleLocator(1)
+        ax2.xaxis.set_minor_locator(minorLocator)
 
-    minorLocator = MultipleLocator(1)
-    ax2.xaxis.set_minor_locator(minorLocator)
+        ax1.set_ylim([-40, 45])
+        ax2.set_ylim([-40, 45])
+        ax3.set_ylim([-4.5, 4.9])
+        ax4.set_ylim([-4.5, 4.9])
 
-    ax1.set_ylim([-40, 45])
-    ax2.set_ylim([-40, 45])
-    ax3.set_ylim([-4.5, 4.9])
-    ax4.set_ylim([-4.5, 4.9])
+        ax5.set_ylabel("Standard Units", fontsize=settings.FONTSIZE)
 
-    ax5.set_ylabel("Standard Units", fontsize=settings.FONTSIZE*0.8)
+        plt.savefig(settings.IMAGELOC+"SLP_ts{}".format(settings.OUTFMT))
 
-    plt.savefig(image_loc+"SLP_ts{}".format(settings.OUTFMT))
-
-    plt.close()
+        plt.close()
 
     #************************************************************************
     # Global map
+    if True:
+        cube = read_hadslp(DATALOC + "hadslp2r.asc")
 
-    cube = read_hadslp(data_loc + "hadslp2r.asc")
+        # restrict to 1900 to last full year
+        date_constraint = utils.periodConstraint(cube, dt.datetime(1900, 1, 1), dt.datetime(int(settings.YEAR)+1, 1, 1)) 
+        cube = cube.extract(date_constraint)
 
-    # restrict to 1900 to last full year
-    date_constraint = utils.periodConstraint(cube, dt.datetime(1900, 1, 1), dt.datetime(int(settings.YEAR)+1, 1, 1)) 
-    cube = cube.extract(date_constraint)
+        # convert to 1981-2010 climatology.
+        clim_constraint = utils.periodConstraint(cube, dt.datetime(1981, 1, 1), dt.datetime(2011, 1, 1)) 
+        clim_cube = cube.extract(clim_constraint)
 
-    # convert to 1981-2010 climatology.
-    clim_constraint = utils.periodConstraint(cube, dt.datetime(1981, 1, 1), dt.datetime(2011, 1, 1)) 
-    clim_cube = cube.extract(clim_constraint)
+        clim_data = clim_cube.data.reshape(-1, 12, clim_cube.data.shape[-2], clim_cube.data.shape[-1])
 
-    clim_data = clim_cube.data.reshape(-1, 12, clim_cube.data.shape[-2], clim_cube.data.shape[-1])
-
-    # more than 15 years present
-    climatology = np.ma.mean(clim_data, axis=0)
-    nyears = np.ma.count(clim_data, axis=0)
-    climatology = np.ma.masked_where(nyears <= 15, climatology) # Kate keeps GT 15.
+        # more than 15 years present
+        climatology = np.ma.mean(clim_data, axis=0)
+        nyears = np.ma.count(clim_data, axis=0)
+        climatology = np.ma.masked_where(nyears <= 15, climatology) # Kate keeps GT 15.
 
 
-    # extract final year
-    final_year_constraint = utils.periodConstraint(cube, dt.datetime(int(settings.YEAR), 1, 1), dt.datetime(int(settings.YEAR)+1, 1, 1)) 
-    final_year_cube = cube.extract(final_year_constraint)
+        # extract final year
+        final_year_constraint = utils.periodConstraint(cube, dt.datetime(int(settings.YEAR), 1, 1), dt.datetime(int(settings.YEAR)+1, 1, 1)) 
+        final_year_cube = cube.extract(final_year_constraint)
 
-    final_year_cube.data = final_year_cube.data - climatology
+        final_year_cube.data = final_year_cube.data - climatology
 
-    # more than 6 months present
-    annual_cube = final_year_cube.collapsed(['time'], iris.analysis.MEAN)
-    nmonths = np.ma.count(final_year_cube.data, axis=0)
-    annual_cube.data = np.ma.masked_where(nmonths <= 6, annual_cube.data)
+        # more than 6 months present
+        annual_cube = final_year_cube.collapsed(['time'], iris.analysis.MEAN)
+        nmonths = np.ma.count(final_year_cube.data, axis=0)
+        annual_cube.data = np.ma.masked_where(nmonths <= 6, annual_cube.data)
 
-    bounds = [-100, -8, -4, -2, -1, 0, 1, 2, 4, 8, 100]
+        bounds = [-100, -8, -4, -2, -1, 0, 1, 2, 4, 8, 100]
 
-    utils.plot_smooth_map_iris(image_loc + "SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)", figtext="(u) Sea Level Pressure")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)", figtext="(u) Sea Level Pressure")
 
-    plt.close()
+        plt.close()
 
-    del annual_cube
-    del final_year_cube
-    gc.collect()
+        del annual_cube
+        del final_year_cube
+        gc.collect()
 
     #************************************************************************
     # Polar Figures (1x3)
+    if True:
+        # apply climatology - incomplete end year, so repeat climatology and then trunkate
+        climatology = np.tile(climatology, ((cube.data.shape[0]//12)+1, 1, 1))
+        anoms = iris.cube.Cube.copy(cube)
 
-    # apply climatology - incomplete end year, so repeat climatology and then trunkate
-    climatology = np.tile(climatology, ((cube.data.shape[0]//12)+1, 1, 1))
-    anoms = iris.cube.Cube.copy(cube)
+        anoms.data = anoms.data - climatology[0:anoms.data.shape[0], :, :]
 
-    anoms.data = anoms.data - climatology[0:anoms.data.shape[0], :, :]
+        bounds = [-100, -8, -4, -2, -1, -0.5, 0.5, 1, 2, 4, 8, 100]
 
-    bounds = [-100, -8, -4, -2, -1, -0.5, 0.5, 1, 2, 4, 8, 100]
+        # set up a 1 x 3 set of axes
+        fig = plt.figure(figsize=(4, 9.5))
+        plt.clf()
 
-    # set up a 1 x 3 set of axes
-    fig = plt.figure(figsize=(5, 13))
-    plt.clf()
+        # set up plot settings
+        cmap = settings.COLOURMAP_DICT["circulation"]
+        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+        PLOTYEARS = [2017, 2018, 2019]
+        PLOTLABELS = ["(a) 2017/18", "(b) 2018/19", "(c) 2019/20"]
 
-    # set up plot settings
-    cmap = settings.COLOURMAP_DICT["circulation"]
-    norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
-    PLOTYEARS = [2016, 2017, 2018]
-    PLOTLABELS = ["(a) 2016/17", "(b) 2017/18", "(c) 2018/19"]
-
-    # boundary circle
-    theta = np.linspace(0, 2*np.pi, 100)
-    center, radius = [0.5, 0.5], 0.5
-    verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-    circle = mpath.Path(verts * radius + center)
-
-
-    # spin through axes
-    for a in range(3):  
-
-        ax = plt.subplot(3, 1, a+1, projection=cartopy.crs.NorthPolarStereo())
-
-        plot_cube = iris.cube.Cube.copy(anoms)
-
-        # extract 3 winter months
-        date_constraint = utils.periodConstraint(anoms, dt.datetime(PLOTYEARS[a], 12, 1), dt.datetime(PLOTYEARS[a]+1, 3, 1)) 
-        plot_cube = plot_cube.extract(date_constraint)
-
-        # plot down to (almost) equator
-        lat_constraint = utils.latConstraint([3, 80]) 
-        plot_cube = plot_cube.extract(lat_constraint)
-
-        # take the mean
-        try:
-            plot_cube = plot_cube.collapsed(['time'], iris.analysis.MEAN)
-        except iris.exceptions.CoordinateCollapseError:
-            pass
-
-        ax.gridlines() #draw_labels=True)
-        ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-        ax.coastlines()
-        ax.set_boundary(circle, transform=ax.transAxes)
-        ax.set_extent([-180, 180, 0, 90], cartopy.crs.PlateCarree())
-
-        ext = ax.get_extent() # save the original extent
-
-        mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm=norm, axes=ax)
-
-        ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
-        ax.text(-0.05, 1.0, PLOTLABELS[a], fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
-
-    # add a colourbar for the figure
-    cbar_ax = fig.add_axes([0.82, 0.07, 0.04, 0.9])
-    cb = plt.colorbar(mesh, cax=cbar_ax, orientation='vertical', ticks=bounds[1:-1], label="Anomaly (hPa)", drawedges=True)
-
-    # prettify
-    cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_linewidth(2)
-    cb.dividers.set_color('k')
-    cb.dividers.set_linewidth(2)
+        # boundary circle
+        theta = np.linspace(0, 2*np.pi, 100)
+        center, radius = [0.5, 0.5], 0.5
+        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+        circle = mpath.Path(verts * radius + center)
 
 
-    fig.subplots_adjust(bottom=0.01, top=0.98, left=0.01, right=0.8, wspace=0.02)
+        # spin through axes
+        for a in range(3):  
 
-    plt.title("")
-    fig.text(0.03, 0.95, "", fontsize=settings.FONTSIZE * 0.8)
+            ax = plt.subplot(3, 1, a+1, projection=cartopy.crs.NorthPolarStereo())
 
-    plt.savefig(image_loc + "SLP_polar{}".format(settings.OUTFMT))
-    plt.close()
+            plot_cube = iris.cube.Cube.copy(anoms)
 
-    del plot_cube
-    del climatology
-    gc.collect()
+            # extract 3 winter months
+            date_constraint = utils.periodConstraint(anoms, dt.datetime(PLOTYEARS[a], 12, 1), dt.datetime(PLOTYEARS[a]+1, 3, 1)) 
+            plot_cube = plot_cube.extract(date_constraint)
 
-    #************************************************************************
-    # SNAO figures
+            # plot down to (almost) equator
+            lat_constraint = utils.latConstraint([3, 80]) 
+            plot_cube = plot_cube.extract(lat_constraint)
+
+            # take the mean
+            try:
+                plot_cube = plot_cube.collapsed(['time'], iris.analysis.MEAN)
+            except iris.exceptions.CoordinateCollapseError:
+                pass
+
+            ax.gridlines() #draw_labels=True)
+            ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+            ax.coastlines()
+            ax.set_boundary(circle, transform=ax.transAxes)
+            ax.set_extent([-180, 180, 0, 90], cartopy.crs.PlateCarree())
+
+            ext = ax.get_extent() # save the original extent
+
+            mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm=norm, axes=ax)
+
+            ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
+            ax.text(0.0, 1.02, PLOTLABELS[a], fontsize=settings.FONTSIZE, transform=ax.transAxes)
+
+        # add a colourbar for the figure
+        cbar_ax = fig.add_axes([0.77, 0.07, 0.04, 0.9])
+        cb = plt.colorbar(mesh, cax=cbar_ax, orientation='vertical', ticks=bounds[1:-1], drawedges=True)
+        cb.ax.tick_params(axis='y', labelsize=settings.FONTSIZE, direction='in', size=0)
+        cb.set_label(label="Anomaly (hPa)", fontsize=settings.FONTSIZE)
+
+        # prettify
+        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+        cb.outline.set_linewidth(2)
+        cb.dividers.set_color('k')
+        cb.dividers.set_linewidth(2)
 
 
-    date_constraint = utils.periodConstraint(anoms, dt.datetime(int(settings.YEAR), 7, 1), dt.datetime(int(settings.YEAR), 9, 1)) 
-    ja_cube = anoms.extract(date_constraint)
-    ja_cube = ja_cube.collapsed(['time'], iris.analysis.MEAN)
+        fig.subplots_adjust(bottom=0.01, top=0.97, left=0.01, right=0.8, wspace=0.02)
 
-    bounds = [-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100]
-    cmap = settings.COLOURMAP_DICT["circulation"]
-    norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
-    PLOTLABEL = "(a) July - August"
+        plt.title("")
+        fig.text(0.03, 0.95, "", fontsize=settings.FONTSIZE * 0.8)
 
-    fig = plt.figure(figsize=(7, 9))
-    plt.clf()
-    # make axes by hand
-    axes = ([0.05, 0.45, 0.9, 0.55], [0.1, 0.05, 0.88, 0.35])
+        plt.savefig(settings.IMAGELOC + "SLP_polar{}".format(settings.OUTFMT))
+        plt.close()
 
-    ax = plt.axes(axes[0], projection=cartopy.crs.Robinson())
+        del plot_cube
+        del climatology
+        gc.collect()
 
-    ax.gridlines() #draw_labels=True)
-    ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-    ax.coastlines()
+        #************************************************************************
+        # SNAO figures
+        if False:
+            date_constraint = utils.periodConstraint(anoms, dt.datetime(int(settings.YEAR), 7, 1), dt.datetime(int(settings.YEAR), 9, 1)) 
+            ja_cube = anoms.extract(date_constraint)
+            ja_cube = ja_cube.collapsed(['time'], iris.analysis.MEAN)
 
-    mesh = iris.plot.pcolormesh(ja_cube, cmap=cmap, norm=norm, axes=ax)
+            bounds = [-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100]
+            cmap = settings.COLOURMAP_DICT["circulation"]
+            norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+            PLOTLABEL = "(a) July - August"
 
-    ax.text(-0.05, 1.05, PLOTLABEL, fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+            fig = plt.figure(figsize=(8, 10))
+            plt.clf()
+            # make axes by hand
+            axes = ([0.05, 0.45, 0.9, 0.55], [0.1, 0.05, 0.88, 0.35])
 
-    # colorbar
-    cb = plt.colorbar(mesh, orientation='horizontal', ticks=bounds[1:-1], label="Anomaly (hPa)", drawedges=True, pad=0.05)
+            ax = plt.axes(axes[0], projection=cartopy.crs.Robinson())
 
-    # prettify
-    cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_linewidth(2)
-    cb.dividers.set_color('k')
-    cb.dividers.set_linewidth(2)
+            ax.gridlines() #draw_labels=True)
+            ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+            ax.coastlines()
 
-    # and the timeseries
-    ax = plt.axes(axes[1])
+            mesh = iris.plot.pcolormesh(ja_cube, cmap=cmap, norm=norm, axes=ax)
 
-    snao = np.genfromtxt(data_loc+"{} DAILY SNAO.txt".format(settings.YEAR), dtype=(float))
+            ax.text(-0.05, 1.05, PLOTLABEL, fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
 
-    data = snao[:, 1]
-    times = np.array([dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(len(data))])
+            # colorbar
+            cb = plt.colorbar(mesh, orientation='horizontal', ticks=bounds[1:-1], label="Anomaly (hPa)", drawedges=True, pad=0.05)
 
-    SNAO = utils.Timeseries("Summer NAO Index", times, data)
+            # prettify
+            cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+            cb.outline.set_linewidth(2)
+            cb.dividers.set_color('k')
+            cb.dividers.set_linewidth(2)
 
-    plt_bars(ax, SNAO, "", w=0.7, label=False)
-    ax.text(-0.1, 1.05, "(b) Summer NAO Index", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
-    ax.yaxis.set_label("Summer NAO Index")
-    # label every 14 days
-    ticks = [dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(0, len(data), 14)]
-    ax.xaxis.set_ticks(ticks)
-    ax.xaxis.set_ticklabels([dt.datetime.strftime(t, "%d %b %Y") for t in ticks])
-    minorLocator = MultipleLocator(1)
-    ax.xaxis.set_minor_locator(minorLocator)
+            # and the timeseries
+            ax = plt.axes(axes[1])
 
-    utils.thicken_panel_border(ax3)
+            snao = np.genfromtxt(DATALOC+"{} DAILY SNAO.txt".format(settings.YEAR), dtype=(float))
 
-    plt.savefig(image_loc + "SLP_SNAO{}".format(settings.OUTFMT))
-    plt.close()
+            data = snao[:, 1]
+            times = np.array([dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(len(data))])
 
-    del ja_cube
-    gc.collect()
+            SNAO = utils.Timeseries("Summer NAO Index", times, data)
 
-    #************************************************************************
-    # EU figure
-    contour = True
+            plt_bars(ax, SNAO, "", w=0.7, label=False)
+            ax.text(-0.1, 1.05, "(b) Summer NAO Index", fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+            ax.yaxis.set_label("Summer NAO Index")
+            # label every 14 days
+            ticks = [dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(0, len(data), 14)]
+            ax.xaxis.set_ticks(ticks)
+            ax.xaxis.set_ticklabels([dt.datetime.strftime(t, "%d %b %Y") for t in ticks])
+            minorLocator = MultipleLocator(1)
+            ax.xaxis.set_minor_locator(minorLocator)
 
-    date_constraint = utils.periodConstraint(anoms, dt.datetime(int(settings.YEAR), 7, 1), dt.datetime(int(settings.YEAR), 8, 1)) 
-    jul_cube = anoms.extract(date_constraint)
-    date_constraint = utils.periodConstraint(anoms, dt.datetime(int(settings.YEAR), 8, 1), dt.datetime(int(settings.YEAR), 9, 1)) 
-    aug_cube = anoms.extract(date_constraint)
+            utils.thicken_panel_border(ax3)
 
-    bounds = [-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100]
-    cmap = settings.COLOURMAP_DICT["circulation"]
-    norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
-    PLOTLABELS = ["(a) July", "(b) August"]
+            plt.savefig(settings.IMAGELOC + "SLP_SNAO{}".format(settings.OUTFMT))
+            plt.close()
 
-    fig = plt.figure(figsize=(6, 11))
-    plt.clf()
-    # make axes by hand
-    axes = ([0.1, 0.65, 0.8, 0.3], [0.1, 0.35, 0.8, 0.3], [0.1, 0.05, 0.8, 0.25])
+            del ja_cube
+            gc.collect()
 
-    cube_list = [jul_cube, aug_cube]
-    for a in range(2):
-        ax = plt.axes(axes[a], projection=cartopy.crs.PlateCarree(central_longitude=-10))
+        #************************************************************************
+        # EU figure
+        if False:
+            contour = True
 
-        ax.gridlines() #draw_labels=True)
-        ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-        ax.coastlines()
-        ax.set_extent([-70, 40, 30, 80], cartopy.crs.PlateCarree())
+            date_constraint = utils.periodConstraint(anoms, dt.datetime(int(settings.YEAR), 7, 1), dt.datetime(int(settings.YEAR), 8, 1)) 
+            jul_cube = anoms.extract(date_constraint)
+            date_constraint = utils.periodConstraint(anoms, dt.datetime(int(settings.YEAR), 8, 1), dt.datetime(int(settings.YEAR), 9, 1)) 
+            aug_cube = anoms.extract(date_constraint)
 
-        if contour:
-            from scipy.ndimage.filters import gaussian_filter
-            sigma = 0.5
-            cube = cube_list[a]
+            bounds = [-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100]
+            cmap = settings.COLOURMAP_DICT["circulation"]
+            norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+            PLOTLABELS = ["(a) July", "(b) August"]
 
-            cube.data = gaussian_filter(cube.data, sigma)
-            mesh = iris.plot.contourf(cube, bounds, cmap=cmap, norm=norm, axes=ax)
+            fig = plt.figure(figsize=(8, 14))
+            plt.clf()
+            # make axes by hand
+            axes = ([0.1, 0.65, 0.8, 0.3], [0.1, 0.35, 0.8, 0.3], [0.1, 0.05, 0.8, 0.25])
 
-        else:
-            mesh = iris.plot.pcolormesh(cube_list[a], cmap=cmap, norm=norm, axes=ax)
+            cube_list = [jul_cube, aug_cube]
+            for a in range(2):
+                ax = plt.axes(axes[a], projection=cartopy.crs.PlateCarree(central_longitude=-10))
 
-        ax.text(-0.05, 1.05, PLOTLABELS[a], fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
+                ax.gridlines() #draw_labels=True)
+                ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+                ax.coastlines()
+                ax.set_extent([-70, 40, 30, 80], cartopy.crs.PlateCarree())
 
-    # colorbar
-    cb = plt.colorbar(mesh, orientation='horizontal', ticks=bounds[1:-1], label="Anomaly (hPa)", drawedges=True)
+                if contour:
+                    from scipy.ndimage.filters import gaussian_filter
+                    sigma = 0.5
+                    cube = cube_list[a]
 
-    # prettify
-    cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-    cb.outline.set_linewidth(2)
-    cb.dividers.set_color('k')
-    cb.dividers.set_linewidth(2)
+                    cube.data = gaussian_filter(cube.data, sigma)
+                    mesh = iris.plot.contourf(cube, bounds, cmap=cmap, norm=norm, axes=ax)
 
-    # and the timeseries
-    ax3 = plt.axes(axes[2])
+                else:
+                    mesh = iris.plot.pcolormesh(cube_list[a], cmap=cmap, norm=norm, axes=ax)
 
-    snao = np.genfromtxt(data_loc+"{} DAILY SNAO.txt".format(settings.YEAR), dtype=(float))
+                ax.text(-0.05, 1.05, PLOTLABELS[a], fontsize=settings.FONTSIZE * 0.8, transform=ax.transAxes)
 
-    data = snao[:, 1]
-    times = np.array([dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(len(data))])
+            # colorbar
+            cb = plt.colorbar(mesh, orientation='horizontal', ticks=bounds[1:-1], label="Anomaly (hPa)", drawedges=True)
 
-    SNAO = utils.Timeseries("Summer NAO Index", times, data)
+            # prettify
+            cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+            cb.outline.set_linewidth(2)
+            cb.dividers.set_color('k')
+            cb.dividers.set_linewidth(2)
 
-    plt_bars(ax3, SNAO, "", w=0.7, label=False)
-    ax3.text(-0.05, 1.05, "(c) Summer NAO Index", fontsize=settings.FONTSIZE * 0.8, transform=ax3.transAxes)
-    ax3.yaxis.set_label("Summer NAO Index")
-    # label every 14 days
-    ticks = [dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(0, len(data), 14)]
-    ax3.xaxis.set_ticks(ticks)
-    ax3.xaxis.set_ticklabels([dt.datetime.strftime(t, "%d %b %Y") for t in ticks])
-    minorLocator = MultipleLocator(1)
-    ax3.xaxis.set_minor_locator(minorLocator)
-    ax3.yaxis.set_ticks_position('left')
+            # and the timeseries
+            ax3 = plt.axes(axes[2])
 
-    utils.thicken_panel_border(ax3)
+            snao = np.genfromtxt(DATALOC+"{} DAILY SNAO.txt".format(settings.YEAR), dtype=(float))
 
-    plt.savefig(image_loc + "SLP_NAtlantic{}".format(settings.OUTFMT))
-    plt.close()
+            data = snao[:, 1]
+            times = np.array([dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(len(data))])
 
-    del cube
-    del anoms
-    gc.collect()
+            SNAO = utils.Timeseries("Summer NAO Index", times, data)
+
+            plt_bars(ax3, SNAO, "", w=0.7, label=False)
+            ax3.text(-0.05, 1.05, "(c) Summer NAO Index", fontsize=settings.FONTSIZE * 0.8, transform=ax3.transAxes)
+            ax3.yaxis.set_label("Summer NAO Index")
+            # label every 14 days
+            ticks = [dt.datetime(int(settings.YEAR), 7, 1) + dt.timedelta(days=i) for i in range(0, len(data), 14)]
+            ax3.xaxis.set_ticks(ticks)
+            ax3.xaxis.set_ticklabels([dt.datetime.strftime(t, "%d %b %Y") for t in ticks])
+            minorLocator = MultipleLocator(1)
+            ax3.xaxis.set_minor_locator(minorLocator)
+            ax3.yaxis.set_ticks_position('left')
+
+            utils.thicken_panel_border(ax3)
+
+            plt.savefig(settings.IMAGELOC + "SLP_NAtlantic{}".format(settings.OUTFMT))
+            plt.close()
+
+            del cube
+            del anoms
+            gc.collect()
 
 
     return # run_all_plots

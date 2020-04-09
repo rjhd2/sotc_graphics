@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 # python3
 from __future__ import absolute_import
 from __future__ import print_function
@@ -23,9 +23,7 @@ import matplotlib.pyplot as plt
 import utils # RJHD utilities
 import settings
 
-data_loc = "{}/{}/data/GLE/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/GLE/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'upper left'
 
@@ -91,72 +89,87 @@ def read_map(filename):
     return cube # read_map
 
 #************************************************************************
-# Global Map
+def run_all_plots():
 
-bounds = [-1000, -160, -120, -80, -40, 0, 40, 80, 120, 160, 1000]
-cube = read_map(data_loc + "map.dat")
+    #************************************************************************
+    # Global Map
+    if True:
 
-utils.plot_smooth_map_iris(image_loc + "GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")", figtext="(t) Land Evaporation")
+        bounds = [-1000, -160, -120, -80, -40, 0, 40, 80, 120, 160, 1000]
+        cube = read_map(DATALOC + "map")
 
-print("no other figures for 2018's report - author has made own")
-sys.exit()
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")", figtext="(t) Land Evaporation")
+
+        print("no other figures for {}'s report - author has made own".format(settings.YEAR))
+        sys.exit()
+    #************************************************************************
+    # Timeseries figures
+    if False:
+        fig, ax1 = plt.subplots(figsize=(8, 5))
+
+        globe, NH, SH, SOI = read_time(DATALOC + "timeseries")
+
+        utils.plot_ts_panel(ax1, [globe, NH, SH], "-", "hydrological", loc=LEGEND_LOC)
+
+        for data in [globe, NH, SH]:
+            slope, dummy, dummy = utils.median_pairwise_slopes(data.times, data.data, -99.9, 1.)
+
+            fit_years, fit_values = utils.mpw_plot_points(slope, data.times, data.data)
+
+            ax1.plot(fit_years, fit_values, c=settings.COLOURS["hydrological"][data.name], \
+                         lw=2, ls="--")
+
+        ax1.set_ylabel("Anomalies (mm year"+r'$^{-1}$'+")", fontsize=settings.FONTSIZE)    
+        ax1.set_ylim([-29, 29])
+
+        for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
+
+        ax2 = ax1.twinx()
+
+        interpTimes = np.linspace(SOI.times[0], SOI.times[-1], 1000)
+        interpData = np.interp(interpTimes, SOI.times, SOI.data)
+        interpSOI = utils.Timeseries("SOI", interpTimes, interpData)
+
+        ax2.fill_between(interpSOI.times, interpSOI.data, where=interpSOI.data >= 0, \
+                             color='b', alpha=0.5, zorder=-1)
+        ax2.fill_between(interpSOI.times, interpSOI.data, where=interpSOI.data <= 0, \
+                             color='r', alpha=0.5, zorder=-1)
+
+        ax2.set_xlim([1979, int(settings.YEAR)+1])
+        ax2.set_ylim([-5, 5])
+        ax2.set_ylabel("SOI", fontsize=settings.FONTSIZE)
+
+        for tick in ax1.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE) 
+        for tick in ax2.yaxis.get_major_ticks():
+            tick.label2.set_fontsize(settings.FONTSIZE) 
+
+        utils.thicken_panel_border(ax2)
+
+        plt.savefig(settings.IMAGELOC+"GLE_ts{}".format(settings.OUTFMT))
+
+        plt.close()
+
+    #************************************************************************
+    # Hoemuller figure
+    if False:
+        bounds = [-100, -10, -8, -4, -2, 0, 2, 4, 8, 10, 100]
+        times, latitudes, indata = read_hovmuller(DATALOC + "latitudinal")
+        
+        utils.plot_hovmuller(settings.IMAGELOC + "GLE_hovmuller", times, latitudes, indata, \
+                             settings.COLOURMAP_DICT["hydrological"], bounds, \
+                             "Anomaly (mm month"+r'$^{-1}$'+")")
+
+
+    return # run_all_plots
+
 #************************************************************************
-# Timeseries figures
+if __name__ == "__main__":
 
-fig, ax1 = plt.subplots(figsize=(10, 6))
-
-globe, NH, SH, SOI = read_time(data_loc + "timeseries")
-
-utils.plot_ts_panel(ax1, [globe, NH, SH], "-", "hydrological", loc=LEGEND_LOC)
-
-for data in [globe, NH, SH]:
-    slope, dummy, dummy = utils.median_pairwise_slopes(data.times, data.data, -99.9, 1.)
-
-    fit_years, fit_values = utils.mpw_plot_points(slope, data.times, data.data)
-
-    ax1.plot(fit_years, fit_values, c=settings.COLOURS["hydrological"][data.name], \
-                 lw=2, ls="--")
-
-ax1.set_ylabel("Anomalies (mm year"+r'$^{-1}$'+")", fontsize=settings.FONTSIZE)    
-ax1.set_ylim([-29, 29])
-
-for tick in ax1.xaxis.get_major_ticks():
-    tick.label.set_fontsize(settings.FONTSIZE) 
-
-ax2 = ax1.twinx()
-
-interpTimes = np.linspace(SOI.times[0], SOI.times[-1], 1000)
-interpData = np.interp(interpTimes, SOI.times, SOI.data)
-interpSOI = utils.Timeseries("SOI", interpTimes, interpData)
-
-ax2.fill_between(interpSOI.times, interpSOI.data, where=interpSOI.data >= 0, \
-                     color='b', alpha=0.5, zorder=-1)
-ax2.fill_between(interpSOI.times, interpSOI.data, where=interpSOI.data <= 0, \
-                     color='r', alpha=0.5, zorder=-1)
-
-ax2.set_xlim([1979, int(settings.YEAR)+1])
-ax2.set_ylim([-5, 5])
-ax2.set_ylabel("SOI", fontsize=settings.FONTSIZE)
-
-for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(settings.FONTSIZE) 
-for tick in ax2.yaxis.get_major_ticks():
-    tick.label2.set_fontsize(settings.FONTSIZE) 
-
-utils.thicken_panel_border(ax2)
-
-plt.savefig(image_loc+"GLE_ts{}".format(settings.OUTFMT))
-
-plt.close()
+    run_all_plots()
 
 #************************************************************************
-# Hoemuller figure
-
-bounds = [-100, -10, -8, -4, -2, 0, 2, 4, 8, 10, 100]
-times, latitudes, indata = read_hovmuller(data_loc + "latitudinal")
-
-utils.plot_hovmuller(image_loc + "GLE_hovmuller", times, latitudes, indata, \
-                         settings.COLOURMAP_DICT["hydrological"], bounds, \
-                         "Anomaly (mm month"+r'$^{-1}$'+")")
-
+#                                 END
+#************************************************************************

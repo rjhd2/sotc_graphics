@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Upper Tropospheric Humidity (UTH) section.
@@ -22,9 +22,7 @@ import utils # RJHD utilities
 import settings
 
 
-data_loc = "{}/{}/data/UTH/".format(settings.ROOTLOC, settings.YEAR)
-reanalysis_loc = "{}/{}/data/RNL/".format(settings.ROOTLOC, settings.YEAR)
-image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
+DATALOC = "{}/{}/data/UTH/".format(settings.ROOTLOC, settings.YEAR)
 
 DECIMAL_MONTHS = np.arange(12)/12.
 
@@ -112,58 +110,58 @@ def run_all_plots():
 
     #************************************************************************
     # Upper Tropospheric Humidity timeseries figure
+    if True:
+        HIRSSTART = 1979
+        MWSTART = 1999
+        ERASTART = 1979
 
-    HIRSSTART = 1979
-    MWSTART = 1999
-    ERASTART = 1979
-
-    # smooth by 3 months
-    hirs = read_ts(data_loc + "hirs_data.aa", HIRSSTART, "HIRS", smooth=3)
-    mw = read_ts(data_loc + "mw_data.aa", MWSTART, "Microwave", smooth=3)
-    era5 = read_ts(data_loc + "era5_data.aa", ERASTART, "ERA5", smooth=3)
+        # smooth by 3 months
+        hirs = read_ts(DATALOC + "hirs_data.aa", HIRSSTART, "HIRS", smooth=3)
+        mw = read_ts(DATALOC + "mw_data.aa", MWSTART, "Microwave", smooth=3)
+        era5 = read_ts(DATALOC + "era5_data.aa", ERASTART, "ERA5", smooth=3)
 
 
-    fig = plt.figure(figsize=(10, 6))
-    ax = plt.axes([0.10, 0.10, 0.87, 0.87])
+        fig = plt.figure(figsize=(8, 5))
+        ax = plt.axes([0.11, 0.08, 0.86, 0.90])
 
-    utils.plot_ts_panel(ax, [hirs, mw, era5], "-", "hydrological", loc=LEGEND_LOC, ncol=3)
+        utils.plot_ts_panel(ax, [hirs, mw, era5], "-", "hydrological", loc=LEGEND_LOC, ncol=3)
 
-    #*******************
-    # prettify
+        #*******************
+        # prettify
 
-    fig.text(0.02, 0.5, "Anomalies (% rh)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
+        fig.text(0.01, 0.5, "Anomalies (% rh)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
-    plt.ylim([-2.0, 2.0])
-    plt.xlim([1979, int(settings.YEAR)+1.5])
+        plt.ylim([-2.0, 2.0])
+        plt.xlim([1979, int(settings.YEAR)+1.5])
 
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
 
-    plt.savefig(image_loc+"UTH_ts{}".format(settings.OUTFMT))
-    plt.close()
+        plt.savefig(settings.IMAGELOC+"UTH_ts{}".format(settings.OUTFMT))
+        plt.close()
 
     #************************************************************************
     # HIRS map
+    if True:
+        cube = read_map(DATALOC, "hirs")
 
-    cube = read_map(data_loc, "hirs")
+        bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
-    bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
-
-#    utils.plot_smooth_map_iris(image_loc + "p2.1_UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext = "(n) Upper Tropospheric Humidity")
-    utils.plot_smooth_map_iris(image_loc + "UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
+    #    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext = "(n) Upper Tropospheric Humidity")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
 
 
     #************************************************************************
     # MW map
+    if True:
+        cube = read_map(DATALOC, "mw")
 
-    cube = read_map(data_loc, "mw")
+        bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
-    bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
-
-    utils.plot_smooth_map_iris(image_loc + "UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
-    utils.plot_smooth_map_iris(image_loc + "p2.1_UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext="(j) Upper Tropospheric Humidity")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext="(j) Upper Tropospheric Humidity")
 
     return # run_all_plots
 
