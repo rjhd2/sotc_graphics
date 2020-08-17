@@ -9,9 +9,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 26                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -227,7 +227,7 @@ def run_all_plots():
 
         # Globe
     #    grasp, erai, cera, merra, jra55 = read_uaw_ts(DATALOC + "Globe850.nc", annual=True)
-        era5, erai, merra, jra55 = read_uaw_ts(DATALOC + "Globe850.nc", annual=True)
+        era5, erai, merra, jra55 = read_uaw_ts(DATALOC + "Globe850_v2.nc", annual=True)
         utils.plot_ts_panel(ax, [merra, erai, era5, jra55], "-", "circulation", \
                             loc=LEGEND_LOC, ncol=2, extra_labels=[" (0.03)", " (0.07)", \
                                                                       " (0.03)", " (0.06)"])

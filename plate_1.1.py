@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 27                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-08-15 16:09:25 +0100 (Thu, 15 Aug #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -328,6 +328,9 @@ UAH, rss, ratpac, raobcore, rich, noaa, jra, merra = lst.read_csv(DATALOC + "{}/
 # upper stratosphere for completeness
 ssu1, ssu1_2, ssu2, ssu2_2, ssu3, ssu3_2 = lst.read_ssu(DATALOC + "{}/SSU.dat".format("LST")) 
 
+eral, erao, eralo = lst.read_era5(DATALOC + "{}/ERA5_TLS_GLOBAL".format("LST"))
+era5 = utils.Timeseries("ERA5", np.reshape(eralo.times, [-1, 12])[:,0], utils.annual_average(eralo.data))
+
 # in situ
 make_plot(ax_f, [raobcore, rich, ratpac], insitu)
 # satellite
@@ -359,19 +362,19 @@ make_plot(ax_g, [tx10p], insitu, plot_label="(g) Extremes [Warm Days and Cool da
 
 #***************************
 # H - Arctic Sea Ice Extent - Jessica/Deke give data
-print("Arctic Sea Ice - Jessica/Deke - MISSING")
+print("Arctic Sea Ice - Jessica/Deke")
 
-#arctic_max, arctic_min, antarctic_min, antarctic_max = read_sie(DATALOC +"{}/SIE.dat".format("PLT1_1"))
+arctic_max, arctic_min, antarctic_min, antarctic_max = read_sie(DATALOC +"{}/SIE.dat".format("PLT1_1"))
 
-#make_plot(ax_h, [arctic_max], insitu)
-#make_plot(ax_h, [arctic_min], insitu, plot_label="(h) Arctic Sea Ice Extent [max and min (dotted)]\n1981-2010", ylabel="x 10"+r'$^6$'+" km"+r'$^2$', ylim=[-2.9, 2.9], ls=":")
+make_plot(ax_h, [arctic_max], insitu)
+make_plot(ax_h, [arctic_min], insitu, plot_label="(h) Arctic Sea Ice Extent [max and min (dotted)]\n1981-2010", ylabel="x 10"+r'$^6$'+" km"+r'$^2$', ylim=[-2.9, 2.9], ls=":")
 
 #***************************
 # I - Antarctic Sea Ice Extent - Jessica/Deke give data
-print("Antarctic Sea Ice - Jessica/Deke - MISSING")
+print("Antarctic Sea Ice - Jessica/Deke")
 
-#make_plot(ax_i, [antarctic_max], insitu)
-#make_plot(ax_i, [antarctic_min], insitu, plot_label="(i) Antarctic Sea Ice Extent [max and min (dotted)]\n1981-2010", ylabel="x 10"+r'$^6$'+" km"+r'$^2$', ylim=[-1.2, 3.0], ls=":")
+make_plot(ax_i, [antarctic_max], insitu)
+make_plot(ax_i, [antarctic_min], insitu, plot_label="(i) Antarctic Sea Ice Extent [max and min (dotted)]\n1981-2010", ylabel="x 10"+r'$^6$'+" km"+r'$^2$', ylim=[-1.2, 3.0], ls=":")
 
 #***************************
 # J - Glacier Mass Balance
@@ -422,8 +425,15 @@ print("Total Column Water Vapour - Land")
 import tcw
 
 #merra2_land, erai_land, era5_land, jra_land, cosmic_land, gnss_land = tcw.read_csv(DATALOC + "{}/time_series_tpw_land.txt".format("TCW"), domain="L")
-merra2_land, era5_land, jra_land, cosmic_land, gnss_land=tcw.read_ncdf_ts(DATALOC + "{}/TPW_{}_anom_TS.COSMIC_WRONG.nc".format("TCW", settings.YEAR), domain="L")
+merra2_land, era5_land, jra_land, cosmic_land, gnss_land=tcw.read_ncdf_ts(DATALOC + "{}/TPW_{}_anom_TS.v2.nc".format("TCW", settings.YEAR), domain="L")
 gnss_land.name = "GNSS (Ground Based)"
+
+
+# updated file June 2020
+print("remove TCW from June 2020")
+alldata = np.genfromtxt(DATALOC + "TCW/TCWV_2020_ts_updated.dat")
+alldata = np.ma.masked_where(alldata == 0.0, alldata)
+cosmic_land = utils.Timeseries("COSMIC RO", alldata[:, 0], alldata[:, 7])
 
 # satellite
 make_plot(ax_n, [cosmic_land], satellite)
@@ -437,8 +447,14 @@ make_plot(ax_n, [era5_land, jra_land, merra2_land], reanalyses, plot_label="(n) 
 print("Total Column Water Vapour - Marine")
 
 #merra2_ocean, era5_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = tcw.read_csv(DATALOC + "{}/time_series_tpw_ocean.txt".format("TCW"), domain="O")
-merra2_ocean, era5_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = tcw.read_ncdf_ts(DATALOC + "{}/TPW_{}_anom_TS.COSMIC_WRONG.nc".format("TCW", settings.YEAR), domain="O")
+merra2_ocean, era5_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = tcw.read_ncdf_ts(DATALOC + "{}/TPW_{}_anom_TS.v2.nc".format("TCW", settings.YEAR), domain="O")
 radiometer_ocean.name = "RSS Satellite"
+
+# updated file June 2020
+print("remove TCW from June 2020")
+alldata = np.genfromtxt(DATALOC + "TCW/TCWV_2020_ts_updated.dat")
+alldata = np.ma.masked_where(alldata == 0.0, alldata)
+cosmic_ocean = utils.Timeseries("COSMIC RO", alldata[:, 0], alldata[:, 2])
 
 # satellite
 make_plot(ax_o, [radiometer_ocean, cosmic_ocean], satellite)
@@ -522,16 +538,16 @@ import pcp
 ghcn, gpcc, gpcp = pcp.read_land(DATALOC + "{}/Land_insitu_timeseries-1979.dat".format("PCP"))
 
 # in situ
-make_plot(ax_u, [ghcn, gpcc, gpcp], insitu)
+make_plot(ax_u, [ghcn, gpcc, gpcp], insitu, plot_label="(u) Precipitation - Land\n(1981-2010)", ylabel="u")
 # reanalyses - not for 2019
-# make_plot(ax_u, [erai, merra], reanalyses, plot_label="(u) Precipitation - Land\n(1981-2010)", ylabel="mm")
+# make_plot(ax_u, [erai, merra], reanalyses, plot_label="(u) Precipitation - Land\n(1981-2010)", ylabel="u)
 
 #***************************
 # V - Precipitation - Ocean
 gpcp = pcp.read_ocean(DATALOC + "{}/Ocean_insitu_timeseries-1979.dat".format("PCP"))
 
 # in situ
-make_plot(ax_v, [gpcp], insitu)
+make_plot(ax_v, [gpcp], insitu, plot_label="(v) Precipitation - Ocean\n(1981-2010)", ylabel="v")
 
 #***************************
 # V - Southern Oscillation Index
@@ -541,23 +557,23 @@ import slp
 
 soi = slp.read_soi(DATALOC + "{}/soiplaintext.html".format("SLP"))
 
-# make_plot(ax_v, [soi], insitu, plot_label="(v) Southern Oscillation Index\n ", ylabel="Standard Units", ylim=[-40, 49])
+#make_plot(ax_v, [soi], insitu, plot_label="(v) Southern Oscillation Index\n ", ylabel="Standard Units", ylim=[-40, 49])
 
 #***************************
 # W - OHC - Jessica & Deke provide
-print("Ocean Heat- Jessica/Deke - MISSING")
+print("Ocean Heat- Jessica/Deke")
 
-#hadley, csiro, pmel, ncei, mri, iap = read_ohc(DATALOC + "{}/OHC.dat".format("PLT1_1"))
+hadley, csiro, pmel, ncei, mri, iap = read_ohc(DATALOC + "{}/OHC.dat".format("PLT1_1"))
 
-#make_plot(ax_w, [hadley, csiro, pmel, ncei, mri, iap], insitu, plot_label="(w) Ocean Heat Content (0-700m)\n(1983-{})".format(settings.YEAR), ylabel='$10^{21}$'+"J", ylim=[-140, 140])
+make_plot(ax_w, [hadley, csiro, pmel, ncei, mri, iap], insitu, plot_label="(w) Ocean Heat Content (0-700m)\n(1983-{})".format(settings.YEAR), ylabel='$10^{21}$'+"J", ylim=[-140, 140])
 
 #***************************
 # X - Sea Level Rise - Jessica & Deke provide
-print("Sea Level Rise - Jessica/Deke - MISSING")
+print("Sea Level Rise - Jessica/Deke")
 
-#slr = read_slr(DATALOC + "{}/SLR.dat".format("PLT1_1"))
+slr = read_slr(DATALOC + "{}/SLR.dat".format("PLT1_1"))
 
-#make_plot(ax_x, [slr], insitu, plot_label="(x) Sea Level Rise\n(actual values)", ylabel="mm", ylim=[-21, 120])
+make_plot(ax_x, [slr], insitu, plot_label="(x) Sea Level Rise\n(actual values)", ylabel="mm", ylim=[-21, 120])
 
 #***************************
 # Y - Tropospheric Ozone
@@ -614,7 +630,7 @@ ocean_era5_clim, ocean_era5_anoms = utils.calculate_climatology_and_anomalies_1d
 twenty_cr_actuals = utils.read_20cr(settings.REANALYSISLOC + "wspd10m.ocean.txt", "wind speed")
 ocean_20cr_clim, ocean_20cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, 1981, 2010)
 
-make_plot(ax_ab, [ocean_era5_anoms, jra_anoms, merra_anoms, ocean_era5_anoms, ocean_20cr_anoms], reanalyses, plot_label="(ab) Ocean Wind Speed\n(1981-2010)", ylabel="m s"+r'$^{-1}$', ylim=[-0.29,0.49])
+make_plot(ax_ab, [ocean_era5_anoms, merra_anoms, ocean_20cr_anoms], reanalyses, plot_label="(ab) Ocean Wind Speed\n(1981-2010)", ylabel="m s"+r'$^{-1}$', ylim=[-0.29,0.49])
 
 #***************************
 # AC - Biomass Burning
@@ -634,12 +650,13 @@ print("Soil Moisture")
 
 import sms
 
-cube_list = iris.load(DATALOC + "{}/ESA_CCI_SM_COMBINED_monthAnomaliesPerHemisphere.nc".format("SMS"))
-glob = cube_list[2]
+cube_list = np.array(iris.load(DATALOC + "{}/ESA_CCI_SM_COMBINED_monthAnomaliesPerHemisphere.nc".format("SMS")))
+names = np.array([c.var_name for c in cube_list])
+glob = cube_list[names == "Anomalies_global"][0]
 years = sms.convert_times(glob)
 
 annuals = annual_from_monthly(utils.Timeseries("SMS", years, glob.data))
-
+print(annuals)
 make_plot(ax_ad, [annuals], satellite, plot_label="(ad) Soil Moisture\n(1991-2010)", ylabel="m"+r'$^{3}$', ylim=[-0.009, 0.009])
 
 

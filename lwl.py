@@ -40,10 +40,10 @@ def read_lakes(filename):
 
     indata = np.genfromtxt(filename, delimiter=',', skip_header=1, dtype=(str), encoding="latin-1")
 
-    lats = indata[:, 1].astype(float)
-    lons = indata[:, 2].astype(float)
+    lats = indata[:, 3].astype(float)
+    lons = indata[:, 4].astype(float)
 
-    data = indata[:, 4].astype(float)
+    data = indata[:, 1].astype(float)
 
     return lats, lons, data # read_lakes
 
@@ -82,7 +82,7 @@ def run_all_plots():
 
     #***************
     # Anomaly Scatter map
-    anomalies = read_lakes(DATALOC + "DATA_StateOfTheClimate_WaterLevelsAnom_v1.csv")
+    anomalies = read_lakes(DATALOC + "DATA_StateOfTheClimate_WaterLevelsAnom_v2.csv")
 
     bounds = [-2, -1, -0.75, -0.50, -0.25, 0, 0.25, 0.50, 0.75, 1, 2]
 

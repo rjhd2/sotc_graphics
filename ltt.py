@@ -9,9 +9,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 27                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-08-15 16:09:25 +0100 (Thu, 15 Aug #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -133,7 +133,7 @@ def run_all_plots():
 
             if region == "global":
                 raobcore, rich, ratpac, UAH, rss, era5, merra, jra = \
-                    read_csv(DATALOC + "SotC_AnnTemps_2020_0220_LTTGL.csv")
+                    read_csv(DATALOC + "SotC_AnnTemps_2020_0520_LTTGL.csv")
 
             plt.clf()
             fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)

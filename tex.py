@@ -9,9 +9,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 27                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-08-15 16:09:25 +0100 (Thu, 15 Aug #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -742,7 +742,7 @@ def run_all_plots():
 
     #*************
     # timeseries ERA5
-    ERA5LOCTEMP = "/data/users/rdunn/reanalyses/data/era5/indices/"
+    ERA5LOCTEMP = "/data/users/rdunn/reanalyses/data/era5/v20200409/indices/"
 #    ERA5LOCTEMP = "/scratch/rdunn/reanalyses/era5/final/"
     if True:
  
@@ -791,10 +791,12 @@ def run_all_plots():
 
             # sort the bounds and colourbars
             if index in ["TX90p", "TN90p"]:
-                bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+#                bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+                bounds = [-100, -40, -30, -20, -10, 0, 10, 20, 30, 40, 100]
                 cmap=settings.COLOURMAP_DICT["temperature"]
             elif index in ["TX10p", "TN10p"]:
-                bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+#                bounds = [-100, -30, -20, -10, -5, 0, 5, 10, 20, 30, 100]
+                bounds = [-100, -40, -30, -20, -10, 0, 10, 20, 30, 40, 100]
                 cmap=settings.COLOURMAP_DICT["temperature_r"]
             elif index in ["TXx", "TNx", "TXn", "TNn"]:
                 bounds = [-100, -6, -4, -2, -1, 0, 1, 2, 4, 6, 100]

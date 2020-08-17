@@ -9,9 +9,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 26                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -351,9 +351,13 @@ def run_all_plots():
 
         eral, erao, eralo = read_era5(DATALOC + "ERA5_TLS_GLOBAL")
         eralo_ann = utils.Timeseries("ERA5", np.reshape(eralo.times, [-1, 12])[:,0], utils.annual_average(eralo.data))
+        
+        # update to ERA5.1 during revisions for SotC2019
+        era51 = np.genfromtxt(DATALOC + "ERA5_1_update.dat")
+        eralo_ann = utils.Timeseries("ERA5", era51[:, 0], era51[:, 1])
 
         # Sondes [no RATPAC for 2019]
-        utils.plot_ts_panel(ax2, [raobcore, rich], "-", "temperature", loc=LEGEND_LOC)
+        utils.plot_ts_panel(ax2, [raobcore, rich, ratpac], "-", "temperature", loc=LEGEND_LOC)
 
         # satellites
         utils.plot_ts_panel(ax4, [UAH, noaa, rss], "-", "temperature", loc=LEGEND_LOC)

@@ -9,9 +9,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 26                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -99,10 +99,18 @@ def run_all_plots():
         cube = read_map(DATALOC + "map")
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")")
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")", figtext="(t) Land Evaporation")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_GLE_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")", figtext="(s) Land Evaporation")
 
-        print("no other figures for {}'s report - author has made own".format(settings.YEAR))
-        sys.exit()
+    # Evaporation Map
+    if True:
+
+        bounds = [-1000, -160, -120, -80, -40, 0, 40, 80, 120, 160, 1000]
+        cube = read_map(DATALOC + "map_transp")
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "GLE_{}_transp".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm year"+r'$^{-1}$'+")")
+ 
+    print("no other figures for {}'s report - author has made own".format(settings.YEAR))
+    sys.exit()
     #************************************************************************
     # Timeseries figures
     if False:

@@ -9,9 +9,9 @@ from six.moves import input
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 27                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-08-15 16:09:25 +0100 (Thu, 15 Aug #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -321,8 +321,7 @@ def median_pairwise_slopes(xdata, ydata, mdi, sigma=1.0):
     dof = n * (n - 1) // 2
     w = math.sqrt(n * (n - 1) * ((2. * n) + 5.) / 18.)
 
-    percentile_point = scipy.stats.norm.cdf(sigma)
-
+    percentile_point = scipy.stats.norm.cdf(sigma)*2.
 
     rank_upper = ((dof + percentile_point * w) / 2.) + 1
     rank_lower = ((dof - percentile_point * w) / 2.) + 1

@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 26                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -85,6 +85,8 @@ def run_all_plots():
         cube = read_data(DATALOC + "GSG_{}annual mean_G_ano_ref1998-2008.txt".format(settings.YEAR))
 
         bounds = [-100, -20, -15, -8, -4, 0, 4, 8, 15, 20, 100]
+        bounds = [-200, -90, -40, -15, -5, -1, 1, 5, 15, 40, 90, 200]
+
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)")
 

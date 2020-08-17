@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 26                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -300,14 +300,12 @@ def run_all_plots():
         radiometer_ocean.name = "RSS Satellite"
 
 
-#        # updated file March 2020
-#        gnss = np.genfromtxt(DATALOC + "GNSS_TCWV_yearly_anomalies_ref_2006_2014_202sta.txt")
-#        gnss_land = utils.Timeseries("GNSS (Ground Based)", gnss[:, 0], gnss[:, 1])
-        
-        # updated file March 2020
-#        cosmic_land = read_COSMIC_late(DATALOC + "timeseries_RO_TCWV_anom_land.txt", era5_land)
-#        cosmic_ocean = read_COSMIC_late(DATALOC + "timeseries_RO_TCWV_anom_ocean.txt", era5_ocean)
-#        print("Need to update COSMIC")
+        # updated file June 2020
+        print("remove this from June 2020")
+        alldata = np.genfromtxt(DATALOC + "TCWV_2020_ts_updated.dat")
+        alldata = np.ma.masked_where(alldata == 0.0, alldata)
+        cosmic_land = utils.Timeseries("COSMIC RO", alldata[:, 0], alldata[:, 7])
+        cosmic_ocean = utils.Timeseries("COSMIC RO", alldata[:, 0], alldata[:, 2])
 
 
         #************************************************************************
@@ -347,12 +345,16 @@ def run_all_plots():
 
         fig.text(0.03, 0.5, "Anomalies (mm)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
-        plt.savefig(settings.IMAGELOC+"TCW_ts_v2_old_cosmic{}".format(".png"))#settings.OUTFMT))
-
+        plt.savefig(settings.IMAGELOC+"TCW_ts_v3{}".format(settings.OUTFMT))
         plt.close()
-        input("stop")
+        
+        if False:
+            with open("TCW_2020_ts.dat", "w") as outfile:
+                outfile.write("year \t RadiometerO \t CosmicO \t ERA5O   \t JRA555O \t MERRA2O \t GNSSL   \t CosmicL \t ERA5L   \t JRA55L \t MERRA2L\n")
+                for t, time in enumerate(era5_ocean.times):
+                    outfile.write("{} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f} \t {:6.4f}\n".format(time, radiometer_ocean.data[t], cosmic_ocean.data[t], era5_ocean.data[t], jra_ocean.data[t], merra2_ocean.data[t], gnss_land.data[t], cosmic_land.data[t], era5_land.data[t], jra_land.data[t], merra2_land.data[t]))
 
-
+ 
     #************************************************************************
     # JRA Hovmuller figure
     if False:

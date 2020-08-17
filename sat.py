@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 27                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-08-15 16:09:25 +0100 (Thu, 15 Aug #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -459,6 +459,23 @@ def run_all_plots():
         utils.plot_smooth_map_iris(settings.IMAGELOC + "SAT_{}_anoms_noaa".format(settings.YEAR), cube, \
                                        settings.COLOURMAP_DICT["temperature"], bounds, \
                                        "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="NOAAGlobalTemp")
+
+    #************************************************************************
+    # JRA55 data Anomaly figure 
+    if True:
+        cube_list = iris.load(settings.REANALYSISLOC + "jra55_t2m_{}01-{}12_ann_ano.nc".format(settings.YEAR, settings.YEAR))
+        for cube in cube_list:
+            if cube.var_name == "T2M":
+                break
+
+        cube.coord('latitude').guess_bounds()
+        cube.coord('longitude').guess_bounds()
+
+        bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "SAT_{}_anoms_jra55".format(settings.YEAR), cube[0,0], \
+                                       settings.COLOURMAP_DICT["temperature"], bounds, \
+                                       "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="JRA-55")
 
     #************************************************************************
     # NASA GISS Anomaly figure

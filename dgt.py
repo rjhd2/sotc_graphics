@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 26                                       $:  Revision of last commit
+# $Rev:: 29                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2019-04-17 15:34:18 +0100 (Wed, 17 Apr #$:  Date of last commit
+# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -129,7 +129,7 @@ def run_all_plots():
         # select the year - plot 2019 (cube[1])
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "DGT_{}_rel_1901-{}".format(settings.YEAR, settings.YEAR), cube[1], settings.COLOURMAP_DICT["hydrological"], bounds, "Categories relative to 1901-{} (self-calibrating PDSI)".format(settings.YEAR), cb_extra=["Dry", "Wet"], contour=True)
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_DGT_{}_rel_1901-{}".format(settings.YEAR, settings.YEAR), cube[1], settings.COLOURMAP_DICT["hydrological"], bounds, "Categories relative to 1901-{} (self-calibrating PDSI)".format(settings.YEAR), figtext="(s) Drought (self-calibrating PDSI)", cb_extra=["Dry", "Wet"], contour=True, save_netcdf_filename="{}DGT_for_NOAA_{}.nc".format(DATALOC, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_DGT_{}_rel_1901-{}".format(settings.YEAR, settings.YEAR), cube[1], settings.COLOURMAP_DICT["hydrological"], bounds, "Categories relative to 1901-{} (self-calibrating PDSI)".format(settings.YEAR), figtext="(t) Drought (self-calibrating PDSI)", cb_extra=["Dry", "Wet"], contour=True, save_netcdf_filename="{}DGT_for_NOAA_{}.nc".format(DATALOC, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
 
         # plot 2019-2018
 
