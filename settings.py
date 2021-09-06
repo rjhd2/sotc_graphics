@@ -1,7 +1,4 @@
-#!/usr/local/sci/python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Global Settings for SotC plots
@@ -9,9 +6,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                         $:  Revision of last commit
+# $Rev:: 31                                         $:  Revision of last commit
 # $Author:: rdunn                                      $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-09-06 09:52:46 +0100 (Mon, 06 Sep #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -172,6 +169,7 @@ ROOTLOC = config.get("Paths", "rootloc")
 YEAR = config.get("Misc", "year")
 OUTFMT = config.get("Format", "outfmt")
 FONTSIZE = config.getint("Format", "fontsize")
+ERA5LOC_TEX = config.get("Paths", "tex_era5loc")
 
 # derived settings
 LEGEND_FONTSIZE = 0.8 * FONTSIZE
@@ -181,10 +179,10 @@ IMAGELOC = "{}/{}/images/".format(ROOTLOC, YEAR)
 REANALYSISLOC = "{}/{}/data/RNL/".format(ROOTLOC, YEAR)
 
 #************************************************************************
-COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
-                                "ERA5" : "orange", \
-                                "20CRv3" : "lime", \
-                                "MERRA-2" : "m", \
+COLOURS = {"temperature" : {"ERA-Interim" : "purple", \
+                                "ERA5" : "purple", \
+                                "20CRv3" : "orange", \
+                                "MERRA-2" : "lime", \
                                 "JRA-55" : "c", \
                                 "UAH v6.0" : "b", \
                                 "RSS v4.0" : "r", \
@@ -192,7 +190,7 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                 "UW" : "m", \
                                 "RAOBCORE v1.7" : "r", \
                                 "RICH v1.7" : "y", \
-                                "RATPAC A2" : "m", \
+                                "RATPAC vA2" : "m", \
                                 "UNSW v1.0" : "c", \
                                 "SSU+AMSU" : "k", \
                                 "SSU+MLS" : "r", \
@@ -201,26 +199,49 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                 "NASA/GISS" : "b", \
                                 "JMA" : "c", \
                                 "Berkeley" : "y", \
-                                "HadCRUT4" : "k", \
-                                "CRUTEM" : "k", \
-                                "HadSST" : "k", \
+                                "Hadley" : "k", \
+                                "HadCRUT5" : "k", \
+                                "CRUTEM5" : "k", \
+                                "HadSST4" : "k", \
                                 "GHCNDEX" : "r", \
+                                "CLASSnmat v2" : "r", \
+                                "UAHNMAT v1" : "b", \
+                                "SST" : "r", \
+                                "Air Temperature" : "b", \
                                 "CMIP5" : "k", \
                                 "NOAA" : "r", \
                                 "NCAR" : "k", \
                                 "North" : "k", \
                                 "South": "k", \
                                 "QBO" : "k", \
+                            "HWF" : "b", \
+                            "HWM" : "r", \
                                 "NOAA v4.0" : "k", \
                                 "RSS v3.3" : "r", \
+                            "Warmest" : "r", \
+                            "Coldest" : "b", \
                             "Lake" : "k"}, \
+              "lst-ssu" : {"SSU1+MLS" : "yellow", \
+                           "SSU2+MLS" : "cyan", \
+                           "SSU3+MLS" : "magenta", \
+                           "SSU1+AMSU" : "olive", \
+                           "SSU2+AMSU" : "teal", \
+                           "SSU3+AMSU" : "purple", \
+                           "RSS" : "r", \
+                           "UAH" : "b", \
+                           "NOAA" : "k"},\
                "cryosphere" : {"N Hemisphere" : 'k', \
                                    "Eurasia" : 'r', \
                                    "N America" : 'b', \
                                    "Cumulative Balance" : "k", \
                                    "Balance" : "r",\
                                    "Lake" : "0.7",\
-                                   "All" : "k",\
+                                   "Erie" : "b",\
+                                   "Huron" : "c",\
+                                   "Michigan" : "g",\
+                                   "Ontario" : "lime",\
+                                   "Superior" : "yellow",\
+                                   "Average" : "k",\
                                "ERA5" : "purple",\
                                "In Situ" : "0.3"},\
                "hydrological" : {"ERA-Interim" : "purple", \
@@ -229,10 +250,11 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "MERRA" : "lime", \
                                      "MERRA-2" : "lime", \
                                      "20CRv3" : "orange", \
-                                     "COSMIC RO" : "b", \
+                                     "Satellite RO" : "b", \
                                      "GNSS (Ground Based)" : "r", \
                                      "RSS Satellite" : '0.5', \
                                      "HIRS" : "k", \
+                                     "MSU-HIRS" : "k", \
                                      "Microwave" : "b", \
                                      "GHCN" : "0.5", \
                                      "GPCC" : "r", \
@@ -241,6 +263,7 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "GPCP" : "c", \
                                      "PATMOS-x/AVHRR" : "0.5", \
                                      "PATMOS-x/AQUA MODIS" : "c", \
+                                     "PATMOS-x/AVHRR+HIRS" : "yellow", \
                                      "MISR" : "brown", \
                                      "AQUA MODIS C6" : "b", \
                                      "CALIPSO" : "r", \
@@ -258,21 +281,22 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "NOCS v2.0" : "b", \
                                      "HOAPS" : "brown", \
                                      "NCEP" : "w", \
-                                     "20CR" : "w", \
                                      "Globe" : "k", \
-                                     "N. Hemisphere" : "c", \
-                                     "S. Hemisphere" : "m", \
+                                     "N. Hemisphere" : "b", \
+                                     "S. Hemisphere" : "r", \
                                      "ERA5 mask" : "purple", \
                                      "MERRA-2 mask" : "lime"},\
                "circulation" : {"Satellite MW Radiometers" : "k", \
                                     "NOCSv2.0" : "b", \
                                     "WASwind" : "r", \
-                                    "ERA-Interim" : "orange", \
-                                    "ERA5" : "orange", \
+                                    "ERA-Interim" : "purple", \
+                                    "ERA5" : "purple", \
                                     "JRA-55" : "c", \
-                                    "MERRA-2" : "m", \
-                                    "MERRA" : "m", \
-                                    "20CRv3" : "lime", \
+                                    "MERRA-2" : "lime", \
+                                    "MERRA" : "lime", \
+                                    "ASCAT" : "r", \
+                                    "QuikSCAT" : "brown", \
+                                    "20CRv3" : "orange", \
                                     "ERApreSAT" : "purple", \
                                     "CERA20C" : "purple", \
                                     "GRASP" : 'k', \
@@ -280,15 +304,18 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                "radiation" : {"AT" : "r"},\
                "composition" : {"AOD monthly" : "r", \
                                 "AOD annual" : "b"},\
-               "land_surface" : {"Globe" : "k", \
-                                     "N. Hemisphere" : "b", \
-                                     "S. Hemisphere" : "r", \
+               "land_surface" : {"Globe" : "0.7", \
+                                     "N. Hemisphere" : "cornflowerblue", \
+                                     "S. Hemisphere" : "lightcoral", \
                                      "Globe Smoothed" : "k", \
                                      "N. Hemisphere Smoothed" : "b", \
                                      "S. Hemisphere Smoothed" : "r", \
                                      "GFED4s" : "b", \
                                      "GFASv1.4" : "r", \
                                      "GFASv1.0" : "k"},\
+               "vod" : {"Globe" : "k", \
+                                     "N. Hemisphere" : "b", \
+                                     "S. Hemisphere" : "r"},\
                "lst" : {"400" : "c", \
                             "300" : "m", \
                             "250" : "lime", \
@@ -304,7 +331,8 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                "phenological" : {"Chlorophyll-a" : "g", \
                                      "B. pendula" : "b", \
                                      "Q. robur (2000-{})".format(YEAR[2:]) : "r", \
-                                     "Quercus robur" : "g", \
+                                     "$SOS_{PO}$" : "g", \
+                                     "$EOS_{PO}$" : "g", \
                                      "F. sylvatica" : "k", \
                                      "Q. robur (1951-99)" : "orange", \
                                      "A. hippocastanum" : "c", \
@@ -319,7 +347,8 @@ COLOURS = {"temperature" : {"ERA-Interim" : "orange", \
                                      "Spring T": "m",
                                      "EOS" : "g",\
                                      "Fall T": "m",\
-                                     "MODIS": "k"}} #  note space in second Q. robur
+                                     "$SOS_{M}$": "k",\
+                                     "$EOS_{M}$": "k"}} #  note space in second Q. robur
 
 # all maps have 10 colours - or 11 with white as central.  
 # Can probably make up from Kate's code if better match needed.
@@ -337,7 +366,7 @@ COLOURMAP_DICT = {"temperature" : RdYlBu_r, "temperature_r" : RdYlBu, \
                       "precip_sequential" : plt.cm.YlGnBu, "precip_sequential_r" : plt.cm.YlGnBu_r,\
                       "circulation" : PuOr, "circulation_r" : PuOr_r, \
                       "composition" : BrBu_r, "composition_r" : BrBu, \
-                      "land_surface" : BrBu_r, "land_surface_r" : BrBu, \
+                      "land_surface" : BrBu_r, "land_surface_r" : BrBu, "land_surface_sequential" : plt.cm.YlGn,\
                       "phenological" : BrBG, "phenological_r" : BrBG_r}
 
 

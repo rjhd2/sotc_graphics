@@ -82,8 +82,8 @@ def read_modis_uk_ts(filename):
 
    
     # 2018 entries
-    sos_uk = utils.Timeseries("MODIS", years, raw_data[:, 1])
-    eos_uk = utils.Timeseries("MODIS", years, raw_data[:, 2])
+    sos_uk = utils.Timeseries("$SOS_{M}$", years, raw_data[:, 1])
+    eos_uk = utils.Timeseries("$EOS_{M}$", years, raw_data[:, 2])
 
     return sos_uk, eos_uk # read_modis_uk_ts
 
@@ -113,8 +113,8 @@ def plot_modis_ts(axl, sos, sprt, dummy, label, anomalies, legend_loc):
 
     # labels
     axl.text(-0.17, 1.08, label, transform=axl.transAxes, fontsize=settings.FONTSIZE)
-    axl.text(0.4, 0.88, anomalies[0], transform=axl.transAxes, fontsize=settings.FONTSIZE)
-    axl.text(0.4, 0.78, anomalies[1], transform=axl.transAxes, fontsize=settings.FONTSIZE)
+    axl.text(0.3, 0.88, anomalies[0], transform=axl.transAxes, fontsize=settings.FONTSIZE)
+    axl.text(0.3, 0.78, anomalies[1], transform=axl.transAxes, fontsize=settings.FONTSIZE)
 
     # ticks etc
     minorLocator = MultipleLocator(1)
@@ -145,7 +145,11 @@ def plot_modis_ts(axl, sos, sprt, dummy, label, anomalies, legend_loc):
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE)
 
-        ax.set_xlim([1999, int(settings.YEAR)+1])
+        ax.set_xlim([1998, int(settings.YEAR)+2])
+
+    for ax in [axl]:
+        # turn off right ticks
+        ax.yaxis.tick_left()
 
     return # plot_modis_ts
 
@@ -158,13 +162,13 @@ def read_uk_oak_csv(filename):
     :returns: Timeseries object s
     '''
 
-    raw_data = np.genfromtxt(filename, dtype=(str), skip_header=1, skip_footer=2, delimiter=",")
+    raw_data = np.genfromtxt(filename, dtype=(str), skip_header=1, skip_footer=0, delimiter=",")
     
     indata = raw_data[:, 1:].astype(float)
     indata = np.ma.masked_where(indata == -99, indata)
     
-    oak_sos = utils.Timeseries("Quercus robur", raw_data[:, 0].astype(int), indata[:, 3])
-    oak_eos = utils.Timeseries("Quercus robur", raw_data[:, 0].astype(int), indata[:, 0])
+    oak_sos = utils.Timeseries("$SOS_{PO}$", raw_data[:, 0].astype(int), indata[:, 3])
+    oak_eos = utils.Timeseries("$EOS_{PO}$", raw_data[:, 0].astype(int), indata[:, 0])
     
     return oak_sos, oak_eos  # read_uk_oak_csv
 
@@ -192,28 +196,27 @@ def read_us_phenocam_csv(filename):
 
     times = raw_data[0, 2:].astype(int)
     modis_sos = utils.Timeseries("MODIS", times, raw_data[1, 2:].astype(int)) 
-    modis_eos = utils.Timeseries("MODIS", times, raw_data[2, 2:].astype(int))
+    modis_eos = utils.Timeseries("MODIS", times, raw_data[11, 2:].astype(int))
 
     # find phenocam offset
     start = np.where(raw_data[4, :] == "")[0][-1] + 1
 
-    pheno_sos_10 = utils.Timeseries("PhenoCam 10%", raw_data[0, start:].astype(int), raw_data[4, start:].astype(int)) 
-    pheno_sos_25 = utils.Timeseries("PhenoCam 25%", raw_data[0, start:].astype(int), raw_data[5, start:].astype(int)) 
-    pheno_sos_50 = utils.Timeseries("PhenoCam 50%", raw_data[0, start:].astype(int), raw_data[6, start:].astype(int)) 
-    pheno_sos_m = utils.Timeseries("", raw_data[0, start:].astype(int), raw_data[8, start:].astype(int)) 
-    pheno_sos_p = utils.Timeseries("", raw_data[0, start:].astype(int), raw_data[9, start:].astype(int)) 
+    pheno_sos_10 = utils.Timeseries("PhenoCam 10%", raw_data[0, start:].astype(int), raw_data[2, start:].astype(int)) 
+    pheno_sos_25 = utils.Timeseries("PhenoCam 25%", raw_data[0, start:].astype(int), raw_data[3, start:].astype(int)) 
+    pheno_sos_50 = utils.Timeseries("PhenoCam 50%", raw_data[0, start:].astype(int), raw_data[4, start:].astype(int)) 
+    pheno_sos_oak_burst = utils.Timeseries("Red Oak 50% budburst", times, raw_data[5, 2:].astype(int)) 
 
-    pheno_sos = (pheno_sos_10, pheno_sos_25, pheno_sos_50, pheno_sos_m, pheno_sos_p)
+    pheno_sos = (pheno_sos_10, pheno_sos_25, pheno_sos_50, pheno_sos_oak_burst)
     
-    pheno_eos_10 = utils.Timeseries("PhenoCam 10%", raw_data[0, start:].astype(int), raw_data[11, start:].astype(int)) 
-    pheno_eos_25 = utils.Timeseries("PhenoCam 25%", raw_data[0, start:].astype(int), raw_data[12, start:].astype(int)) 
-    pheno_eos_50 = utils.Timeseries("PhenoCam 50%", raw_data[0, start:].astype(int), raw_data[13, start:].astype(int)) 
-    pheno_eos_m = utils.Timeseries("", raw_data[0, start:].astype(int), raw_data[15, start:].astype(int)) 
-    pheno_eos_p = utils.Timeseries("", raw_data[0, start:].astype(int), raw_data[16, start:].astype(int)) 
+    pheno_eos_10 = utils.Timeseries("PhenoCam 10%", raw_data[0, start:].astype(int), raw_data[12, start:].astype(int)) 
+    pheno_eos_25 = utils.Timeseries("PhenoCam 25%", raw_data[0, start:].astype(int), raw_data[13, start:].astype(int)) 
+    pheno_eos_50 = utils.Timeseries("PhenoCam 50%", raw_data[0, start:].astype(int), raw_data[14, start:].astype(int)) 
+    pheno_eos_oak_color = utils.Timeseries("Red Oak 50% autumn color", times, raw_data[15, 2:].astype(int)) 
+    pheno_eos_oak_fall = utils.Timeseries("Red Oak 50% leaf fall", times, raw_data[16, 2:].astype(int)) 
 
-    pheno_eos = (pheno_eos_10, pheno_eos_25, pheno_eos_50, pheno_eos_m, pheno_eos_p)
+    pheno_eos = (pheno_eos_10, pheno_eos_25, pheno_eos_50, pheno_eos_oak_color, pheno_eos_oak_fall)
 
-    return modis_sos, modis_eos, pheno_sos, pheno_eos # read_us_phenocam
+    return modis_sos, modis_eos, pheno_sos, pheno_eos # read_us_phenocam_csv
 
 #************************************************************************
 def plot_us_phenocam(ax, modis, pheno, sos=True):
@@ -226,29 +229,35 @@ def plot_us_phenocam(ax, modis, pheno, sos=True):
     majorLocator = MultipleLocator(major_tick_interval)
 
     if sos:
-        colors = ["#31a354", "#a1d99b", "#e5f5e0"]
+        colors = ["#31a354", "#addd8e"]
+        pheno_10, pheno_25, pheno_50, pheno_burst = pheno
     else:
-        colors = ["#d95f0e", "#fec44f", "#fff7bc"]
+        colors = ["#cc4c02", "#fe9929", "#fff7bc"]
+        pheno_10, pheno_25, pheno_50, pheno_color, pheno_fall = pheno
 
-    pheno_10, pheno_25, pheno_50, pheno_m, pheno_p = pheno
 
-    ax.plot(modis.times, modis.data, c="k", ls="-", label=modis.name, lw=3)
 
-    ax.plot(pheno_10.times, pheno_10.data, c=colors[0], ls="-", label=pheno_10.name, lw=3)
-    ax.plot(pheno_25.times, pheno_25.data, c=colors[1], ls="-", label=pheno_25.name, lw=3)
-    ax.errorbar(pheno_25.times, pheno_25.data, yerr=[pheno_m.data, pheno_p.data], c=colors[1], ls="-", label=None)
-    ax.plot(pheno_50.times, pheno_50.data, c=colors[2], ls="-", label=pheno_50.name, lw=3)
 
     if sos:
-        ax.legend(loc="upper left", frameon=False, ncol=1, fontsize=settings.FONTSIZE*0.8)
+        ax.plot(modis.times, modis.data, c="k", ls="-", label="$SOS_M$", lw=3)
+        ax.plot(pheno_25.times, pheno_25.data, c=colors[0], ls="-", label="$SOS_{PC}$", lw=3)
+        ax.plot(pheno_burst.times, pheno_burst.data, c=colors[1], ls="-", label="$SOS_{RO}$", lw=3)
     else:
-        ax.legend(loc="lower left", frameon=False, ncol=1, fontsize=settings.FONTSIZE*0.8)
+        ax.plot(modis.times, modis.data, c="k", ls="-", label="$EOS_M$", lw=3)
+        ax.plot(pheno_25.times, pheno_25.data, c=colors[0], ls="-", label="$EOS_{PC}$", lw=3)
+        ax.plot(pheno_color.times, pheno_color.data, c=colors[1], ls="-", label="$EOS_{RO}$", lw=3)
+#        ax.plot(pheno_fall.times, pheno_fall.data, c=colors[2], ls="-", label=pheno_fall.name, lw=3)
+        
+    if sos:
+        ax.legend(loc="upper center", frameon=False, ncol=3, fontsize=settings.FONTSIZE*0.8)
+    else:
+        ax.legend(loc="upper center", frameon=False, ncol=3, fontsize=settings.FONTSIZE*0.8)
 
     ax.xaxis.set_minor_locator(minorLocator)
     ax.xaxis.set_major_locator(majorLocator)
     # turn of RHS y ticks
     ax.yaxis.set_ticks_position('left')
-    ax.set_xlim([2000, 2020])
+    ax.set_xlim([1997, int(settings.YEAR)+2])
 #    ax.set_ylabel("Day of Year", fontsize=settings.FONTSIZE)
 
     for tick in ax.yaxis.get_major_ticks():
@@ -273,7 +282,7 @@ def plot_images(ax, filename):
 #************************************************************************
 def run_all_plots():
 
-
+    plot_sites=True
     #***********************
     # MODIS - centre
     if True:
@@ -288,10 +297,12 @@ def run_all_plots():
             c, = np.where(names == season)[0]
 
             cube = cubelist[c]
+            cube.coord('longitude').guess_bounds()
+            cube.coord('latitude').guess_bounds()
 
-            # deal with NANS
+            # deal with NANS & missing
             cube.data = np.ma.masked_where(cube.data != cube.data, cube.data)
-
+            cube.data = np.ma.masked_where(cube.data <= -9997, cube.data)
 
             fig = plt.figure(figsize=(8, 11))
             plt.clf()
@@ -305,9 +316,8 @@ def run_all_plots():
             # axes for polar plot
             ax = plt.axes([0.01, 0.02, 0.98, 0.65], projection=cartopy.crs.NorthPolarStereo(central_longitude=300.0))
 
-            plot_cube = cube
-
             # regrid depending on output format
+            plot_cube = cube
             if settings.OUTFMT in [".eps", ".pdf"]:
                 if plot_cube.coord("latitude").points.shape[0] > 90 or plot_cube.coord("longitude").points.shape[0] > 360:
                     regrid_size = 1.0
@@ -322,39 +332,43 @@ def run_all_plots():
             ax.coastlines()
             ax.set_boundary(circle, transform=ax.transAxes)
 
+            # select colourmap
             if season == "SOS":
                 cmap = settings.COLOURMAP_DICT["phenological_r"]
             elif season == "EOS":
                 cmap = settings.COLOURMAP_DICT["phenological"]
 
+            # normalise and plot
             norm = mpl.cm.colors.BoundaryNorm(BOUNDS, cmap.N)
             mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm=norm, axes=ax)
 
             # # read in sites
-            if season == "EOS":
-                pass
-            elif season == "SOS":
-                lake_locations = read_us_phenocam(os.path.join(DATALOC, "lake_coords.csv"))   
-                # scatter
-                COL = "chartreuse"
-                ax.scatter(lake_locations[1], lake_locations[0], c=COL, s=100, edgecolor="k", transform=cartopy.crs.Geodetic(), zorder=10)
-                COL = "m"
-                # Harvard Forest - 2019
-                ax.scatter(-72.17, 42.54, c=COL, s=100, edgecolor="k", transform=cartopy.crs.Geodetic(), zorder=10)
+            if plot_sites:
+                if season == "EOS":
+                    pass
+                elif season == "SOS":
+                    lake_locations = read_us_phenocam(os.path.join(DATALOC, "lake_coords_2020.csv"))   
+                    # scatter
+                    COL = "chartreuse"
+                    ax.scatter(lake_locations[1], lake_locations[0], c=COL, s=150, edgecolor="k", transform=cartopy.crs.Geodetic(), zorder=10)
 
-                # uk box
-                COL = "y"
-                region = [-10.0, 49.0, 3.0, 60.0]
-                ax.plot([region[0], region[0]], [region[1], region[3]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.PlateCarree())
-                ax.plot([region[2], region[2]], [region[1], region[3]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.PlateCarree())
-                ax.plot([region[0], region[2]], [region[1], region[1]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.Geodetic())
-                ax.plot([region[0], region[2]], [region[3], region[3]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.Geodetic())
+                    COL = "deeppink"
+                    # Harvard Forest - 2019
+                    ax.scatter(-72.17, 42.54, c=COL, s=150, edgecolor="k", transform=cartopy.crs.Geodetic(), zorder=10)
 
-            # COL = "k"
-            # ax.plot([region[0], region[0]], [region[1], region[3]], c=COL, ls='-', lw=5, zorder=9, transform=cartopy.crs.PlateCarree())
-            # ax.plot([region[2], region[2]], [region[1], region[3]], c=COL, ls='-', lw=5, zorder=9, transform=cartopy.crs.PlateCarree())
-            # ax.plot([region[0], region[2]], [region[1], region[1]], c=COL, ls='-', lw=5, zorder=9, transform=cartopy.crs.Geodetic())
-            # ax.plot([region[0], region[2]], [region[3], region[3]], c=COL, ls='-', lw=5, zorder=9, transform=cartopy.crs.Geodetic())
+                    # UK box
+                    COL = "k"
+                    region = [-10.0, 49.0, 3.0, 60.0]
+                    ax.plot([region[0], region[0]], [region[1], region[3]], c=COL, ls='-', lw=5, zorder=10, transform=cartopy.crs.PlateCarree())
+                    ax.plot([region[2], region[2]], [region[1], region[3]], c=COL, ls='-', lw=5, zorder=10, transform=cartopy.crs.PlateCarree())
+                    ax.plot([region[0], region[2]], [region[1], region[1]], c=COL, ls='-', lw=5, zorder=10, transform=cartopy.crs.Geodetic())
+                    ax.plot([region[0], region[2]], [region[3], region[3]], c=COL, ls='-', lw=5, zorder=10, transform=cartopy.crs.Geodetic())
+                    COL = "yellow"
+                    ax.plot([region[0], region[0]], [region[1], region[3]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.PlateCarree())
+                    ax.plot([region[2], region[2]], [region[1], region[3]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.PlateCarree())
+                    ax.plot([region[0], region[2]], [region[1], region[1]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.Geodetic())
+                    ax.plot([region[0], region[2]], [region[3], region[3]], c=COL, ls='-', lw=4, zorder=10, transform=cartopy.crs.Geodetic())
+
 
             # label axes
             ax.text(-0.1, 1.0, LABELS[season], fontsize=settings.FONTSIZE, transform=ax.transAxes)
@@ -390,13 +404,13 @@ def run_all_plots():
             ax = plt.axes([0.15, 0.73, 0.75, 0.23])
             if season == "SOS":
                 label = "(a) Start of Season"
-                anomalies = ["{} SOS Anomaly = -4.3 days".format(settings.YEAR), "{} Spr. T anomaly = 0.19 ".format(settings.YEAR)+r'$^{\circ}$'+"C"]
+                anomalies = ["{} SOS Anomaly = -1.1 days".format(settings.YEAR), "{} Spr. T anomaly = 0.5 ".format(settings.YEAR)+r'$^{\circ}$'+"C"]
 
                 plot_modis_ts(ax, sos_nh, sprt_nh, sprt_nh_orig, label, anomalies, LEGEND_LOC)
 
             elif season == "EOS":
                 label = "(b) End of Season"
-                anomalies = ["{} EOS Anomaly = 2.4 days".format(settings.YEAR), "{} Fall T anomaly = -0.53 ".format(settings.YEAR)+r'$^{\circ}$'+"C"]
+                anomalies = ["{} EOS Anomaly = 0.7 days".format(settings.YEAR), "{} Fall T anomaly = 0.7 ".format(settings.YEAR)+r'$^{\circ}$'+"C"]
 
                 plot_modis_ts(ax, eos_nh, falt_nh, falt_nh_orig, label, anomalies, LEGEND_LOC)
 
@@ -405,38 +419,39 @@ def run_all_plots():
 
         del cubelist
 
-
-   #***********************
-    # US timeseries - 2018
+    #***********************
+    # US timeseries - 2020
     if True:
-        fig = plt.figure(figsize=(8, 9.5))
+#        fig = plt.figure(figsize=(8, 9.5))
+        fig = plt.figure(figsize=(8, 7))
         plt.clf()
 
-        modis_sos, modis_eos, pheno_sos, pheno_eos = read_us_phenocam_csv(os.path.join(DATALOC, "Richardson Data for SOC 2019 Figures.csv"))
+        modis_sos, modis_eos, pheno_sos, pheno_eos = read_us_phenocam_csv(os.path.join(DATALOC, "PhenoCam-MODIS State of the Climate Prelim v3 with FINAL MODIS.csv"))
 
         # images
-        ax = plt.axes([0.01, 0.66, 0.49, 0.3])
-        plot_images(ax, "HarvardForest_20190511.jpg")
-        ax = plt.axes([0.5, 0.66, 0.49, 0.3])
-        plot_images(ax, "HarvardForest_20191024.jpg")
+#        ax = plt.axes([0.01, 0.66, 0.49, 0.3])
+#        plot_images(ax, "HarvardForest_20190511.jpg")
+#        ax = plt.axes([0.5, 0.66, 0.49, 0.3])
+#        plot_images(ax, "HarvardForest_20191024.jpg")
 
         # timeseries
-        ax = plt.axes([0.11, 0.35, 0.84, 0.3])
+        ax = plt.axes([0.11, 0.5, 0.84, 0.45])
         plot_us_phenocam(ax, modis_eos, pheno_eos, sos=False)
-#        ax.text(0.05, 0.85, "(a)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        ax.set_ylim([275, 369])
+        ax.text(0.05, 0.85, "(a)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
+        ax.set_ylim([281, 379])
+        ax.set_xlim([1998, int(settings.YEAR)+2])
         plt.setp(ax.get_xticklabels(), visible=False)
 
-        ax = plt.axes([0.11, 0.05, 0.84, 0.3])
+        ax = plt.axes([0.11, 0.05, 0.84, 0.45])
         plot_us_phenocam(ax, modis_sos, pheno_sos)
-#        ax.text(0.05, 0.85, "(b)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        ax.set_ylim([101, 144])
+        ax.text(0.05, 0.85, "(b)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
+        ax.set_ylim([91, 189])
+        ax.set_xlim([1998, int(settings.YEAR)+2])
 
-        fig.text(0.02, 0.97, "(a)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        fig.text(0.02, 0.3, "Day of year", rotation = "vertical", fontsize=settings.FONTSIZE)
+#        fig.text(0.02, 0.97, "(a)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
+        fig.text(0.02, 0.5, "Day of year", rotation = "vertical", fontsize=settings.FONTSIZE, ha="center", va="center")
         plt.savefig(settings.IMAGELOC + "PHEN_UStimeseries_{}{}".format(settings.YEAR, settings.OUTFMT))
         plt.close()
-
 
 
     #***********************
@@ -451,7 +466,7 @@ def run_all_plots():
         ax = plt.axes([0.11, 0.5, 0.64, 0.45])
         plot_us_phenocam(ax, modis_eos, pheno_eos, sos=False)
         ax.text(0.05, 0.85, "(c)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        ax.set_ylim([275, 369])
+        ax.set_ylim([280, 380])
         plt.setp(ax.get_xticklabels(), visible=False)
         ax = plt.axes([0.75, 0.5, 0.25, 0.4])
         plot_images(ax, "HarvardForest_20191024.jpg")
@@ -459,7 +474,7 @@ def run_all_plots():
         ax = plt.axes([0.11, 0.05, 0.64, 0.45])
         plot_us_phenocam(ax, modis_sos, pheno_sos)
         ax.text(0.05, 0.85, "(d)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        ax.set_ylim([101, 144])
+        ax.set_ylim([100, 160])
         ax = plt.axes([0.75, 0.05, 0.25, 0.4])
         plot_images(ax, "HarvardForest_20190511.jpg")
 
@@ -474,23 +489,23 @@ def run_all_plots():
         from matplotlib.ticker import MultipleLocator
         majorLocator = MultipleLocator(5)
 
-        fig = plt.figure(figsize=(8, 9.5))
+#        fig = plt.figure(figsize=(8, 9.5))
+        fig = plt.figure(figsize=(8, 7))
         plt.clf()
 
          # images
-        ax = plt.axes([0.01, 0.66, 0.48, 0.3])
-        plot_images(ax, "Sarah Burgess first leaf.jpg")
-        ax = plt.axes([0.5, 0.66, 0.48, 0.3])
-        plot_images(ax, "Judith Garforth oak bare tree 2019.jpg")
+#        ax = plt.axes([0.01, 0.66, 0.48, 0.3])
+#        plot_images(ax, "Sarah Burgess first leaf.jpg")
+#        ax = plt.axes([0.5, 0.66, 0.48, 0.3])
+#        plot_images(ax, "Judith Garforth oak bare tree 2019.jpg")
 
-        sos_uk, eos_uk = read_modis_uk_ts(os.path.join(DATALOC, "MODIS.CMG.{}.SOS.EOS.SPRT.FALT.TS.UK_DH.csv".format(settings.YEAR)))
+        sos_uk, eos_uk = read_modis_uk_ts(os.path.join(DATALOC, "MODIS.CMG.{}.SOS.EOS.SPRT.FALT.TS.UK.csv".format(settings.YEAR)))
         oak_sos, oak_eos = read_uk_oak_csv(os.path.join(DATALOC, "UK_Oakleaf_data.csv"))
 
         # timeseries
-        ax = plt.axes([0.11, 0.35, 0.84, 0.3])
-        utils.plot_ts_panel(ax, [oak_eos, eos_uk], "-", "phenological", loc="center left")
-#        ax.text(0.05, 0.85, "(c)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        ax.set_ylim([210, 354])
+        ax = plt.axes([0.11, 0.5, 0.84, 0.45])
+        utils.plot_ts_panel(ax, [oak_eos, eos_uk], "-", "phenological", loc="center")
+        ax.text(0.05, 0.85, "(c)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
         plt.setp(ax.get_xticklabels(), visible=False)
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
@@ -506,27 +521,30 @@ def run_all_plots():
         for line in leg.get_lines():
             if line.get_color() == "g":
                 line.set_color("#d95f0e")
+        ax.set_xlim([1998, int(settings.YEAR)+2])
+        ax.set_ylim([200, 359])
     
-        ax = plt.axes([0.11, 0.05, 0.84, 0.3])
-        utils.plot_ts_panel(ax, [oak_sos, sos_uk], "-", "phenological", loc="center left")
-#        ax.text(0.05, 0.85, "(d)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        ax.set_ylim([66, 132])
+        ax = plt.axes([0.11, 0.05, 0.84, 0.45])
+        utils.plot_ts_panel(ax, [oak_sos, sos_uk], "-", "phenological", loc="lower center")
+        ax.text(0.05, 0.85, "(d)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
         ax.xaxis.set_major_locator(majorLocator)
+        ax.set_xlim([1998, int(settings.YEAR)+2])
+        ax.set_ylim([60, 139])
 
  
-        fig.text(0.02, 0.97, "(b)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
-        fig.text(0.02, 0.3, "Day of year", rotation = "vertical", fontsize=settings.FONTSIZE)
+#        fig.text(0.02, 0.97, "(b)", transform=ax.transAxes, fontsize=settings.FONTSIZE)
+        fig.text(0.02, 0.5, "Day of year", rotation = "vertical", fontsize=settings.FONTSIZE, ha="center", va="center")
 
         plt.savefig(settings.IMAGELOC + "PHEN_UKtimeseries_{}{}".format(settings.YEAR, settings.OUTFMT))
         plt.close()
 
     #***********************
     # Lake Boxplot
-    if True:
+    if False:
 
         import pandas as pd
 

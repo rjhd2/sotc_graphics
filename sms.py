@@ -6,9 +6,9 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -27,7 +27,7 @@ import settings
 DATALOC = "{}/{}/data/SMS/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = 'lower right'
-LW = 3
+LW = 2
 
 MONTHS = [calendar.month_name[i][:3] for i in range(1, 13)]
 
@@ -58,7 +58,7 @@ def run_all_plots():
     # Timeseries
     if True:
 
-        cube_list = np.array(iris.load(DATALOC + "ESA_CCI_SM_COMBINED_monthAnomaliesPerHemisphere.nc"))
+        cube_list = np.array(iris.load(DATALOC + "monthAnomaliesPerHemisphere.nc"))
 
         names = np.array([c.var_name for c in cube_list])
 
@@ -74,9 +74,9 @@ def run_all_plots():
         fig = plt.figure(figsize=(8, 6))
         ax1 = plt.axes([0.14, 0.2, 0.84, 0.79])
 
-        iris.plot.plot(south, 'b', label="S. Hemisphere", lw=LW)
-        iris.plot.plot(north, "0.5", label="N. Hemisphere", lw=LW)
-        iris.plot.plot(glob, "k", label="Global", lw=LW)
+        iris.plot.plot(south, 'r', label="S. Hemisphere", lw=LW)
+        iris.plot.plot(north, "b", label="N. Hemisphere", lw=LW)
+        iris.plot.plot(glob, "k", label="Global", lw=3)
         ax1.text(0.02, 0.9, "ESA CCI SM", transform=ax1.transAxes, fontsize=settings.FONTSIZE)
 
         # number of observations
@@ -86,9 +86,9 @@ def run_all_plots():
         north_obs.data = 100 * north_obs.data / 244243.
         glob_obs.data = 100 * glob_obs.data / 244243.
 
-        iris.plot.plot(south_obs, 'b', lw=LW)
-        iris.plot.plot(north_obs, "0.5", lw=LW)
-        iris.plot.plot(glob_obs, "k", lw=LW)
+        iris.plot.plot(south_obs, 'r', lw=LW)
+        iris.plot.plot(north_obs, "b", lw=LW)
+        iris.plot.plot(glob_obs, "k", lw=3)
 
 
         #*******************
@@ -128,9 +128,38 @@ def run_all_plots():
         plt.close()
 
     #************************************************************************
+    # Hovmuller
+    if True:
+
+        cube_list = iris.load(DATALOC + "hovmoeller_diagram.nc")
+
+        for cube in cube_list:
+            if cube.name() == "sm": break
+
+        data = cube.data[:]
+        data.mask = np.zeros(data.shape)
+        data.fill_value = -9999
+
+        data = np.ma.masked_where(data == data.fill_value, data)
+        cube.data = data
+
+        latitudes = cube.coord("latitude").points
+        anoms = cube.data
+
+        bounds = [-100, -0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 100]
+
+        # extract the time data
+        timeUnits = cube.coord("time").units
+        dt_time = timeUnits.num2date(cube.coord("time").points)
+
+        times = np.array([(date.year + (date.month - 1)/12.)  for date in dt_time])
+
+        utils.plot_hovmuller(settings.IMAGELOC + "SMS_hovmuller", times, latitudes, anoms, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (m"+r'$^{3}$'+"m"+r'$^{-3}$'+")")
+
+    #************************************************************************
     # Annual Map
     if True:
-        cube_list = iris.load(DATALOC + "ESA_CCI_SM_COMBINED_anomalyMaps_yearly.nc")
+        cube_list = iris.load(DATALOC + "anomalyMaps_yearly.nc")
 
         cube = cube_list[0]
         cube.coord('latitude').guess_bounds()
@@ -142,12 +171,13 @@ def run_all_plots():
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SMS_{}_esa_cci".format(settings.YEAR), cube[-1], settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1991-2010 (m"+r'$^{3}$'+"m"+r'$^{-3}$'+")", figtext="(r) Soil Moisture")
 
-
+        # 2020 only special request
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "SMS_{}_esa_cci_for_RvdS".format(settings.YEAR), cube[-1], settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies for 2020 (m"+r'$^{3}$'+"m"+r'$^{-3}$'+")")
     #************************************************************************
     # Seasonal Map
     if True:
   
-        cube_list = iris.load(DATALOC + "ESA_CCI_SM_COMBINED_anomalyMaps_monthly.nc")
+        cube_list = iris.load(DATALOC + "anomalyMaps_monthly.nc")
 
         cube = cube_list[0]
         cube.coord('latitude').guess_bounds()
@@ -156,38 +186,6 @@ def run_all_plots():
         month_list = [cube[i] for i in range(-12, 0, 1)]
 
         utils.plot_smooth_map_iris_multipanel(settings.IMAGELOC + "SMS_{}_anoms_seasons".format(settings.YEAR), month_list, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (m"+r'$^{3}$'+"m"+r'$^{-3}$'+")", shape=(6, 2), title=MONTHS, figtext=["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)", "(k)", "(l)"])
-
-    #************************************************************************
-    # Hovmuller
-    if True:
-
-        cube_list = iris.load(DATALOC + "ESA_CCI_SM_COMBINED_anomaly_hovmoeller_diagram.nc")
-
-        for cube in cube_list:
-            if cube.name() == "hovmoeller": break
-
-        print("issues with masking in 2018 - remove and reset")
-
-        data = cube.data[:]
-        data.mask = np.zeros(data.shape)
-
-        data = np.ma.masked_where(data == data.fill_value, data)
-        cube.data = data
-
-        # to here
-
-        latitudes = cube.coord("latitude").points
-        anoms = cube.data * 0.01 # added for offset in 2017 report
-
-        bounds = [-100, -0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 100]
-
-        # extract the time data
-        timeUnits = cube.coord("time").units
-        dt_time = timeUnits.num2date(cube.coord("time").points)
-
-        times = np.array([(date.year + (date.month - 1)/12.)  for date in dt_time])
-
-        utils.plot_hovmuller(settings.IMAGELOC + "SMS_hovmuller", times, latitudes, anoms, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (m"+r'$^{3}$'+"m"+r'$^{-3}$'+")")
 
 
     return # run_all_plots

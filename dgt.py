@@ -6,16 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import matplotlib.pyplot as plt
 
 from matplotlib.ticker import MultipleLocator
@@ -117,8 +113,8 @@ def run_all_plots():
 
     if True:
 
-
-        cube_list = iris.load(DATALOC + "BAMS.scPDSI.cru.4.04.2020.early.GLOBAL.annual.mean.2018.2019.nc")
+        year = int(settings.YEAR)
+        cube_list = iris.load(DATALOC + "BAMS.scPDSI.cru.4.05.{}.early.GLOBAL.annual.mean.{}.{}.nc".format(year+1, year-1, year))
 
         cube = cube_list[0]
         cube.coord('latitude').guess_bounds()
@@ -126,12 +122,12 @@ def run_all_plots():
 
         bounds = [-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100]
 
-        # select the year - plot 2019 (cube[1])
+        # select the year - plot 2020 (cube[1])
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "DGT_{}_rel_1901-{}".format(settings.YEAR, settings.YEAR), cube[1], settings.COLOURMAP_DICT["hydrological"], bounds, "Categories relative to 1901-{} (self-calibrating PDSI)".format(settings.YEAR), cb_extra=["Dry", "Wet"], contour=True)
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_DGT_{}_rel_1901-{}".format(settings.YEAR, settings.YEAR), cube[1], settings.COLOURMAP_DICT["hydrological"], bounds, "Categories relative to 1901-{} (self-calibrating PDSI)".format(settings.YEAR), figtext="(t) Drought (self-calibrating PDSI)", cb_extra=["Dry", "Wet"], contour=True, save_netcdf_filename="{}DGT_for_NOAA_{}.nc".format(DATALOC, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_DGT_{}_rel_1901-{}".format(settings.YEAR, settings.YEAR), cube[1], settings.COLOURMAP_DICT["hydrological"], bounds, "Categories relative to 1901-{} (self-calibrating PDSI)".format(settings.YEAR), figtext="(s) Drought (self-calibrating PDSI)", cb_extra=["Dry", "Wet"], contour=True, save_netcdf_filename="{}DGT_for_NOAA_{}.nc".format(DATALOC, dt.datetime.strftime(dt.datetime.now(), "%d-%b-%Y")))
 
-        # plot 2019-2018
+        # plot 2020-2019
 
         newcube = cube[1] - cube[0]
         utils.plot_smooth_map_iris(settings.IMAGELOC + "DGT_{}-{}_rel_1901-{}".format(settings.YEAR, int(settings.YEAR)-1, settings.YEAR), newcube, settings.COLOURMAP_DICT["hydrological"], bounds, "Change in Categories from {} to {} (self-calibrating PDSI)".format(int(settings.YEAR)-1, settings.YEAR), cb_extra=["Dry", "Wet"])

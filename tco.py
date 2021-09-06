@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Tropospheric Ozone (TCO) section.
@@ -6,16 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
@@ -215,8 +211,8 @@ def run_all_plots():
     bounds = np.array([-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100])
     bounds = np.array([-100, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0, 100])
 
-    utils.plot_smooth_map_iris(settings.IMAGELOC + "TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2004-08 (DU)", contour=True)
-    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2004-08 (DU)", figtext="(aa) OMI/MLS Tropospheric Column Ozone", contour=True)
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-19 (DU)", contour=True)
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TCO_anomaly_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2005-19 (DU)", figtext="(ab) OMI/MLS Tropospheric Column Ozone", contour=True)
 
 
     #************************************************************************
@@ -245,32 +241,35 @@ def run_all_plots():
 
     minor_tick_interval = 1
     minorLocator = MultipleLocator(minor_tick_interval)
+    major_tick_interval = 5
+    majorLocator = MultipleLocator(major_tick_interval)
     COLOURS = settings.COLOURS["composition"]
 
     fig = plt.figure(figsize=(8, 6))
     ax = plt.axes([0.14, 0.07, 0.84, 0.90])
 
-    plt.plot(monthly_global.times, monthly_global.data, 'k', ls='-', label=r"1.79$\pm$0.47 Tg yr$^{-1}$", lw=LW)
+    plt.plot(monthly_global.times, monthly_global.data, 'k', ls='-', label=r"1.42$\pm$0.43 Tg yr$^{-1}$", lw=LW)
     plt.plot(annual_global.times, annual_global.data, 'k', ls='--', lw=LW)
-    plt.text(2004, 250, "60"+r'$^{\circ}$'+"S - 60"+r'$^{\circ}$'+"N", va='center', color='k', fontsize=settings.FONTSIZE)
+    plt.text(2004, 245, "60"+r'$^{\circ}$'+"S - 60"+r'$^{\circ}$'+"N", va='center', color='k', fontsize=settings.FONTSIZE)
 
-    plt.plot(monthly_NH.times, monthly_NH.data, 'r', ls='-', label=r"0.89$\pm$0.39 Tg yr$^{-1}$", lw=LW)
+    plt.plot(monthly_NH.times, monthly_NH.data, 'r', ls='-', label=r"0.83$\pm$0.36 Tg yr$^{-1}$", lw=LW)
     plt.plot(annual_NH.times, annual_NH.data, 'r', ls='--', lw=LW)
     plt.text(2004, 180, "0"+r'$^{\circ}$'+" - 60"+r'$^{\circ}$'+"N", va='center', color='r', fontsize=settings.FONTSIZE)
 
-    plt.plot(monthly_SH.times, monthly_SH.data, 'c', ls='-', label=r"0.90$\pm$0.46 Tg yr$^{-1}$", lw=LW)
+    plt.plot(monthly_SH.times, monthly_SH.data, 'c', ls='-', label=r"0.59$\pm$0.44 Tg yr$^{-1}$", lw=LW)
     plt.plot(annual_SH.times, annual_SH.data, 'c', ls='--', lw=LW)
-    plt.text(2004, 110, "60"+r'$^{\circ}$'+"S - 0"+r'$^{\circ}$'+"", va='center', color='c', fontsize=settings.FONTSIZE)
+    plt.text(2004, 100, "60"+r'$^{\circ}$'+"S - 0"+r'$^{\circ}$'+"", va='center', color='c', fontsize=settings.FONTSIZE)
 
     ax.legend(loc=LEGEND_LOC, ncol=1, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, labelspacing=0.1, columnspacing=0.5)
 
     # prettify
     ax.xaxis.set_minor_locator(minorLocator)
+    ax.xaxis.set_major_locator(majorLocator)
     utils.thicken_panel_border(ax)
 
     fig.text(0.04, 0.5, "Tropospheric Ozone\n(Tg)", va='center', rotation='vertical', ha="center", fontsize=settings.FONTSIZE)
 
-    plt.xlim([2003.5, int(settings.YEAR)+1.5])
+    plt.xlim([2003, int(settings.YEAR)+2])
     plt.ylim([90, 340])
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(settings.FONTSIZE)

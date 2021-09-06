@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for lower stratosphere temperature (LST) section.
@@ -6,17 +6,14 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python 3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
+import copy
 import subprocess
 #import urllib2
 import urllib.request, urllib.error, urllib.parse
@@ -24,6 +21,8 @@ import gc
 import datetime as dt
 
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import matplotlib as mpl
@@ -103,7 +102,7 @@ def http(host, remote_loc, filename, local_loc, diagnostics=False):
     return success # http
 
 #*********************************************
-def doftp(host, remote_loc, filename, local_loc, diagnostics=False):
+def doftp(host, remote_loc, filename, local_loc, user=None, passw=None, diagnostics=False):
     """
     Interface to Met Office doftp command
 
@@ -115,9 +114,22 @@ def doftp(host, remote_loc, filename, local_loc, diagnostics=False):
     """
 
     try:
-        if diagnostics:
-            print("doftp -host {} -cwd {} -get {}={}/{}".format(host, remote_loc, filename, local_loc, filename))
-        subprocess.check_call(["doftp", '-host', host, '-cwd', remote_loc, '-get', "{}={}/{}".format(filename, local_loc, filename)])
+        if user != None:
+            if passw != None:
+                # user and passw
+                if diagnostics:
+                    print("doftp -host {} -user {} -pass{} -cwd {} -get {}={}/{}".format(host, user, passw, remote_loc, filename, local_loc, filename))
+                    subprocess.check_call(["doftp", '-host', host, '-user', user, '-pass', passw, '-cwd', remote_loc, '-get', "{}={}/{}".format(filename, local_loc, filename)])
+            else:
+                # user, no passw
+                if diagnostics:
+                    print("doftp -host {} -user {} -cwd {} -get {}={}/{}".format(host, user, remote_loc, filename, local_loc, filename))
+                    subprocess.check_call(["doftp", '-host', host, '-user', user, '-cwd', remote_loc, '-get', "{}={}/{}".format(filename, local_loc, filename)])
+        else:
+            # no user or passw
+            if diagnostics:
+                print("doftp -host {} -cwd {} -get {}={}/{}".format(host, remote_loc, filename, local_loc, filename))
+                subprocess.check_call(["doftp", '-host', host, '-cwd', remote_loc, '-get', "{}={}/{}".format(filename, local_loc, filename)])
 
         if diagnostics:
             print("     Downloaded")
@@ -181,6 +193,77 @@ def read_hadslp(filename):
 
 
 #************************************************************************
+def read_era5_slp():
+    '''
+    Read daily SLP from ERA5 downloaded locally, make monthly fields, and single cube.
+    '''
+
+    import os, fnmatch
+    from iris.experimental.equalise_cubes import equalise_attributes
+    from iris.util import unify_time_units
+
+    era5_loc = "/data/users/hadjj/ERA5/"
+    
+    
+    yearly_cubes = iris.cube.CubeList([])
+    for year in range(1979, int(settings.YEAR)+1):
+        print("processing ERA5 {}".format(year))
+        monthly_cubes = iris.cube.CubeList([])
+        for month in range(1, 13):
+
+            this_month = iris.load(os.path.join(era5_loc, str(year), "{:02d}".format(month), "ERA5_MSLP_{}-{:02d}-*.nc".format(year, month)))
+
+            equalise_attributes(this_month)
+            unify_time_units(this_month)
+            
+            this_month = this_month.merge_cube() # these don't have a time axis, so merge
+            
+            monthly = this_month.collapsed(["time"], iris.analysis.MEAN)
+
+            monthly = utils.regrid_cube(monthly, 1.0, 1.0) # regrid to 1x1 degree
+    
+            monthly_cubes += [monthly]
+
+        # merge the 12 months into single year - try to split up this process
+        print("making year cube {}".format(year))
+        yearly_cubes += [monthly_cubes.merge_cube()] # these don't have a time axis so merge
+
+    print("making single cube")
+    unify_time_units(yearly_cubes)
+    cube = yearly_cubes.concatenate_cube() #  these have a time axis, so concatenate
+
+    # convert to hPa
+    cube.data = cube.data/100.
+
+    iris.save(cube, os.path.join(DATALOC, "era5_slp.nc"))
+    print("finished ERA5 processing")
+
+    return cube # read_era5_slp
+
+
+#************************************************************************
+def read_daily_aao(filename, name):
+    '''
+    Read the AAO data, returns Timeseries
+
+    '''
+
+    all_data = np.genfromtxt(filename, dtype=(float))
+
+    years = all_data[:, 0].astype(int)
+    months = all_data[:, 1].astype(int)
+    days = all_data[:, 2].astype(int)
+
+    times = np.array([dt.datetime(years[i], months[i], days[i]) for i in range(len(days))])
+
+    data = all_data[:, 3]
+
+    smoothed = utils.boxcar(data, 3)
+
+    return utils.Timeseries(name, times, data), utils.Timeseries(name, times, smoothed)  # read_ao
+
+
+#************************************************************************
 def read_a_ao(filename, name, skip):
     '''
     Read the AO and AAO data, returns Timeseries
@@ -195,7 +278,7 @@ def read_a_ao(filename, name, skip):
 
     times = np.array(years) + ((np.array(months)-1.)/12.)
 
-    return utils.Timeseries(name, times, data) # read_ao
+    return utils.Timeseries(name, times, data) # read_a_ao
 
 #************************************************************************
 def read_soi(filename):
@@ -204,10 +287,10 @@ def read_soi(filename):
 
     '''
     try:
-        all_data = np.genfromtxt(filename, dtype=(float), skip_header=11, skip_footer=3)
+        all_data = np.genfromtxt(filename, dtype=(float), skip_header=12, skip_footer=3)
     except ValueError:
         # presume last year has incomplete months
-        all_data = np.genfromtxt(filename, dtype=(float), skip_header=11, skip_footer=4)
+        all_data = np.genfromtxt(filename, dtype=(float), skip_header=12, skip_footer=4)
     
     years = all_data[:, 0]
     data = all_data[:, 1:]
@@ -310,6 +393,7 @@ def run_all_plots(download=False):
         # AAO
         http("https://www.esrl.noaa.gov/", "psd/data/correlation", "aao.data", DATALOC, diagnostics=True)
         http("https://www.cpc.ncep.noaa.gov", "products/precip/CWlink/daily_ao_index/aao", "monthly.aao.index.b79.current.ascii", DATALOC, diagnostics=True)
+        doftp("ftp://ftp.cpc.ncep.noaa.gov", "/cwlinks/", "norm.daily.aao.index.b790101.current.ascii", DATALOC, diagnostics=True)
         # AO
         http("https://www.cpc.ncep.noaa.gov", "products/precip/CWlink/daily_ao_index", "monthly.ao.index.b50.current.ascii", DATALOC, diagnostics=True)
         # NAO
@@ -319,46 +403,11 @@ def run_all_plots(download=False):
         http("http://www.metoffice.gov.uk", "hadobs/hadslp2/data", "hadslp2r.asc.gz", DATALOC, diagnostics=True)
         # SOI 
         doftp("ftp://ftp.bom.gov.au", "/anon/home/ncc/www/sco/soi/", "soiplaintext.html", DATALOC, diagnostics=True)
+        # https://metoffice.sharepoint.com/sites/NetworksCommsSite/SitePages/FTP-Proxy.aspx
 
         print("Now check downloads")
         sys.exit()
-    #************************************************************************
-    # Timeseries figures - winter NAO
-    #   initial run usually only Dec + Jan for recent year
-    if True:
-        # tried minor locator
 
-        YEARS = ["2017", "2018", "2019"]
-        plot_data, smoothed_data = read_winter_nao(DATALOC, YEARS)
-
-        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 6.5))
-
-        TEXTS = ["(d)", "(e)", "(f)"]
-        for a, ax in enumerate([ax1, ax2, ax3]):
-            year = int(YEARS[a])
-
-            plt_bars(ax, plot_data[a], TEXTS[a], w=1, invert=False)
-            utils.thicken_panel_border(ax)
-            ax.xaxis.set_ticks([dt.datetime(year, 12, 1), dt.datetime(year+1, 1, 1), dt.datetime(year+1, 2, 1), dt.datetime(year+1, 3, 1)])
-
-            ax.plot(plot_data[a].times+dt.timedelta(hours=12), smoothed_data[a], "k-", lw=LW)
-            ax.set_xlim([dt.datetime(year, 11, 29), dt.datetime(year+1, 2, 1) + dt.timedelta(days=30)])
-
-        ax3.xaxis.set_ticklabels(["Dec", "Jan", "Feb", "Mar"], fontsize=settings.FONTSIZE)
-        ax2.set_ylabel("Winter NAO Index (hPa)", fontsize=settings.FONTSIZE)
-
-        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
-        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-
-        for ax in [ax1, ax2, ax3]:
-            ax.set_ylim([-69, 99])
-            ax.yaxis.set_ticks_position('left')
-
-            for tick in ax.yaxis.get_major_ticks():
-                tick.label.set_fontsize(settings.FONTSIZE)
-
-        plt.savefig(settings.IMAGELOC+"SLP_ts_winter_nao{}".format(settings.OUTFMT))
-        plt.close()
 
     #************************************************************************
     # Timeseries figures - different indices
@@ -451,9 +500,94 @@ def run_all_plots(download=False):
         plt.close()
 
     #************************************************************************
+    # Timeseries figures - winter NAO
+    #   initial run usually only Dec + Jan for recent year
+    if True:
+        # tried minor locator
+
+        YEARS = ["2018", "2019", "2020"]
+        plot_data, smoothed_data = read_winter_nao(DATALOC, YEARS)
+
+        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 6.5))
+
+        TEXTS = ["(d)", "(e)", "(f)"]
+        for a, ax in enumerate([ax1, ax2, ax3]):
+            year = int(YEARS[a])
+
+            plt_bars(ax, plot_data[a], TEXTS[a], w=1, invert=False)
+            utils.thicken_panel_border(ax)
+            ax.xaxis.set_ticks([dt.datetime(year, 12, 1), dt.datetime(year+1, 1, 1), dt.datetime(year+1, 2, 1), dt.datetime(year+1, 3, 1)])
+
+            ax.plot(plot_data[a].times+dt.timedelta(hours=12), smoothed_data[a], "k-", lw=LW)
+            ax.set_xlim([dt.datetime(year, 11, 27), dt.datetime(year+1, 2, 4) + dt.timedelta(days=30)])
+
+        ax3.xaxis.set_ticklabels(["Dec", "Jan", "Feb", "Mar"], fontsize=settings.FONTSIZE)
+        ax2.set_ylabel("Winter NAO Index (hPa)", fontsize=settings.FONTSIZE)
+
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+
+        for ax in [ax1, ax2, ax3]:
+            ax.set_ylim([-69, 99])
+#            ax.yaxis.set_ticks_position('left')
+
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+
+        plt.savefig(settings.IMAGELOC+"SLP_ts_winter_nao{}".format(settings.OUTFMT))
+        plt.close()
+
+    #************************************************************************
+    # Timeseries figures - AAO
+    #   initial run usually only Dec + Jan for recent year
+    if True:
+        # download latest file
+
+        YEARS = ["2018", "2019", "2020"]
+        plot_data, smoothed_data = read_daily_aao(DATALOC+"norm.daily.aao.index.b790101.current.ascii", "AAO")
+
+        fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 6.5))
+
+        TEXTS = ["(j)", "(k)", "(l)"]
+        for a, ax in enumerate([ax1, ax2, ax3]):
+            year = int(YEARS[a])
+
+            locs, = np.where(np.logical_and(plot_data.times >= dt.datetime(year,12,1), plot_data.times < dt.datetime(year+1, 3, 1)))
+
+            plt_bars(ax, utils.Timeseries("", plot_data.times[locs], plot_data.data[locs]), TEXTS[a], w=1, invert=False)
+            ax.plot(plot_data.times[locs]+dt.timedelta(hours=12), smoothed_data.data[locs], "k-", lw=LW)
+
+            utils.thicken_panel_border(ax)
+            ax.xaxis.set_ticks([dt.datetime(year, 12, 1), dt.datetime(year+1, 1, 1), dt.datetime(year+1, 2, 1), dt.datetime(year+1, 3, 1)])
+
+            ax.set_xlim([dt.datetime(year, 11, 27), dt.datetime(year+1, 2, 4) + dt.timedelta(days=30)])
+
+        ax3.xaxis.set_ticklabels(["Dec", "Jan", "Feb", "Mar"], fontsize=settings.FONTSIZE)
+        ax2.set_ylabel("AAO Index", fontsize=settings.FONTSIZE)
+
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+
+        for ax in [ax1, ax2, ax3]:
+            ax.set_ylim([-5, 5])
+#            ax.yaxis.set_ticks_position('left')
+
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+
+        plt.savefig(settings.IMAGELOC+"SLP_ts_winter_aao{}".format(settings.OUTFMT))
+        plt.close()
+
+
+    #************************************************************************
     # Global map
     if True:
-        cube = read_hadslp(DATALOC + "hadslp2r.asc")
+        if not os.path.exists(os.path.join(DATALOC, "era5_slp.nc")):
+            input("Is this running on SPICE (salloc --time=120 --mem=15G) as it will fail on VLD?")
+            cube = read_era5_slp()
+        else:
+            cube = iris.load_cube(os.path.join(DATALOC, "era5_slp.nc"))
+        # cube = read_hadslp(DATALOC + "hadslp2r.asc")
 
         # restrict to 1900 to last full year
         date_constraint = utils.periodConstraint(cube, dt.datetime(1900, 1, 1), dt.datetime(int(settings.YEAR)+1, 1, 1)) 
@@ -470,7 +604,6 @@ def run_all_plots(download=False):
         nyears = np.ma.count(clim_data, axis=0)
         climatology = np.ma.masked_where(nyears <= 15, climatology) # Kate keeps GT 15.
 
-
         # extract final year
         final_year_constraint = utils.periodConstraint(cube, dt.datetime(int(settings.YEAR), 1, 1), dt.datetime(int(settings.YEAR)+1, 1, 1)) 
         final_year_cube = cube.extract(final_year_constraint)
@@ -484,8 +617,8 @@ def run_all_plots(download=False):
 
         bounds = [-100, -8, -4, -2, -1, 0, 1, 2, 4, 8, 100]
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)")
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SLP_{}_anoms_hadslp".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)", figtext="(u) Sea Level Pressure")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "SLP_{}_anoms_era5".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SLP_{}_anoms_era5".format(settings.YEAR), annual_cube, settings.COLOURMAP_DICT["circulation"], bounds, "Anomalies from 1981-2010 (hPa)", figtext="(u) Sea Level Pressure")
 
         plt.close()
 
@@ -496,7 +629,7 @@ def run_all_plots(download=False):
     #************************************************************************
     # Polar Figures (1x3)
     if True:
-        # apply climatology - incomplete end year, so repeat climatology and then trunkate
+        # apply climatology - incomplete end year, so repeat climatology and then truncate
         climatology = np.tile(climatology, ((cube.data.shape[0]//12)+1, 1, 1))
         anoms = iris.cube.Cube.copy(cube)
 
@@ -504,79 +637,94 @@ def run_all_plots(download=False):
 
         bounds = [-100, -8, -4, -2, -1, -0.5, 0.5, 1, 2, 4, 8, 100]
 
-        # set up a 1 x 3 set of axes
-        fig = plt.figure(figsize=(4, 9.5))
-        plt.clf()
+        # north and south poles
+        for hem in ("N", "S"):
 
-        # set up plot settings
-        cmap = settings.COLOURMAP_DICT["circulation"]
-        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
-        PLOTYEARS = [2017, 2018, 2019]
-        PLOTLABELS = ["(a) 2017/18", "(b) 2018/19", "(c) 2019/20"]
+            # set up a 1 x 3 set of axes
+            fig = plt.figure(figsize=(4, 9.5))
+            plt.clf()
 
-        # boundary circle
-        theta = np.linspace(0, 2*np.pi, 100)
-        center, radius = [0.5, 0.5], 0.5
-        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-        circle = mpath.Path(verts * radius + center)
-
-
-        # spin through axes
-        for a in range(3):  
-
-            ax = plt.subplot(3, 1, a+1, projection=cartopy.crs.NorthPolarStereo())
-
-            plot_cube = iris.cube.Cube.copy(anoms)
-
-            # extract 3 winter months
-            date_constraint = utils.periodConstraint(anoms, dt.datetime(PLOTYEARS[a], 12, 1), dt.datetime(PLOTYEARS[a]+1, 3, 1)) 
-            plot_cube = plot_cube.extract(date_constraint)
-
-            # plot down to (almost) equator
-            lat_constraint = utils.latConstraint([3, 80]) 
-            plot_cube = plot_cube.extract(lat_constraint)
-
-            # take the mean
-            try:
-                plot_cube = plot_cube.collapsed(['time'], iris.analysis.MEAN)
-            except iris.exceptions.CoordinateCollapseError:
-                pass
-
-            ax.gridlines() #draw_labels=True)
-            ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
-            ax.coastlines()
-            ax.set_boundary(circle, transform=ax.transAxes)
-            ax.set_extent([-180, 180, 0, 90], cartopy.crs.PlateCarree())
-
-            ext = ax.get_extent() # save the original extent
-
-            mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm=norm, axes=ax)
-
-            ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
-            ax.text(0.0, 1.02, PLOTLABELS[a], fontsize=settings.FONTSIZE, transform=ax.transAxes)
-
-        # add a colourbar for the figure
-        cbar_ax = fig.add_axes([0.77, 0.07, 0.04, 0.9])
-        cb = plt.colorbar(mesh, cax=cbar_ax, orientation='vertical', ticks=bounds[1:-1], drawedges=True)
-        cb.ax.tick_params(axis='y', labelsize=settings.FONTSIZE, direction='in', size=0)
-        cb.set_label(label="Anomaly (hPa)", fontsize=settings.FONTSIZE)
-
-        # prettify
-        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-        cb.outline.set_linewidth(2)
-        cb.dividers.set_color('k')
-        cb.dividers.set_linewidth(2)
+            # set up plot settings
+            cmap = settings.COLOURMAP_DICT["circulation"]
+            norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+            PLOTYEARS = [2018, 2019, 2020]
+            if hem == "N":
+                PLOTLABELS = ["(a) 2018/19", "(b) 2019/20", "(c) 2020/21"]
+            elif hem == "S":
+                PLOTLABELS = ["(g) 2018/19", "(h) 2019/20", "(i) 2020/21"]
 
 
-        fig.subplots_adjust(bottom=0.01, top=0.97, left=0.01, right=0.8, wspace=0.02)
+            # boundary circle
+            theta = np.linspace(0, 2*np.pi, 100)
+            center, radius = [0.5, 0.5], 0.5
+            verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+            circle = mpath.Path(verts * radius + center)
 
-        plt.title("")
-        fig.text(0.03, 0.95, "", fontsize=settings.FONTSIZE * 0.8)
 
-        plt.savefig(settings.IMAGELOC + "SLP_polar{}".format(settings.OUTFMT))
-        plt.close()
+            # spin through axes
+            for a in range(3):  
 
-        del plot_cube
+                if hem == "N":
+                    ax = plt.subplot(3, 1, a+1, projection=cartopy.crs.NorthPolarStereo())
+                    lat_constraint = utils.latConstraint([3, 80]) 
+                elif hem == "S":
+                    ax = plt.subplot(3, 1, a+1, projection=cartopy.crs.SouthPolarStereo())
+                    lat_constraint = utils.latConstraint([-80, -3]) 
+
+                plot_cube = iris.cube.Cube.copy(anoms)
+
+                # extract 3 winter months
+                date_constraint = utils.periodConstraint(anoms, dt.datetime(PLOTYEARS[a], 12, 1), dt.datetime(PLOTYEARS[a]+1, 3, 1)) 
+                plot_cube = plot_cube.extract(date_constraint)
+
+                # plot down to (almost) equator
+                plot_cube = plot_cube.extract(lat_constraint)
+
+                # take the mean
+                try:
+                    plot_cube = plot_cube.collapsed(['time'], iris.analysis.MEAN)
+                except iris.exceptions.CoordinateCollapseError:
+                    pass
+
+                ax.gridlines() #draw_labels=True)
+                ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+                ax.coastlines()
+                ax.set_boundary(circle, transform=ax.transAxes)
+                if hem == "N":
+                    ax.set_extent([-180, 180, 0, 90], cartopy.crs.PlateCarree())
+                elif hem == "S":
+                    ax.set_extent([-180, 180, 0, -90], cartopy.crs.PlateCarree())
+
+                ext = ax.get_extent() # save the original extent
+
+                mesh = iris.plot.pcolormesh(plot_cube, cmap=cmap, norm=norm, axes=ax)
+
+                ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
+                ax.text(0.0, 1.02, PLOTLABELS[a], fontsize=settings.FONTSIZE, transform=ax.transAxes)
+
+            # add a colourbar for the figure
+            cbar_ax = fig.add_axes([0.77, 0.07, 0.04, 0.9])
+            cb = plt.colorbar(mesh, cax=cbar_ax, orientation='vertical', ticks=bounds[1:-1], drawedges=True)
+            cb.ax.tick_params(axis='y', labelsize=settings.FONTSIZE, direction='in', size=0)
+            cb.set_label(label="Anomaly (hPa)", fontsize=settings.FONTSIZE)
+
+            # prettify
+            cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+            cb.outline.set_linewidth(2)
+            cb.dividers.set_color('k')
+            cb.dividers.set_linewidth(2)
+
+
+            fig.subplots_adjust(bottom=0.01, top=0.97, left=0.01, right=0.8, wspace=0.02)
+
+            plt.title("")
+            fig.text(0.03, 0.95, "", fontsize=settings.FONTSIZE * 0.8)
+
+            plt.savefig(settings.IMAGELOC + "SLP_polar_era5_{}Hem{}".format(hem, settings.OUTFMT))
+            plt.close()
+
+            del plot_cube
+        # ----
         del climatology
         gc.collect()
 

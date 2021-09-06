@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 31                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-09-06 09:52:46 +0100 (Mon, 06 Sep #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,7 +25,7 @@ DATALOC = "{}/{}/data/HUM/".format(settings.ROOTLOC, settings.YEAR)
 LEGEND_LOC = 'upper left'
 
 LW = 3
-BBOX = (0, 0.9)
+BBOX = (0, 0.8)
 
 
 #*********************************************
@@ -108,7 +105,7 @@ def read_ts_unc(filename, var, domain):
         if var == "q":
             off = 0
         elif var == "rh":
-            off = 18
+            off = 19
 
         hadisdh = utils.Timeseries("HadISDH", years, indata[:, 1+off])
         hadisdh_l = utils.Timeseries("HadISDH", years, indata[:, 2+off])
@@ -121,33 +118,42 @@ def read_ts_unc(filename, var, domain):
         jra = utils.Timeseries("JRA-55", years, indata[:, 9+off])
         cr20 = utils.Timeseries("20CRv3", years, indata[:, 10+off])
 
-        era5_msk.ls = "--"
+        era5_msk.ls = ":"
+        era5_msk.lw = 3
         merra_msk.ls = "--"
         jra_msk.ls = "--"
+        era5_msk.zorder = 10
+#        era5.zorder = 10
 
     elif domain == "M":
         if var == "q":
             off = 10
             extra = 0
         elif var == "rh":
-            off = 28
+            off = 29
             extra = -1
 
         hadisdh = utils.Timeseries("HadISDH", years, indata[:, 1+off])
         hadisdh_l = utils.Timeseries("HadISDH", years, indata[:, 2+off])
         hadisdh_u = utils.Timeseries("HadISDH", years, indata[:, 3+off])
         nocs = utils.Timeseries("NOCS v2.0", years, indata[:, 4+off]) # not in RH
-        era5 = utils.Timeseries("ERA5", years, indata[:, 5+off+extra])
-        merra = utils.Timeseries("MERRA-2", years, indata[:, 6+off+extra])
-        jra = utils.Timeseries("JRA-55", years, indata[:, 7+off+extra])
-        cr20 = utils.Timeseries("20CRv3", years, indata[:, 8+off+extra])
+        era5_msk = utils.Timeseries("ERA5 mask", years, indata[:, 5+off+extra])
+        era5 = utils.Timeseries("ERA5", years, indata[:, 6+off+extra])
+        merra = utils.Timeseries("MERRA-2", years, indata[:, 7+off+extra])
+        jra = utils.Timeseries("JRA-55", years, indata[:, 8+off+extra])
+        cr20 = utils.Timeseries("20CRv3", years, indata[:, 9+off+extra])
+
+        era5_msk.ls = ":"
+        era5_msk.lw = 3
+        era5_msk.zorder = 10
+#        era5.zorder = 10
 
     hadisdh.zorder = 10
 
     if domain == "L":
         return [hadisdh, hadisdh_l, hadisdh_u, era5, merra, jra, era5_msk, merra_msk, cr20] # read_ts_unc
     elif domain == "M":
-        return [hadisdh, hadisdh_l, hadisdh_u, nocs, era5, merra, jra, cr20] # read_ts_unc
+        return [hadisdh, hadisdh_l, hadisdh_u, nocs, era5_msk, era5, merra, jra, cr20] # read_ts_unc
 
 
 #*********************************************
@@ -184,13 +190,13 @@ def run_all_plots():
     # Timeseries plot
     if False:
         (hadisdhLQ, hadcruhLQ, hadcruhextLQ, daiLQ, eraiLQ, era5LQ, merraLQ, jraLQ, era5_mskLQ, merra_mskLQ, cr20LQ) = \
-            read_ts(DATALOC + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "q", "L")
+            read_ts(DATALOC + "HUM_timeseries_ALL_{}.txt".format(settings.YEAR), "q", "L")
         (hadisdhMQ, hadcruhMQ, daiMQ, nocsMQ, hoapsMQ, eraiMQ, era5MQ, merraMQ, jraMQ, cr20MQ) = \
-            read_ts(DATALOC + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "q", "M")
+            read_ts(DATALOC + "HUM_timeseries_ALLL_{}.txt".format(settings.YEAR), "q", "M")
         (hadisdhLR, hadcruhLR, hadcruhextLR, daiLR, eraiLR, era5LR, merraLR, jraLR, era5_mskLR, merra_mskLR, cr20LR) = \
-            read_ts(DATALOC + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "rh", "L")
+            read_ts(DATALOC + "HUM_timeseries_ALLL_{}.txt".format(settings.YEAR), "rh", "L")
         (hadisdhMR, hadcruhMR, daiMR, nocsMR, hoapsMR, eraiMR, era5MR, merraMR, jraMR, cr20MR) = \
-            read_ts(DATALOC + "HUM_timeseries_ALL{}.txt".format(settings.YEAR), "rh", "M")
+            read_ts(DATALOC + "HUM_timeseries_ALLL_{}.txt".format(settings.YEAR), "rh", "M")
 
         COLOURS = settings.COLOURS["hydrological"]
         fig = plt.figure(figsize=(14, 12))
@@ -282,16 +288,16 @@ def run_all_plots():
     # Timeseries uncertainty plot
     if True:
         (hadisdhLQ, hadisdhLQ_l, hadisdhLQ_u, era5LQ, merraLQ, jraLQ, era5_mskLQ, merra_mskLQ, cr20LQ) = \
-            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_unc.txt".format(settings.YEAR), "q", "L")
-        (hadisdhMQ, hadisdhMQ_l, hadisdhMQ_u, nocsMQ, era5MQ, merraMQ, jraMQ, cr20MQ) = \
-            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_unc.txt".format(settings.YEAR), "q", "M")
+            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "q", "L")
+        (hadisdhMQ, hadisdhMQ_l, hadisdhMQ_u, nocsMQ, era5_mskMQ, era5MQ, merraMQ, jraMQ, cr20MQ) = \
+            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "q", "M")
         (hadisdhLR, hadisdhLR_l, hadisdhLR_u,  era5LR, merraLR, jraLR, era5_mskLR, merra_mskLR, cr20LR) = \
-            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_unc.txt".format(settings.YEAR), "rh", "L")
-        (hadisdhMR, hadisdhMR_l, hadisdhMR_u, nocsMR, era5MR, merraMR, jraMR, cr20MR) = \
-            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_unc.txt".format(settings.YEAR), "rh", "M")
+            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "rh", "L")
+        (hadisdhMR, hadisdhMR_l, hadisdhMR_u, nocsMR, era5_mskMR, era5MR, merraMR, jraMR, cr20MR) = \
+            read_ts_unc(DATALOC + "HUM_timeseries_ALL{}_v2.txt".format(settings.YEAR), "rh", "M")
 
         COLOURS = settings.COLOURS["hydrological"]
-        fig = plt.figure(figsize=(14, 12))
+        fig = plt.figure(figsize=(12, 10))
 
         # manually set up the 8 axes
         w = 0.45 # width
@@ -309,7 +315,7 @@ def run_all_plots():
         # in situ
         utils.plot_ts_panel(ax1, [hadisdhLQ], "-", "hydrological", loc="",)
         ax1.fill_between(hadisdhLQ.times, hadisdhLQ_u.data, hadisdhLQ_l.data, color='0.8', label="")
-        utils.plot_ts_panel(ax3, [hadisdhMQ, nocsMQ], "-", "hydrological", loc="")
+        utils.plot_ts_panel(ax3, [hadisdhMQ], "-", "hydrological", loc="")
         ax3.fill_between(hadisdhMQ.times, hadisdhMQ_u.data, hadisdhMQ_l.data, color='0.8', label="")
         utils.plot_ts_panel(ax5, [hadisdhLR], "-", "hydrological", loc="")
         ax5.fill_between(hadisdhLR.times, hadisdhLR_u.data, hadisdhLR_l.data, color='0.8', label="")
@@ -318,20 +324,20 @@ def run_all_plots():
 
     
         # reanalyses
-        utils.plot_ts_panel(ax2, [era5LQ, merraLQ, jraLQ, cr20LQ], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
-        utils.plot_ts_panel(ax4, [era5MQ, merraMQ, jraMQ, cr20MQ], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
-        utils.plot_ts_panel(ax6, [era5LR, jraLR, cr20LR], "-", "hydrological", loc="")
-        utils.plot_ts_panel(ax8, [era5MR, jraMR, cr20MR], "-", "hydrological", loc="")
+        utils.plot_ts_panel(ax2, [era5LQ, era5_mskLQ, merraLQ, jraLQ], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
+        utils.plot_ts_panel(ax4, [era5MQ, era5_mskMQ, merraMQ, jraMQ], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
+        utils.plot_ts_panel(ax6, [era5LR, era5_mskLR, jraLR], "-", "hydrological", loc="")
+        utils.plot_ts_panel(ax8, [era5MR, era5_mskMR, jraMR], "-", "hydrological", loc="")
 
         # fix legend
-        unc_patch = ax1.fill(np.NaN, np.NaN, '0.8', zorder = 1, alpha=0.7)
+        unc_patch = ax1.fill(np.NaN, np.NaN, '0.8', zorder = 1)
 
         for ax in [ax1, ax3]:
             lines = []
             labels = []
             for line in ax.get_lines():
                 if line.get_label() == "HadISDH":
-                    lines += [(line, unc_patch[0])]
+                    lines += [(unc_patch[0], line)]
                     labels += [line.get_label()]                   
                 else:
                     lines += [line]
@@ -339,8 +345,13 @@ def run_all_plots():
 
 
             ax.legend(lines, labels, \
-                       loc=LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, \
+                       loc=LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE*1.2}, \
                        labelspacing=0.1, columnspacing=0.5, bbox_to_anchor=BBOX)
+
+        for ax in [ax2, ax4]:
+            ax.legend(loc=LEGEND_LOC, ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE*1.2}, \
+                       labelspacing=0.1, columnspacing=0.5, bbox_to_anchor=BBOX)
+        
 
         # prettify
         ax1.set_xlim([1957, int(settings.YEAR)+2])
@@ -350,7 +361,7 @@ def run_all_plots():
         for ax in [ax1, ax2, ax3, ax4]:
             ax.set_ylim([-0.39, 0.8])
         for ax in [ax5, ax6, ax7, ax8]:
-            ax.set_ylim([-1.8, 1.5])
+            ax.set_ylim([-1.8, 1.8])
 
         for ax in [ax1, ax3, ax5, ax7]:
             for tick in ax.yaxis.get_major_ticks():
@@ -385,11 +396,12 @@ def run_all_plots():
         plt.savefig(settings.IMAGELOC + "HUM_ts_unc{}".format(settings.OUTFMT))
         plt.close()
 
-    input("stOP")
+
     #*********************************************
     # Map plots
     ## RH
     bounds = [-50, -12, -9, -6, -3, 0, 3, 6, 9, 12, 50]
+    bounds = [-50, -8, -6, -4, -2, 0, 2, 4, 6, 8, 50]
     # RH HadISDH
     if False:
         cube = read_maps(DATALOC + "HUMrh_anomalymap_HADISDHland{}.txt".format(settings.YEAR), "HadISDH RH", None, footer=True)
@@ -425,6 +437,7 @@ def run_all_plots():
 
     ## Q
     bounds = [-20., -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 20]
+    bounds = [-20., -1.5, -1.0, -0.5, -0.25, 0, 0.25, 0.5, 1.0, 1.5, 20]
     # q HadISDH
     if False:
         cube = read_maps(DATALOC + "HUMq_anomalymap_HADISDHland{}.txt".format(settings.YEAR), "HadISDH q", "g/kg", footer=True)

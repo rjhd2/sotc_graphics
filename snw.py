@@ -6,16 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -26,7 +22,7 @@ import settings
 
 DATALOC = "{}/{}/data/SNW/".format(settings.ROOTLOC, settings.YEAR)
 
-LEGEND_LOC = 'upper left'
+LEGEND_LOC = 'upper center'
 
 SCALE = 1.e6
 
@@ -76,17 +72,17 @@ def run_all_plots():
     #************************************************************************
     # Snow cover figure
 
-    NH, Eurasia, NAmer = read_snow(DATALOC + "Robinson-snow-cover-{}.csv".format(settings.YEAR))
+    NH, Eurasia, NAmer = read_snow(DATALOC + "rutgers-sce-anom12-31-{}bams.csv".format(settings.YEAR))
 
 
     fig = plt.figure(figsize=(8, 5))
     plt.clf()
     ax = plt.axes([0.10, 0.10, 0.86, 0.87])
 
-    utils.plot_ts_panel(ax, [NH, Eurasia, NAmer], "-", "cryosphere", loc=LEGEND_LOC)
+    utils.plot_ts_panel(ax, [NH, Eurasia, NAmer], "-", "cryosphere", loc=LEGEND_LOC, ncol=3)
 
     # sort formatting
-    plt.xlim([1966, int(settings.YEAR)+1])
+    plt.xlim([1965, int(settings.YEAR)+2])
     plt.ylim([-1.9, 3.3])
     ax.set_ylabel("Anomaly (Million km"+r'$^2$'+")", fontsize=settings.FONTSIZE)
 

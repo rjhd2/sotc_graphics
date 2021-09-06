@@ -1,21 +1,18 @@
-#!/usr/local/sci/python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
-from six.moves import input
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Utility scripts for BAMS SotC 2015
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 31                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-09-06 09:52:46 +0100 (Mon, 06 Sep #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 import math
+import os
 import sys
 import copy
 import numpy as np
@@ -215,27 +212,33 @@ def era5_ts_read(data_loc, variable, annual=False):
     # set up filenames
     if variable == "wnd":
         var = "WS10"
+        var = "10SI"
+        loc = "ERA5/SFCWIND"
+        start = 1979
     elif variable == "sat":
         var = "T2M"
+        var = "2T"
+        loc = "ERA5/SFCTEMP"
+        start = 1967
 
-    cube_list = iris.load(data_loc + "era5_{}_197901-{}12_mon_area_avg_series.nc".format(var.lower(), settings.YEAR))
+    cube_list = iris.load(os.path.join(data_loc, loc, "era5_{}_{}01-{}12_mon_area_avg_series.nc".format(var.lower(), start, settings.YEAR)))
 
     names = np.array([cube.name() for cube in cube_list])
 
     for cube in cube_list:
 
-        if cube.var_name == "{}_global".format(var):
+        if cube.var_name == "{}_global".format(var.lower(),):
             # global
             globe = cube.data[:].squeeze()
             timeUnits = cube.coord("time").units
             dt_time = timeUnits.num2date(cube.coord("time").points)
-        elif cube.var_name == "{}_land".format(var):
+        elif cube.var_name == "{}_land".format(var.lower(),):
             # land
             land = cube.data[:].squeeze()
-        elif cube.var_name == "{}_ocean".format(var):
+        elif cube.var_name == "{}_ocean".format(var.lower(),):
             # ocean
             oceans = cube.data[:].squeeze()
-        elif cube.var_name == "{}_20S20N".format(var):
+        elif cube.var_name == "{}_20S20N".format(var.lower(),):
             # tropics
             tropics = cube.data[:].squeeze()
 
@@ -377,8 +380,9 @@ def mpw_plot_points(slope, years, values):
 
 
 #************************************************************************
-def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], smarker="o",\
-                             figtext="", title="", contour=False, cb_extra="", save_netcdf_filename="", tall=False):
+def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], smarker="o", ssize=25,\
+                             figtext="", title="", contour=False, cb_extra="", save_netcdf_filename="", \
+                         hatch=None, tall=False):
     '''
     Standard scatter map
 
@@ -386,8 +390,15 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], smar
     :param array cube: cube to plot
     :param obj cmap: colourmap to use
     :param array bounds: bounds for discrete colormap
+    :param str cb_label: label for colorbar
+    :param str smarker: scatter marker type
+    :param int ssize: scatter marker sizes
+    :param str figtext: add text to figure label (top left)
+    :param str title: add title
+    :param bool contour: plot smooth rather than gridded data
     :param str cb_label: colorbar label
     :param str save_netcdf_filename: filename to save the output plot to a cube.
+    :param cube hatch: cube to plot as hatching
     :param bool tall: make a taller map for longer colorbar label (with line-break)
     '''
 
@@ -401,11 +412,9 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], smar
         fig = plt.figure(figsize=(8, 5.5))
         plt.clf()
         ax = plt.axes([0.01, 0.12, 0.98, 0.88], projection=cartopy.crs.Robinson())
-
-
         
     ax.gridlines() #draw_labels=True)
-    ax.add_feature(cartopy.feature.LAND, zorder=0, facecolor="0.9", edgecolor="k")
+    ax.add_feature(cartopy.feature.LAND, zorder=-1, facecolor="0.9", edgecolor="k")
     ax.coastlines()
 
     ext = ax.get_extent() # save the original extent
@@ -474,11 +483,14 @@ def plot_smooth_map_iris(outname, cube, cmap, bounds, cb_label, scatter=[], smar
         if save_netcdf_filename != "":
             save_cube_as_netcdf(plot_cube, save_netcdf_filename)
 
+    if hatch != None:
+        iris.plot.pcolor(hatch, hatch='///', cmap=cmap, norm=norm)
+
     if len(scatter) > 0:
         lons, lats, data = scatter
         if smarker == "o":
-            plt.scatter(lons, lats, c=data, cmap=cmap, norm=norm, s=25, marker="o",\
-                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5)
+            plt.scatter(lons, lats, c=data, cmap=cmap, norm=norm, s=ssize, marker="o",\
+                        transform=cartopy.crs.Geodetic(), edgecolor='0.2', linewidth=0.5, zorder=10)
         elif smarker == "dots":
             plt.scatter(lons, lats, c="0.1", cmap=cmap, norm=norm, s=2, marker="o",\
                         transform=cartopy.crs.Geodetic())
@@ -538,7 +550,7 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
     if shape[0] == 4:
         height = 12
     if shape[0] == 6:
-        height = 15
+        height = 16
     width = 8
 #    if shape[1] == 2:
 #        width = 10
@@ -590,10 +602,10 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
 
         ax.set_extent(ext, ax.projection) # fix the extent change from colormesh
 
-    if height == 15:
-        cbar_ax = fig.add_axes([0.05, 0.05, 0.9, 0.04])
+    if height == 16:
+        cbar_ax = fig.add_axes([0.05, 0.05, 0.9, 0.02])
     elif height == 12:
-        cbar_ax = fig.add_axes([0.05, 0.07, 0.9, 0.04])
+        cbar_ax = fig.add_axes([0.05, 0.07, 0.9, 0.03])
     elif height == 6:
         cbar_ax = fig.add_axes([0.05, 0.09, 0.9, 0.04])
 
@@ -614,10 +626,10 @@ def plot_smooth_map_iris_multipanel(outname, cube_list, cmap, bounds, cb_label, 
 
     plt.figtext(0.5, 0.95, figtitle, fontsize=settings.FONTSIZE, ha="center")
 
-    if height == 15:
+    if height == 16:
         fig.subplots_adjust(right=0.99, top=0.98, bottom=0.10, left=0.01, hspace=0.3, wspace=0.01)
     else:
-        fig.subplots_adjust(right=0.99, top=0.92, bottom=0.15, left=0.01, hspace=0.1, wspace=0.05)
+        fig.subplots_adjust(right=0.99, top=0.92, bottom=0.15, left=0.01, hspace=0.01, wspace=0.01)
 
     plt.savefig(outname + settings.OUTFMT)
     plt.close()
@@ -780,8 +792,9 @@ def thicken_panel_border(ax):
         ax.spines[loc].set_linewidth(2)
 
     ax.xaxis.set_tick_params(top=True, which="both", width=2, direction="in")
-    ax.yaxis.set_tick_params(right=False, which="both", width=2, direction="in")
-
+#    ax.yaxis.set_tick_params(right=False, which="both", width=2, direction="in")
+    ax.yaxis.set_tick_params(right=True, which="both", width=2, direction="in")
+   
     ax.xaxis.set_tick_params(which="minor", length=5)
     ax.yaxis.set_tick_params(which="minor", length=5)
 
@@ -846,7 +859,8 @@ def plot_ts_panel(ax, datasets, ls, section, loc="lower right", bbox=(), \
                           labelspacing=0.1, columnspacing=0.5)
 
     ax.xaxis.set_minor_locator(minorLocator)
-    # turn of RHS y ticks
+
+    # turn off RHS y ticks
     ax.yaxis.set_ticks_position('left')
 
     thicken_panel_border(ax)
@@ -1032,9 +1046,9 @@ def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figt
     # prettify the plot
     for ax in [ax1, ax2]:
         try:
-            ax.set_xlim([int(times.compressed()[0]-0.5), int(times.compressed()[-1]+1.5)])
+            ax.set_xlim([int(times.compressed()[0]-1), int(times.compressed()[-1]+2)])
         except AttributeError:
-            ax.set_xlim([int(times[0]-0.5), int(times[-1]+1.5)])
+            ax.set_xlim([int(times[0]-1), int(times[-1]+2)])
 
         ax.xaxis.set_minor_locator(minorLocator)
         thicken_panel_border(ax)
@@ -1042,8 +1056,11 @@ def plot_hovmuller(outname, times, latitudes, data, cmap, bounds, cb_label, figt
             tick.label.set_fontsize(settings.FONTSIZE)
 
         if "TWS" in outname:
-                majorLocator = MultipleLocator(5)
-                ax.xaxis.set_major_locator(majorLocator)
+            majorLocator = MultipleLocator(5)
+            ax.xaxis.set_major_locator(majorLocator)
+        if "ABD" in outname:
+            majorLocator = MultipleLocator(5)
+            ax.xaxis.set_major_locator(majorLocator)
 
 
     # finish off

@@ -6,13 +6,13 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
@@ -314,12 +314,12 @@ def run_all_plots():
 
         land_era5_clim, land_era5_anoms = utils.calculate_climatology_and_anomalies_1d(era5_land, CLIMSTART, 2010)
 
-        land_merra_anoms = utils.read_merra(settings.REANALYSISLOC + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), \
+        land_merra_anoms = utils.read_merra(os.path.join(settings.REANALYSISLOC, "MERRA2", "MERRA-2_SfcAnom{}.dat".format(settings.YEAR)), \
                                             "wind", "L", anomalies=True)
 
-        jra_actuals, jra_anoms = utils.read_jra55(settings.REANALYSISLOC + "JRA-55_ws10m_globalland_ts.txt", "windspeed")
+        jra_actuals, jra_anoms = utils.read_jra55(os.path.join(settings.REANALYSISLOC, "JRA-55", "JRA-55_ws10m_globalland_ts.txt"), "windspeed")
 
-        twenty_cr_actuals = utils.read_20cr(settings.REANALYSISLOC + "wspd10m.land.txt", "wind speed")
+        twenty_cr_actuals = utils.read_20cr(os.path.join(settings.REANALYSISLOC, "20CR", "wspd10m.land.txt"), "wind speed")
         dummy, twenty_cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, CLIMSTART, 2010)
 
         # Plot timeseries figure
@@ -404,7 +404,7 @@ def run_all_plots():
         for tick in ax4.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
 
-        plt.xlim([1970, int(settings.YEAR)+1])
+        plt.xlim([1970, int(settings.YEAR)+2])
         ax1.set_ylim([-0.39, 1.0])
         ax2.set_ylim([-0.39, 1.0])
         ax3.set_ylim([23, 68])
@@ -417,7 +417,7 @@ def run_all_plots():
             ax.xaxis.set_minor_locator(minorLocator)
             for tick in ax.yaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE) 
-            ax.yaxis.set_ticks_position('left')
+#            ax.yaxis.set_ticks_position('left')
 
 
         plt.savefig(settings.IMAGELOC+"WND_land_ts{}".format(settings.OUTFMT))
@@ -434,7 +434,7 @@ def run_all_plots():
         lats = hadisd_lats
         lons = hadisd_lons
         anom = hadisd_anomaly_8110
-        trend = hadisd_trend_79_pres * 10
+        hadisd_trend = hadisd_trend_79_pres * 10
 
         # lats = np.append(hadisd_lats, aus_lat)
         # lons = np.append(hadisd_lons, aus_lon)
@@ -443,13 +443,15 @@ def run_all_plots():
 
     #    bounds = [-100, -0.8, -0.4, -0.2, -0.1, 0, 0.1, 0.2, 0.4, 0.8, 100]
         bounds = [-100, -0.4, -0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2, 0.4, 100]
-        utils.scatter_plot_map(settings.IMAGELOC + "WND_{}_obs_trend".format(settings.YEAR), trend, \
+        utils.scatter_plot_map(settings.IMAGELOC + "WND_{}_obs_trend".format(settings.YEAR), hadisd_trend, \
                                    lons, lats, settings.COLOURMAP_DICT["circulation_r"], bounds, "Trend from {}-{} (m s".format(TRENDSTART, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)')
 
         bounds = [-100, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 100]
         utils.scatter_plot_map(settings.IMAGELOC + "WND_{}_obs_anomaly".format(settings.YEAR), anom, \
                                lons, lats, settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from {}-2010 (m s".format(CLIMSTART)+r'$^{-1}$)')
 
+        
+        print("HadISD counts of stations")
         total = float(len(anom.compressed()))
         pos, = np.ma.where(anom > 0)
         neg, = np.ma.where(anom < 0)
@@ -461,17 +463,13 @@ def run_all_plots():
         neg, = np.ma.where(anom < -1.0)
         print("Anomalies: positive {:5.3f} negative {:5.3f} (than 1.0)".format(len(pos)/total, len(neg)/total))
 
-        total = float(len(trend.compressed()))
-        pos, = np.ma.where(trend > 0)
-        neg, = np.ma.where(trend < 0)
-        print("Trends: positive {:5.3f} negative {:5.3f}".format(len(pos)/total, len(neg)/total))
 
     #************************************************************************
     # ERA5 + HadISD Anomaly figure
     if True:
         # Read in ERA anomalies
 
-        cube_list = iris.load(settings.REANALYSISLOC + "era5_ws10_{}01-{}12_ann_ano.nc".format(settings.YEAR, settings.YEAR))
+        cube_list = iris.load(os.path.join(settings.REANALYSISLOC, "ERA5", "SFCWIND", "era5_10si_{}_gridded_ano.nc".format(settings.YEAR)))
 
         cube = cube_list[0]
         cube.coord('latitude').guess_bounds()
@@ -479,15 +477,15 @@ def run_all_plots():
 
         bounds=[-4, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 4]
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5_obs_anomaly".format(settings.YEAR), cube[0], \
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5_obs_anomaly".format(settings.YEAR), cube, \
             settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from {}-2010 (m s".format(CLIMSTART)+r'$^{-1}$)', scatter = (lons, lats, anom))
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5_anomaly".format(settings.YEAR), cube[0], \
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5_anomaly".format(settings.YEAR), cube, \
             settings.COLOURMAP_DICT["circulation_r"], bounds, "Anomalies from {}-2010 (m s".format(CLIMSTART)+r'$^{-1}$)')
 
     #************************************************************************
     # MERRA Anomaly figure
     if True:
-        anoms = read_ocean_ncdf(DATALOC + "rss_wind_trend_anomaly_SOTC_{}_updated.nc".format(settings.YEAR), "MERRA2_wind_anomaly_map_{}".format(settings.YEAR))
+        anoms = read_ocean_ncdf(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "MERRA2_wind_anomaly_map_{}".format(settings.YEAR))
 
         bounds = [-40, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 40]
 
@@ -497,10 +495,10 @@ def run_all_plots():
     #************************************************************************
     # MERRA + HadISD Anomaly figure
 
-    if True:
+    if False:
         # Read in MERRA anomalies
     
-        cube_list = iris.load(settings.REANALYSISLOC + "MERRA-2_SfcAnom_{}.nc".format(settings.YEAR), "10m Wind Speed Anomaly (1981-2010)")
+        cube_list = iris.load(os.path.join(settings.REANALYSISLOC , "MERRA2", "MERRA-2_SfcAnom_{}.nc".format(settings.YEAR)), "10m Wind Speed Anomaly (1981-2010)")
 
         cube = cube_list[0]
         cube.coord('latitude').guess_bounds()
@@ -522,7 +520,7 @@ def run_all_plots():
     # MERRA/RSS ocean + HadISD Anomaly figure
     if True:
         # Read in MERRA/RSS trends
-        anomalies = read_ocean_ncdf(DATALOC + "rss_wind_trend_anomaly_SOTC_{}_updated.nc".format(settings.YEAR), "Merged_wind_anomaly_map_{}".format(settings.YEAR))
+        anomalies = read_ocean_ncdf(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_MERRA2_Merged_wind_anomaly_map_{}".format(settings.YEAR))
 
         bounds = [-4, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 4]
         utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_merra-rss_anomaly".format(settings.YEAR), \
@@ -538,11 +536,35 @@ def run_all_plots():
 
 
     #************************************************************************
+    # ERA5/RSS ocean + HadISD Anomaly figure
+    if True:
+        # Read in MERRA/RSS trends
+        anomalies = read_ocean_ncdf(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_ERA5_Merged_wind_anomaly_map_{}".format(settings.YEAR))
+
+        bounds = [-4, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 4]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5-rss_anomaly".format(settings.YEAR), \
+                                       anomalies, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       "Anomalies from 1981-2010 (m s"+r'$^{-1}$)')
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5-rss_obs_anomaly".format(settings.YEAR), \
+                                       anomalies, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       "Anomalies from 1981-2010 (m s"+r'$^{-1}$)', 
+                                   scatter=(lons, lats, anom))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_WND_{}_era5-rss_obs_anomaly".format(settings.YEAR), \
+                                       anomalies, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       "Anomalies from 1981-2010 (m s"+r'$^{-1}$)', figtext="(v) Surface Winds", scatter=(lons, lats, anom))
+
+
+    #************************************************************************
     # Ocean timeseries
     if True:
 
-        satellite = read_ts_cube(DATALOC + "rss_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_wind_global_annual_anom_ts", "Satellite MW Radiometers")
-        satellite_clim, satellite_anom = utils.calculate_climatology_and_anomalies_1d(satellite, 1988, 2010)
+        satellite = read_ts_cube(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_wind_global_annual_anom_ts", "Satellite MW Radiometers")
+        satellite_clim, satellite_anom = utils.calculate_climatology_and_anomalies_1d(satellite, CLIMSTART, 2010)
+
+        ascat = read_ts_cube(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "ASCAT_wind_global_annual_anom_ts", "ASCAT")
+        ascat_clim, ascat_anom = utils.calculate_climatology_and_anomalies_1d(ascat, CLIMSTART, 2010)
+        qscat = read_ts_cube(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "QSCAT_wind_global_annual_anom_ts", "QuikSCAT")
+        qscat_clim, qscat_anom = utils.calculate_climatology_and_anomalies_1d(qscat, CLIMSTART, 2010)
 
     #    print("NO IN SITU OCEAN DATA FOR 2016, using 2015 data")
     #    nocs = read_ts_cube(DATALOC + "NOCSv2.0_oceanW_5by5_8110anoms_areaTS_FEB2016.nc", "Globally Average 70S-70N", "NOCSv2.0")
@@ -550,16 +572,20 @@ def run_all_plots():
     #    print("FIXING WASWIND TIMES - DATAFILE HAS WRONG DESCRIPTOR")
     #    WASwind.times = WASwind.times - (1973-1950)
 
-        jra_actuals, jra_anoms = utils.read_jra55(settings.REANALYSISLOC + "JRA-55_ws10m_globalocean_ts.txt", "wind")
+        jra_actuals, jra_anoms = utils.read_jra55(os.path.join(settings.REANALYSISLOC, "JRA-55", "JRA-55_ws10m_globalocean_ts.txt"), "wind")
 
         era5_globe, era5_ocean, era5_land, era5tropics = utils.era5_ts_read(settings.REANALYSISLOC, "wnd", annual=True)
-        ocean_era5_clim, ocean_era5_anoms = utils.calculate_climatology_and_anomalies_1d(era5_ocean, 1988, 2010)
+        ocean_era5_clim, ocean_era5_anoms = utils.calculate_climatology_and_anomalies_1d(era5_ocean, CLIMSTART, 2010)
 
-        merra_anoms = utils.read_merra(settings.REANALYSISLOC + "MERRA-2_SfcAnom{}.dat".format(settings.YEAR), "wind", "O", anomalies=True)
+        # from Mike B
+        merra_anoms = utils.read_merra(os.path.join(settings.REANALYSISLOC, "MERRA2", "MERRA-2_SfcAnom{}.dat".format(settings.YEAR)), "wind", "O", anomalies=True)
+        # from Lucrezia
+        merra = read_ts_cube(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "MERRA2_wind_global_annual_anom_ts", "MERRA-2")
+        merra_clim, merra_anoms = utils.calculate_climatology_and_anomalies_1d(merra, CLIMSTART, 2010)
 
-        twenty_cr_actuals = utils.read_20cr(settings.REANALYSISLOC + "wspd10m.ocean.txt", "wind speed")
-        dummy, twenty_cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, 1988, 2010)
-
+        twenty_cr_actuals = utils.read_20cr(os.path.join(settings.REANALYSISLOC, "20CR", "wspd10m.ocean.txt"), "wind speed")
+        dummy, twenty_cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, CLIMSTART, 2010)
+        
         fig, (ax1) = plt.subplots(1, figsize=(8, 5), sharex=True)
 
         # Satellite
@@ -570,19 +596,20 @@ def run_all_plots():
     #    ax2.set_ylabel("Anomaly (m s"+r'$^{-1}$'+")", fontsize = settings.FONTSIZE)
 
         # Reanalyses & Satellite single panel
-        satellite_anom.lw = 4
+        satellite.lw = 4
         satellite_anom.zorder = 10
-        utils.plot_ts_panel(ax1, [satellite_anom, ocean_era5_anoms, merra_anoms, twenty_cr_anoms], "-", "circulation", loc=LEGEND_LOC, bbox=BBOX)
-
+#        utils.plot_ts_panel(ax1, [ocean_era5_anoms, merra, twenty_cr_anoms, jra_anoms, ascat, qscat, satellite], "-", "circulation", loc=LEGEND_LOC, bbox=BBOX)
+        utils.plot_ts_panel(ax1, [ocean_era5_anoms, merra, twenty_cr_anoms, ascat, qscat, satellite], "-", "circulation", loc=LEGEND_LOC, bbox=BBOX)
+ 
         #*******************
         # prettify
         ax1.axhline(0, c='0.5', ls='--')
         plt.ylabel("Wind Anomaly (m s"+r'$^{-1}$'+")", fontsize=settings.LABEL_FONTSIZE)
-        ax1.legend(loc="upper right", ncol=1, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, \
+        ax1.legend(loc="upper right", ncol=2, frameon=False, prop={'size':settings.LEGEND_FONTSIZE}, \
                        labelspacing=0.1, columnspacing=0.5, bbox_to_anchor=(1.0, 0.99))
 
         # sort formatting
-        plt.xlim([1970, int(settings.YEAR) + 1])
+        plt.xlim([1970, int(settings.YEAR) + 2])
 
         for tick in ax1.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
@@ -590,16 +617,16 @@ def run_all_plots():
         for ax in [ax1]:
             for tick in ax.yaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE) 
-            ax.set_ylim([-0.28, 0.45])
+            ax.set_ylim([-0.38, 0.45])
             ax.yaxis.set_ticks([-0.2, 0.0, 0.2, 0.4])
-            ax.yaxis.set_ticks_position('left')
+#            ax.yaxis.set_ticks_position('left')
 
         # sort labelling
-        ax1.text(0.03, 0.9, "Satellites & Reanalyses", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax1.text(0.03, 0.87, "Satellites &\nReanalyses", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
     #    ax2.text(0.03, 0.9, "(b) In Situ", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
     #    ax3.text(0.03, 0.9, "(b) Reanalyses", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE
 
-        fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
+        fig.subplots_adjust(right=0.99, top=0.99, hspace=0.001)
 
         plt.savefig(settings.IMAGELOC+"WND_ocean_ts{}".format(settings.OUTFMT))
 
@@ -607,8 +634,8 @@ def run_all_plots():
 
     #************************************************************************
     # Ocean maps
-    if True:
-        anoms = read_ocean_ncdf(DATALOC + "rss_wind_trend_anomaly_SOTC_{}_updated.nc".format(settings.YEAR), "RSS_wind_anomaly_map_{}".format(settings.YEAR))
+    if False:
+        anoms = read_ocean_ncdf(DATALOC + "rss_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_wind_anomaly_map_{}".format(settings.YEAR))
 
         bounds = [-40, -1.2, -0.8, -0.4, -0.2, 0, 0.2, 0.4, 0.8, 1.2, 40]
 
@@ -620,18 +647,61 @@ def run_all_plots():
     # MERRA/RSS ocean + HadISD Trend figure
     if True:
         # Read in MERRA/RSS trends
-        trends = read_ocean_ncdf(DATALOC + "rss_wind_trend_anomaly_SOTC_{}_updated.nc".format(settings.YEAR), "Wind_trend_map")
+        merra_trends = read_ocean_ncdf(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_MERRA2_Wind_trend_map")
 
 
         bounds = [-4, -0.8, -0.4, -0.2, -0.1, 0, 0.1, 0.2, 0.4, 0.8, 4]
         bounds = [-100, -0.4, -0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2, 0.4, 100]
         utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_merra-rss_trend".format(settings.YEAR), \
-                                       trends, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       merra_trends, settings.COLOURMAP_DICT["circulation_r"], bounds, \
                                        "Trend from {}-{} (m s".format(TRENDSTART, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)')
         utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_merra-rss_obs_trend".format(settings.YEAR), \
-                                       trends, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       merra_trends, settings.COLOURMAP_DICT["circulation_r"], bounds, \
                                        "Trend from {}-{} (m s".format(TRENDSTART, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)', 
-                                   scatter=(lons, lats, trend))
+                                   scatter=(lons, lats, hadisd_trend))
+
+
+        print("HadISD Trends")
+        total = float(len(hadisd_trend.compressed()))
+        pos, = np.ma.where(hadisd_trend > 0)
+        neg, = np.ma.where(hadisd_trend < 0)
+        print("Trends: positive {:5.3f} negative {:5.3f}".format(len(pos)/total, len(neg)/total))
+
+        print("MERRA2 Trends")
+        total = float(len(merra_trends.data.compressed()))
+        pos, = np.ma.where(merra_trends.data.compressed() > 0)
+        neg, = np.ma.where(merra_trends.data.compressed() < 0)
+        print("Trends: positive {:5.3f} negative {:5.3f}".format(len(pos)/total, len(neg)/total))
+        
+    #************************************************************************
+    # ERA5/RSS ocean + HadISD Trend figure
+    if True:
+        # Read in MERRA/RSS trends
+        era5_trends = read_ocean_ncdf(DATALOC + "rss_era5_merra2_wind_trend_anomaly_SOTC_{}.nc".format(settings.YEAR), "RSS_ERA5_Wind_trend_map")
+
+
+        bounds = [-4, -0.8, -0.4, -0.2, -0.1, 0, 0.1, 0.2, 0.4, 0.8, 4]
+        bounds = [-100, -0.4, -0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2, 0.4, 100]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5-rss_trend".format(settings.YEAR), \
+                                       era5_trends, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       "Trend from {}-{} (m s".format(TRENDSTART, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)')
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "WND_{}_era5-rss_obs_trend".format(settings.YEAR), \
+                                       era5_trends, settings.COLOURMAP_DICT["circulation_r"], bounds, \
+                                       "Trend from {}-{} (m s".format(TRENDSTART, settings.YEAR)+r'$^{-1}$'+" decade"+r'$^{-1}$)', 
+                                   scatter=(lons, lats, hadisd_trend))
+
+
+        print("HadISD Trends")
+        total = float(len(hadisd_trend.compressed()))
+        pos, = np.ma.where(hadisd_trend > 0)
+        neg, = np.ma.where(hadisd_trend < 0)
+        print("Trends: positive {:5.3f} negative {:5.3f}".format(len(pos)/total, len(neg)/total))
+
+        print("ERA5 Trends")
+        total = float(len(era5_trends.data.compressed()))
+        pos, = np.ma.where(era5_trends.data.compressed() > 0)
+        neg, = np.ma.where(era5_trends.data.compressed() < 0)
+        print("Trends: positive {:5.3f} negative {:5.3f}".format(len(pos)/total, len(neg)/total))
 
     return # run_all_plots
 

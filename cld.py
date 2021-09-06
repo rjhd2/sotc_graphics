@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 #************************************************************************
 #
 #  Plot figures and output numbers for Cloudiness (CLD) section.
@@ -9,9 +6,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -75,8 +72,9 @@ def read_ts(filename, anomaly=False, fullbase=False):
     clara_a2 = utils.Timeseries("CLARA-A2", times, data[:, 8])
     patmosdx = utils.Timeseries("PATMOS-x/AQUA MODIS", times, data[:, 9])
     cci = utils.Timeseries("Cloud CCI AVHRR-PMv3", times, data[:, 10])
+    patmosv6 = utils.Timeseries("PATMOS-x/AVHRR+HIRS", times, data[:, 11])
 
-    return patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci # read_ts
+    return patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci, patmosv6 # read_ts
 
 
 #************************************************************************
@@ -91,18 +89,18 @@ def run_all_plots():
         infilename = os.path.join(DATALOC, "{}_global_cloudiness_timeseries_v2.txt".format(settings.YEAR))
 
         # anomalies
-        patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = \
+        patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci, patmosv6 = \
             read_ts(infilename, anomaly=True)
 
-        utils.plot_ts_panel(ax1, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], "-", "hydrological", loc="")
+        utils.plot_ts_panel(ax1, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci, patmosv6], "-", "hydrological", loc="")
 
         ax1.text(0.02, 0.9, "(a) Satellite - Anomalies", transform=ax1.transAxes, fontsize=settings.FONTSIZE)
 
         # actuals
-        patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci = \
+        patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci, patmosv6 = \
             read_ts(infilename)
 
-        utils.plot_ts_panel(ax2, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci], "-", "hydrological", loc=LEGEND_LOC, ncol=3)
+        utils.plot_ts_panel(ax2, [patmosx, hirs, misr, modis, calipso, ceres, satcorps, clara_a2, patmosdx, cci, patmosv6], "-", "hydrological", loc=LEGEND_LOC, ncol=3)
 
         ax2.text(0.02, 0.9, "(b) Satellite - Actual", transform=ax2.transAxes, fontsize=settings.FONTSIZE)
 
@@ -125,8 +123,8 @@ def run_all_plots():
         plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
         fig.subplots_adjust(right=0.96, top=0.99, bottom=0.04, left=0.09, hspace=0.001)
 
-        plt.xlim([hirs.times[0]-1, hirs.times[-1]+1])
-        ax1.set_ylim([-4.4, 6.9])
+        plt.xlim([hirs.times[0]-1, int(settings.YEAR)+2])
+        ax1.set_ylim([-4.9, 7.9])
         ax2.set_ylim([0, 95])
 
         plt.savefig(settings.IMAGELOC+"CLD_ts{}".format(settings.OUTFMT))
@@ -186,18 +184,18 @@ def run_all_plots():
     #************************************************************************
     # Cloudiness map
     if True:
-        mapfile_dict = scipy.io.readsav(DATALOC + "patmosx_global_monthly_cloudiness_anomaly_map_{}.sav".format(settings.YEAR))
+        mapfile_dict = scipy.io.readsav(DATALOC + "patmosx_global_cloudiness_anomaly_fields_{}.sav".format(settings.YEAR))
 
-        annual_anoms = mapfile_dict["annual_anom"]*100.
-        djf_anoms = mapfile_dict["djf_anom"]*100.
-        jja_anoms = mapfile_dict["jja_anom"]*100.
-        mam_anoms = mapfile_dict["mam_anom"]*100.
-        son_anoms = mapfile_dict["son_anom"]*100.
+        annual_anoms = mapfile_dict["annual_anomaly"]*100.
+        djf_anoms = mapfile_dict["djf_anomaly"]*100.
+        jja_anoms = mapfile_dict["jja_anomaly"]*100.
+        mam_anoms = mapfile_dict["mam_anomaly"]*100.
+        son_anoms = mapfile_dict["son_anomaly"]*100.
 
-        lats = mapfile_dict["lat"]
-        lons = mapfile_dict["lon"]
+        lats = mapfile_dict["latitude"]
+        lons = mapfile_dict["longitude"]
 
-        cube = utils.make_iris_cube_2d(annual_anoms, lats[:, 0], lons[0], "CLD_anom", "%")
+        cube = utils.make_iris_cube_2d(annual_anoms, lats, lons, "CLD_anom", "%")
 
         bounds = [-100, -15, -10, -5, -2.5, 0, 2.5, 5, 10, 15, 100]
 
@@ -215,7 +213,7 @@ def run_all_plots():
         cubelist = []
         for season in [djf_anoms, mam_anoms, jja_anoms, son_anoms]:
 
-            cube = utils.make_iris_cube_2d(season, lats[:, 0], lons[0], "CLD_anom", "%")
+            cube = utils.make_iris_cube_2d(season, lats, lons, "CLD_anom", "%")
             cubelist += [cube]
 
 
@@ -227,8 +225,8 @@ def run_all_plots():
 
 
     #************************************************************************
-    # Cloudiness Hovmoller
-    if True:
+    # Cloudiness Hovmuller
+    if False:
         data_dict = scipy.io.readsav(DATALOC + "patmosx_global_monthly_cloudiness_hovmuller_{}.sav".format(settings.YEAR))
 
         lats = data_dict["latitude"]

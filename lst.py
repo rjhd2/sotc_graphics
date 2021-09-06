@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 ##************************************************************************
 #
 #  Plot figures and output numbers for lower stratosphere temperature (LST) section.
@@ -9,9 +6,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -19,7 +16,9 @@ from __future__ import print_function
 import datetime as dt
 import calendar
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 
 import iris
 
@@ -94,6 +93,45 @@ def read_ssu(filename):
     ssu3_2 = utils.Timeseries("SSU+AMSU", indata[:, 0], indata[:, 6])
 
     return ssu1, ssu1_2, ssu2, ssu2_2, ssu3, ssu3_2 # read_ssu
+
+#************************************************************************
+def read_ssu_all(filename):
+    """
+    Read user supplied CSV for LST into Timeseries object
+    """
+
+    indata = np.genfromtxt(filename, dtype=(str), delimiter=",",\
+                               skip_header=1)
+
+    indata[indata == ""] = "-99.9"
+
+    dates = np.array([dt.datetime.strptime(d, "%Y-%m-%d") for d in indata[:, 0]])
+
+    times = np.array([d.year+d.month/12 for d in dates])
+
+    indata = np.ma.masked_where(indata[:, 2:] == "-99.9", indata[:, 2:]).astype(float)
+    # now indata is offset by 2
+
+    # offset for the plots
+    offset = 1
+    ssu1m = utils.Timeseries("SSU1+MLS", times, indata[:, 0]+(offset*1))
+    ssu2m = utils.Timeseries("SSU2+MLS", times, indata[:, 1]+(offset*2))
+    ssu3m = utils.Timeseries("SSU3+MLS", times, indata[:, 2]+(offset*3))
+    ssu1a = utils.Timeseries("SSU1+AMSU", times, indata[:, 3]+(offset*1))
+    ssu2a = utils.Timeseries("SSU2+AMSU", times, indata[:, 4]+(offset*2))
+    ssu3a = utils.Timeseries("SSU3+AMSU", times, indata[:, 5]+(offset*3))
+#    rsslt = utils.Timeseries("RSS+LT", times, indata[:, 6])
+#    rssmt = utils.Timeseries("RSS+MT", times, indata[:, 7])
+    rssls = utils.Timeseries("RSS", times, indata[:, 8])
+#    uahlt = utils.Timeseries("UAH+LT", times, indata[:, 9])
+#    uahmt = utils.Timeseries("UAH+MT", times, indata[:, 10])
+    uahls = utils.Timeseries("UAH", times, indata[:, 11])
+#    noaamt = utils.Timeseries("NOAA+MT", times, indata[:, 12])
+    noaals = utils.Timeseries("NOAA", times, indata[:, 13])
+
+
+
+    return ssu1m, ssu2m, ssu3m, ssu1a, ssu2a, ssu3a, rssls, uahls, noaals # read_ssu_all
 
 #************************************************************************
 def read_qbo_csv(filename):
@@ -229,12 +267,97 @@ def read_era5(filename):
     eralo = utils.Timeseries("ERA5", times, combined)
 
     return eral, erao, eralo # read_era5
+
+
+#************************************************************************
+def read_singapore_qbo_gsfc(filename):
+    # https://acd-ext.gsfc.nasa.gov/Data_services/met/qbo/qbo.html#uwind
+
+    times = []
+    levels = []
+    data = []
+
+    # pull out levels
+    with open(filename, "r") as infile:
+        for line in infile:
+            line = line.split()
+            if len(line) > 1:
+                if line[0] == "Month":
+                    levels = line[2:]
+                    break
+
+    indata = np.genfromtxt(filename, dtype=(float), skip_header=9)
+                
+    years = indata[:, 1]
+    months = indata[:, 0]
+    times = years + (months - 1)/12.
+    data = indata[:, 2:]
+
+    # convert ot arrays and reorder
+    levels = np.array(levels).astype(float)
+    levels = levels[::-1]
+    data = data[::-1,:].T
+
+    return times, levels, data # read_singapore_qbo
+
+#************************************************************************
+def read_singapore_qbo(filename):
+
+    times = []
+    levels = []
+    data = []
+
+    startyear = 0
+
+    with open(filename, "r") as infile:
+        for l, line in enumerate(infile):
+            if l < 2:
+                continue
+
+            line = line.split()
+            if len(line) == 0:
+                continue
+
+            elif line[0] == "hPa":
+                continue
+                
+            if len(line) == 1 and startyear == 0:
+                startyear = int(line[0])
+            elif len(line) == 1:
+                continue
+            else:
+                levels += [int(line[0])]
+                data += [line[1:]]
+
+    # convert ot arrays
+    levels = np.array(levels)
+    data = np.array(data)
+
+    # reformat the data
+    nyears, = np.where(levels == 10)
+    nyears = len(nyears)
+    times = startyear + (np.arange(0, nyears*12))/12
+
+    final_levels = np.unique(levels)
+
+    final_data = np.zeros((final_levels.shape[0], nyears, 12))
+
+    y = -1
+    for l, d in zip(levels, data):     
+        if l == 10:
+            y += 1
+        final_data[np.where(final_levels == l), y, :] = d
+
+    final_data = final_data.reshape(final_levels.shape[0], -1)*0.1
+
+    return times, final_levels, final_data # read_singapore_qbo
+
 #************************************************************************
 def run_all_plots():
 
     #************************************************************************
     # Timeseries figures
-    if True:
+    if False:
 
         fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
 
@@ -289,7 +412,7 @@ def run_all_plots():
 
     #************************************************************************
     # Timeseries figures
-    if True:
+    if False:
 
         fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
 
@@ -330,8 +453,44 @@ def run_all_plots():
         plt.close()
 
     #************************************************************************
-    # Combined Timeseries figures
+    # Timeseries figures
     if True:
+        LEGEND_LOC = "upper right"
+
+        fig = plt.figure(figsize=(8, 10))
+        ax = plt.axes([0.1, 0.05, 0.88, 0.93])
+        
+        ssu1m, ssu2m, ssu3m, ssu1a, ssu2a, ssu3a, rssls, uahls, noaals = read_ssu_all(DATALOC + "MSU_AMSU_MLSallChannels_202012_v2.csv") 
+        utils.plot_ts_panel(ax, [rssls, uahls, noaals, ssu1m, ssu1a, ssu2m, ssu2a, ssu3m, ssu3a], "-", "lst-ssu", loc=LEGEND_LOC, lw=2)
+
+
+        # sort formatting
+        plt.xlim([1977, int(settings.YEAR)+2])
+
+        for tick in ax.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+
+        ax.set_ylabel("Anomaly ("+r'$^\circ$'+"C)", fontsize=settings.FONTSIZE)
+         
+        # sort labelling
+        ax.text(0.17, 0.88, "SSU3 + 3"+r'$^\circ$'+"C", transform=ax.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax.text(0.17, 0.65, "SSU2 + 2"+r'$^\circ$'+"C", transform=ax.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax.text(0.17, 0.48, "SSU1 + 1"+r'$^\circ$'+"C", transform=ax.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+        ax.text(0.17, 0.28, "TLS", transform=ax.transAxes, \
+                     fontsize=settings.LABEL_FONTSIZE)
+
+        plt.savefig(settings.IMAGELOC+"LST_SSU_ts{}".format(settings.OUTFMT))
+
+        plt.close()
+
+    #************************************************************************
+    # Combined Timeseries figures
+    if False:
 
         fig = plt.figure(figsize=(12, 8))
 
@@ -596,7 +755,7 @@ def run_all_plots():
  
     #************************************************************************
     # ERA5 Anomaly figure
-    if True:
+    if False:
         # Read in ERA anomalies
 
         cube_list = iris.load(settings.REANALYSISLOC + "era5_tls_{}01-{}12_ann_ano.nc".format(settings.YEAR, settings.YEAR))
@@ -660,6 +819,67 @@ def run_all_plots():
     #                                           "Anomaly ("+r'$^{\circ}$'+"C)", shape = (6,2), \
     #                                           title = MONTHS, \
     #                                           figtext = ["(a)","(b)","(c)","(d)", "(e)","(f)","(g)","(h)","(i)","(j)","(k)","(l)"])
+
+    #************************************************************************
+    # QBO hovmuller
+    if True:
+
+#        times, levels, data = read_singapore_qbo(DATALOC + "QBO_Singapore_Uvals_GSFC.txt")
+        times, levels, data = read_singapore_qbo(DATALOC + "singapore.dat")
+
+        # And now plot
+        cmap = settings.COLOURMAP_DICT["circulation"]
+        bounds = [-100., -45., -30., -15., -10., -5., 0., 5., 10., 15., 30., 45., 100]
+        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+
+        fig = plt.figure(figsize=(16, 8))
+        plt.clf()
+        ax = plt.axes([0.06, 0.07, 0.93, 0.92])
+
+        times, levels = np.meshgrid(times, levels)
+
+        # show 0-level as dark line
+        plt.contour(times, levels, data, levels=[0], colors=("k",), linestyles=("-",))
+        con = plt.contourf(times, levels, data, bounds, cmap=cmap, norm=norm, vmax=bounds[-1], vmin=bounds[1])
+
+        plt.ylabel("Pressure (hPa)", fontsize=settings.FONTSIZE)
+
+        plt.arrow(2016.8, 110, -0.2, -40, width=0.1, head_length=7)
+        plt.arrow(2020.7, 110, -0.2, -40, width=0.1, head_length=7)
+
+        plt.ylim([110, 8])
+        plt.xlim([2000, int(settings.YEAR)+1.2])
+
+        ax.set_yscale("log", subsy=[])
+        plt.gca().yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10))
+        plt.gca().yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+        plt.gca().yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+
+        plt.yticks(np.arange(100, 0, -10), ["{}".format(l) for l in np.arange(100, 0, -10)], fontsize=settings.FONTSIZE)
+        for tick in ax.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        plt.gca().xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(5))
+        plt.gca().xaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(1))
+
+        # colourbar and prettify
+        cb = plt.colorbar(con, orientation='horizontal', pad=0.05, fraction=0.05, aspect=30, \
+                              ticks=bounds[1:-1], drawedges=True)
+
+        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
+        cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in')
+
+        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
+    #    cb.outline.set_color('k')
+        cb.outline.set_linewidth(2)
+        cb.dividers.set_color('k')
+        cb.dividers.set_linewidth(2)
+
+        utils.thicken_panel_border(ax)
+
+        plt.savefig(settings.IMAGELOC+"LST_QBO{}".format(settings.OUTFMT))    
+
+
 
     return # run_all_plots
 

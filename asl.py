@@ -6,21 +6,18 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 31                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-09-06 09:52:46 +0100 (Mon, 06 Sep #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import matplotlib as mpl
 
+import copy
 import numpy as np
 
 import iris
@@ -66,11 +63,13 @@ def run_all_plots():
     # Timeseries plot
     if True:
 
-        monthly = read_data(DATALOC + "monthlist", "AOD monthly")
-        annual = read_data(DATALOC + "yearlist", "AOD annual")
+        monthly = read_data(DATALOC + "monthlist.txt", "AOD monthly")
+        annual = read_data(DATALOC + "yearlist.txt", "AOD annual")
 
         minor_tick_interval = 1
         minorLocator = MultipleLocator(minor_tick_interval)
+        major_tick_interval = 5
+        majorLocator = MultipleLocator(major_tick_interval)
         COLOURS = settings.COLOURS["composition"]
 
         fig = plt.figure(figsize=(8, 5))
@@ -83,11 +82,12 @@ def run_all_plots():
 
         # prettify
         ax.xaxis.set_minor_locator(minorLocator)
+        ax.xaxis.set_major_locator(majorLocator)
         utils.thicken_panel_border(ax)
 
         fig.text(0.03, 0.5, "AOD", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
-        plt.xlim([2002.5, int(settings.YEAR)+1.5])
+        plt.xlim([2002, int(settings.YEAR)+2])
         plt.ylim([0.09, 0.21])
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE)
@@ -100,21 +100,39 @@ def run_all_plots():
     #************************************************************************
     # Global maps
 
+    # actuals
+    if True:
+        total = iris.load(DATALOC + "AOD_{}.nc".format(settings.YEAR))
+        bounds = np.arange(0, 1.1, 0.1)
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_total_actuals_{}".format(settings.YEAR), total[0][0], plt.cm.YlOrBr, bounds, "AOD")
+
     # total
     if True:
-        total = iris.load(DATALOC + "diffAOD.nc")#.format(settings.YEAR))
+        total = iris.load(DATALOC + "diffAOD{}.nc".format(settings.YEAR[-2:]))
         bounds = np.array([-10, -0.15, -0.10, -0.05, -0.025, -0.01, 0.01, 0.025, 0.05, 0.10, 0.15, 10])
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_total_anomalies_{}".format(settings.YEAR), total[0][0], settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{} (AOD)".format(settings.YEAR[2:]))
         utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ASL_total_anomalies_{}".format(settings.YEAR), total[0][0], settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-20{} (AOD)".format(int(settings.YEAR[2:])-1), figtext="(x) Total Aerosol")
 
+    # ratio AOD
+    if True:
+        extreme = iris.load(DATALOC + "ratioaod_{}.nc".format(settings.YEAR))
+        bounds = np.arange(0, 2.2, 0.2)
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_ratio_{}".format(settings.YEAR), extreme[0][0], settings.COLOURMAP_DICT["composition"], bounds, "Ratio of AOD to 2003-19 average")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ASL_ratio_{}".format(settings.YEAR), extreme[0][0], settings.COLOURMAP_DICT["composition"], bounds, "Ratio of AOD to 2003-19 average", figtext="(y) AOD Ratio")
+
     # extreme AOD
     if True:
         extreme = iris.load(DATALOC + "NB999.nc")#.format(settings.YEAR))
+        extreme = extreme[0][0]
         bounds = np.array([0, 2.5, 5, 10, 20, 30, 40, 90])
+        bounds = np.arange(0, 22, 2)
+        extreme.data = np.ma.masked_where(extreme.data < 0, extreme.data)
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_extreme_days_{}".format(settings.YEAR), extreme[0][0], plt.cm.YlOrBr, bounds, "Number of days with AOD above the 99.9th percentile (days)")
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ASL_extreme_days_{}".format(settings.YEAR), extreme[0][0], plt.cm.YlOrBr, bounds, "Number of days with AOD above the 99.9th percentile (days)", figtext="(y) Extreme Aerosol Days")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_extreme_days_{}".format(settings.YEAR), extreme, plt.cm.YlOrBr, bounds, "Number of days with AOD above the 99.9th percentile (days)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ASL_extreme_days_{}".format(settings.YEAR), extreme, plt.cm.YlOrBr, bounds, "Number of days with AOD above the 99.9th percentile (days)", figtext="(z) Extreme Aerosol Days")
 
 
     # Biomass Burning
@@ -204,13 +222,16 @@ def run_all_plots():
 
         fig = plt.figure(figsize=(8, 15))
 
-        total = iris.load(DATALOC + "AOD2003-2009.nc")[0]
-        trend1 = iris.load(DATALOC + "trend2003-2019.nc")[0]
-        trend1.data = np.ma.masked_where(trend1.data == -99, trend1.data)
-        trend2 = iris.load(DATALOC + "medianaod12-19sig.nc")[0]
+#        total = iris.load(DATALOC + "AOD2003-2009.nc")[0]
+        total = iris.load(DATALOC + "AOD_03{}.nc".format(settings.YEAR[-2:]))[0]
+#        trend1 = iris.load(DATALOC + "trend2003-2019.nc")[0]
+        trend1 = iris.load(DATALOC + "medianaod18.nc")[0]
+        trend1.data = np.ma.masked_where(trend1.data < -50, trend1.data)
+        trend2 = iris.load(DATALOC + "medianaod12-20sig.nc")[0]
         trend2.data = np.ma.masked_where(trend2.data == -99, trend2.data)
 
-        bounds_a = np.array([0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0])
+#        bounds_a = np.array([0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0])
+        bounds_a = np.arange(0, 1.1, 0.1)
         bounds_b = np.array([-10, -0.020, -0.010, -0.006, -0.004, -0.002, 0.002, 0.004, 0.006, 0.010, 0.020, 10])
         bounds_c = np.array([-10, -0.020, -0.010, -0.006, -0.004, -0.002, 0.002, 0.004, 0.006, 0.010, 0.020, 10])
 
@@ -219,7 +240,9 @@ def run_all_plots():
 
         # do colourmaps by hand
         cmap = [plt.cm.YlOrBr, settings.COLOURMAP_DICT["composition"], settings.COLOURMAP_DICT["composition"]]
-        PLOTLABELS = ["(a) Mean 2003-19", "(b) Trend 2003-19", "(c) Trend 2012-19"]
+        PLOTLABELS = ["(a) Mean 2003-{}".format(settings.YEAR[-2:]), \
+                      "(b) Trend 2003-{}".format(settings.YEAR[-2:]), \
+                      "(c) Trend 2012-{}".format(settings.YEAR[-2:])]
         cb_label = ["AOD", "AOD yr"+r'$^{-1}$', "AOD yr"+r'$^{-1}$']
 
         # spin through axes
@@ -257,10 +280,7 @@ def run_all_plots():
             # sort the colourbar
             cb = fig.colorbar(mesh, ax=ax, orientation='horizontal', \
                                   ticks=all_bounds[a][1:-1], label=cb_label[a], drawedges=True, pad=0.05, fraction=0.07, aspect=30)
-            if a == 1:
-                cb.set_ticklabels(["{:6.3f}".format(b) for b in all_bounds[a][1:-1]])
-            else:
-                cb.set_ticklabels(["{:g}".format(b) for b in all_bounds[a][1:-1]])
+            cb.set_ticklabels(["{:g}".format(b) for b in all_bounds[a][1:-1]])
 
             cb.outline.set_linewidth(2)
             cb.dividers.set_color('k')
@@ -282,22 +302,32 @@ def run_all_plots():
 
         RFari = iris.load(DATALOC + "aerorf_camsra_rfari_2003-{}.nc".format(settings.YEAR))
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_RFari_anomalies_{}".format(settings.YEAR), RFari[0][0], settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{}".format(settings.YEAR), figtext="(a) CAMSRA: RFari (SW). Mean -0.56"+r'$\pm$'+"0.16 Wm"+r'$^{-1}$')
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_RFari_mean_{}".format(settings.YEAR), RFari[0][0], settings.COLOURMAP_DICT["composition"], bounds, "2003-{} average of SW forcing from aerosol-cloud interactions".format(settings.YEAR), figtext="(c) CAMSRA: RFari (SW). Mean -0.45"+r'$\pm$'+"0.13 Wm"+r'$^{-2}$')
 
         RFaci = iris.load(DATALOC + "aerorf_camsra_rfaci_2003-{}.nc".format(settings.YEAR))
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_RFaci_anomalies_{}".format(settings.YEAR), RFaci[0][0], settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 2003-{}".format(settings.YEAR), figtext="(c) CAMSRA: RFaci (SW). Mean -0.80"+r'$\pm$'+"0.53 Wm"+r'$^{-1}$')
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_RFaci_mean_{}".format(settings.YEAR), RFaci[0][0], settings.COLOURMAP_DICT["composition"], bounds, "2003-{} average of SW forcing from aerosol-radiation interactions".format(settings.YEAR), figtext="(e) CAMSRA: RFaci (SW). Mean -0.63"+r'$\pm$'+"0.42 Wm"+r'$^{-2}$')
+
+        bounds = np.arange(-0.05, 0.6, 0.05)
+        AnthAOD = iris.load(DATALOC + "aerorf_camsra_od550anth_2003-{}.nc".format(settings.YEAR))
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "ASL_anthAOD_yearly_mean_{}".format(settings.YEAR), AnthAOD[0][0], plt.cm.YlOrBr, bounds, "Average of {} anthropogenic AOD".format(settings.YEAR), figtext="(a) CAMSRA: Anthropogenic AOD. Mean 0.065"+r'$\pm$'+"0.012")
 
         # and timeseries
-        cubelist = iris.load(DATALOC + "aerorf_camsra_timeseries_2003-{}.nc".format(settings.YEAR))
+        cubelist = iris.load(DATALOC + "aerorf_camsra_timeseries_2003-{}_v2.nc".format(settings.YEAR))
 
-        LABELS = {"RFari" : "(b)", "RFaci" : "(d)"}
-        ERRORS = {"RFari" : 0.286, "RFaci" : 0.667}
+        LABELS = {"Anthropogenic AOD" : "(b)", "RFari" : "(d)", "RFaci" : "(f)"}
+        ERRORS = {"Anthropogenic AOD" : 0.178, "RFari" : 0.286, "RFaci" : 0.667}
 
         for cube in cubelist:
 
             name = str(cube.var_name)
-            name = name[:2].upper()+name[2:]
+            if name[0] == "r":
+                name = name[:2].upper()+name[2:]
+                units = " (W m" + r'$^{-2}$'+")"
+            else:
+                name = "Anthropogenic AOD"
+                units = ""
 
             fig = plt.figure(figsize=(8, 6))
             ax = plt.axes([0.13, 0.10, 0.8, 0.86])
@@ -310,7 +340,7 @@ def run_all_plots():
             ax.fill_between(dt_time, upper, lower, color="0.7", label=None)
 
             # prettify
-            ax.set_ylabel("{} (W m".format(name) + r'$^{-2}$'+")", fontsize=settings.FONTSIZE)
+            ax.set_ylabel("{}{}".format(name, units), fontsize=settings.FONTSIZE)
 
             for tick in ax.yaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE) 
@@ -325,11 +355,11 @@ def run_all_plots():
 
             # set labels
             if cube.var_name == "rfari":
-                ax.text(0.02, 0.9, "(b)")
                 ax.set_ylim([-0.8, -0.3])
-            else:
-                ax.text(0.02, 0.9, "(d")
-                ax.set_ylim([-1.6, -0.2])
+            elif cube.var_name == "rfaci":
+                ax.set_ylim([-1.6, 0.])
+            elif cube.var_name == "od550anth":
+                ax.set_ylim([0.05, 0.085])
 
             ax.text(0.02, 0.9, LABELS[name], transform=ax.transAxes, fontsize=settings.FONTSIZE)
 

@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-from __future__ import absolute_import
-from __future__ import print_function
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
@@ -49,7 +46,7 @@ def read_land(filename):
 #************************************************************************
 def read_ocean(filename):
 
-    indata = np.genfromtxt(filename, dtype=(float), skip_header=1)
+    indata = np.genfromtxt(filename, dtype=(float))
 
     indata = np.ma.masked_where(indata == -99.99, indata)
 
@@ -213,20 +210,21 @@ def run_all_plots():
         plt.savefig(settings.IMAGELOC+"PCP_ts_3panel{}".format(settings.OUTFMT))
         plt.close()
 
+    #************************************************************************
     # 3-panel plot for 2019 report
     if True:
         fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 8), sharex=True)
 
         # Land
-        ghcn, gpcc, gpcp = read_land(DATALOC + "Land_insitu_timeseries-1979.dat")
+        ghcn, gpcc, gpcp = read_land(DATALOC + "Land_insitu_ts_1979.txt")
         utils.plot_ts_panel(ax1, [ghcn, gpcc, gpcp], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
         # Ocean
-        gpcp = read_ocean(DATALOC + "Ocean_insitu_timeseries-1979.dat")
+        gpcp = read_ocean(DATALOC + "GPCP_Ocean_ts_1979.txt")
         utils.plot_ts_panel(ax2, [gpcp], "-", "hydrological", loc="", bbox=BBOX)
 
         # Globe
-        gpcp = read_ocean(DATALOC + "Global_insitu_timeseries-1979.dat")
+        gpcp = read_ocean(DATALOC + "GPCP_Global_ts_1979.txt")
         utils.plot_ts_panel(ax3, [gpcp], "-", "hydrological", loc="", bbox=BBOX)
 
         #*******************

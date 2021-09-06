@@ -1,7 +1,4 @@
-#!/usr/local/sci/python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for lower troposphere temperature (LTT) section.
@@ -9,14 +6,15 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
 import os
 import datetime as dt
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -36,6 +34,29 @@ CLIMEND = 2010
 DECIMAL_MONTHS = np.arange(12)/12.
 
 LEGEND_LOC = 'lower right'
+
+
+#************************************************************************
+def get_times(time_coord):
+
+    # read in data and extract start time
+    points = time_coord.points
+    unit = str(time_coord.units)
+
+
+    start = dt.datetime.strptime(unit.split(" ")[-1], "%Y-%M-%d")
+    if "months" in unit:
+        # calculate the years
+        years = start.year + np.floor(time_coord.points/12)
+        months = ((time_coord.points%12)+1)/12
+        return years + months # get_times
+
+    else:
+        # this one is easier
+        years = (start.year + time_coord.points) + 0.5 # plot in centre of year
+
+        return years # get_times
+
 
 #************************************************************************
 def read_csv(filename):
@@ -60,6 +81,62 @@ def read_csv(filename):
     merra = utils.Timeseries("MERRA-2", indata[:, 0], indata[:, 8])
 
     return raobcore, rich, ratpac, UAH, rss, era5, jra, merra # read_csv
+
+
+#************************************************************************
+def moving_average(data, N=12):
+    cumsum = np.cumsum(np.insert(data, 0, 0)) 
+    return (cumsum[N:] - cumsum[:-N]) / float(N) # moving_average
+
+#************************************************************************
+def read_netcdf_ts(filename, smooth=True):
+
+    cubelist = iris.load(os.path.join(DATALOC, filename))
+
+    for cube in cubelist:
+
+        if "ratpac" in cube.name():
+            # fix cube for 2020 run
+            cube.coords()[0].standard_name="time"
+
+        times = get_times(cube.coord("time"))
+        data = np.ma.array(cube.data)
+        data.mask = np.zeros(data.shape[0])
+
+        # deal with NaNs
+        data = np.ma.masked_where(np.isnan(data), data)
+
+        goods, = np.where(data.mask == False)
+        times = times[goods]
+        data = data[goods]
+
+        if "ratpac" not in cube.name() and smooth:
+
+            N = 12
+            newdata = moving_average(data, N)
+            newtimes = times[N-2:-1]
+        else:
+            newdata = data
+            newtimes = times
+            
+        if cube.name() ==  "tlt_global_ratpacva2":
+            ratpac = utils.Timeseries("RATPAC vA2", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_rssv4":
+            rss = utils.Timeseries("RSS v4.0", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_richv17":
+            rich = utils.Timeseries("RICH v1.7", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_raobcorev17":
+            raobcore = utils.Timeseries("RAOBCORE v1.7", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_uahv6":
+            uah = utils.Timeseries("UAH v6.0", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_era51":
+            era = utils.Timeseries("ERA5", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_merra2":
+            merra = utils.Timeseries("MERRA-2", newtimes, newdata)
+        elif cube.name() ==  "tlt_global_jra55":
+            jra = utils.Timeseries("JRA-55", newtimes, newdata)
+
+    return raobcore, rich, ratpac, uah, rss, era, merra, jra # read_netcdf_ts
 
 #************************************************************************
 def read_mei(filename):
@@ -127,19 +204,23 @@ def read_hilo(filename):
 def run_all_plots():
 
     #************************************************************************
-    # Timeseries figure (2 panels)
+    # Timeseries figure (3 panels)
     if True:
         for region in ["global"]:
 
             if region == "global":
+#                raobcore, rich, ratpac, UAH, rss, era5, merra, jra = \
+#                    read_csv(DATALOC + "SotC_AnnTemps_2020_0520_LTTGL.csv")
+
                 raobcore, rich, ratpac, UAH, rss, era5, merra, jra = \
-                    read_csv(DATALOC + "SotC_AnnTemps_2020_0520_LTTGL.csv")
+                    read_netcdf_ts(DATALOC + "dunn_timeseries.nc", smooth=True)
+                
 
             plt.clf()
             fig, (ax1, ax2, ax3) = plt.subplots(3, figsize=(8, 10), sharex=True)
 
             # sondes
-            utils.plot_ts_panel(ax1, [raobcore, rich, ratpac], "-", "temperature", loc=LEGEND_LOC)
+            utils.plot_ts_panel(ax1, [raobcore, ratpac, rich], "-", "temperature", loc=LEGEND_LOC)
 
             # satellites
             utils.plot_ts_panel(ax2, [UAH, rss], "-", "temperature", loc=LEGEND_LOC)
@@ -152,8 +233,8 @@ def run_all_plots():
     #            jra_actuals, jra_anoms = utils.read_jra55(settings.REANALYSISLOC + "JRA-55_MSUch2LT_global_ts.txt", "temperature")
     #            merra_actuals, merra_anoms = utils.read_merra_LT_LS(settings.REANALYSISLOC + "MERRA2_MSU_Tanom_ann_{}.dat".format(settings.YEAR), LT=True)
     #            utils.plot_ts_panel(ax3, [erai, era5, jra_anoms, merra_anoms], "-", "temperature", loc=LEGEND_LOC)
-                twenty_cr_actuals = utils.read_20cr(settings.REANALYSISLOC + "tlt.global.txt", "temperature")
-                dummy, twenty_cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, 1981, 2010)
+    #            twenty_cr_actuals = utils.read_20cr(settings.REANALYSISLOC + "tlt.global.txt", "temperature")
+    #            dummy, twenty_cr_anoms = utils.calculate_climatology_and_anomalies_1d(twenty_cr_actuals, 1981, 2010)
 
 
                 utils.plot_ts_panel(ax3, [era5, jra, merra], "-", "temperature", loc=LEGEND_LOC)
@@ -162,10 +243,10 @@ def run_all_plots():
 
 
             # sort formatting
-            plt.xlim([raobcore.times[0]-1, raobcore.times[-1]+1])
-            ax1.set_ylim([-0.89, 0.89])
-            ax2.set_ylim([-0.89, 0.89])
-            ax3.set_ylim([-0.89, 0.89])
+            plt.xlim([jra.times[0]-1, jra.times[-1]+1])
+            ax1.set_ylim([-0.89, 0.99])
+            ax2.set_ylim([-0.89, 0.99])
+            ax3.set_ylim([-0.89, 0.99])
 
             for tick in ax3.xaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE)
@@ -182,7 +263,7 @@ def run_all_plots():
             ax2.text(0.02, 0.9, "(b) Satellites", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
             ax3.text(0.02, 0.9, "(c) Reanalyses", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-            fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+            fig.subplots_adjust(right=0.99, top=0.98, bottom=0.05, hspace=0.001, left=0.15)
 
             plt.savefig(settings.IMAGELOC+"LTT_ts_{}{}".format(region, settings.OUTFMT))
 
@@ -234,8 +315,49 @@ def run_all_plots():
 
 
     #************************************************************************
-    # Read in ERA5 anomalies with record pixels
+    # Read in Annual anomalies with record pixels
     if True:
+        cube_list = iris.load(DATALOC + "dunn_records.nc")
+        names = np.array([c.var_name for c in cube_list])
+
+        loc, = np.where(names == "annual_anomaly_map")[0]
+
+        cube = cube_list[loc]
+
+        # get the RSS data to scatter
+        loc, = np.where(names == "rss_record_mask")[0]
+        record = cube_list[loc]
+
+        lats, lons, data = [], [], []
+        for t, lat in enumerate(record.coord("latitude").points):
+            for n, lon in enumerate(record.coord("longitude").points):
+                if record.data[t, n] == 1:
+                    data += [cube.data[t, n]]
+                    lats += [np.mean(record.coord("latitude").bounds[t])]
+                    lons += [np.mean(record.coord("longitude").bounds[n])]
+
+        # get the UAH data to hatch
+        hatching = copy.deepcopy(cube) # store data from the map
+        loc, = np.where(names == "uah_record_mask")[0]
+        record = cube_list[loc]
+        # apply the mask from UAH
+        hatching.data = np.ma.masked_where(record.data == 0, hatching.data)
+        
+        bounds = np.array([-100, -2.0, -1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5, 2.0, 100])
+
+        cmap = settings.COLOURMAP_DICT["temperature"]
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "LTT_{}_anoms_satellite".format(settings.YEAR), cube, cmap, \
+                                       bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="Satellite", \
+                                   scatter=(lons, lats, data), smarker="dots", hatch=hatching)
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_LTT_{}_anoms_satellite".format(settings.YEAR), cube, cmap, \
+                                       bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
+                                   figtext="(e) Lower Tropospheric Temperature", \
+                                   scatter=(lons, lats, data), smarker="dots", hatch=hatching)
+
+
+    #************************************************************************
+    # Read in ERA anomalies with record pixels
+    if False:
         cube_list = iris.load(DATALOC + "2019TLTAnom_warmest.nc")
         names = np.array([c.var_name for c in cube_list])
 
@@ -247,7 +369,7 @@ def run_all_plots():
         record = cube_list[loc]
         record.coord("latitude").guess_bounds()
         record.coord("longitude").guess_bounds()
-
+ 
         lats, lons, data = [], [], []
         for t, lat in enumerate(record.coord("latitude").points):
             for n, lon in enumerate(record.coord("longitude").points):
@@ -262,6 +384,8 @@ def run_all_plots():
         utils.plot_smooth_map_iris(settings.IMAGELOC + "LTT_{}_anoms_era5".format(settings.YEAR), cube, cmap, \
                                        bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", title="ERA5", \
                                    scatter=(lons, lats, data), smarker="dots")
+
+
         utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_LTT_{}_anoms_era5".format(settings.YEAR), cube, \
                                        cmap, bounds, "Anomalies from 1981-2010 ("+r'$^{\circ}$'+"C)", \
                                        figtext="(e) Lower Tropospheric Temperature", \
@@ -322,6 +446,159 @@ def run_all_plots():
     #                          "Anomaly ("+r'$^{\circ}$'+"C)", cosine=True, extra_ts=mei)
 
 
+
+    #************************************************************************
+    # Timeseries of record high/low.
+    if False:
+        cubelist = iris.load(os.path.join(DATALOC, "dunn_records.nc"))
+
+        names = np.array([c.var_name for c in cube_list])
+
+        loc, = np.where(names == "rss_cold")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        low1 = utils.Timeseries("Coldest", times, cube_list[loc].data)
+        low1.lw = 1
+
+        loc, = np.where(names == "rss_hot")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        high1 = utils.Timeseries("Warmest", times, cube_list[loc].data)
+        high1.lw = 1
+
+        loc, = np.where(names == "uah_cold")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        low2 = utils.Timeseries("Coldest", times, cube_list[loc].data)
+
+        loc, = np.where(names == "uah_hot")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        high2 = utils.Timeseries("Warmest", times, cube_list[loc].data)
+
+        plt.clf()
+        fig, (ax1) = plt.subplots(1, figsize=(8, 6))
+                
+        utils.plot_ts_panel(ax1, [high1, low1], "-", "temperature", loc="upper right")
+        ax1.fill_between(high1.times, high1.data, high2.data, color="r")
+        ax1.fill_between(low1.times, low1.data, low2.data, color="b")
+
+        # manually plot to avoid getting legend entries
+        ax1.plot(high2.times, high2.data, c=settings.COLOURS["temperature"][high2.name], lw=1)
+        ax1.plot(low2.times, low2.data, c=settings.COLOURS["temperature"][low2.name], lw=1)
+
+
+        for tick in ax1.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        ax1.set_ylabel("Global Area (%)", fontsize=settings.LABEL_FONTSIZE)
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"LTT_records{}".format(settings.OUTFMT))
+
+        plt.close()
+
+    #************************************************************************
+    # MEI/N3.4
+    if False:
+
+        cubelist = iris.load(os.path.join(DATALOC, "dunn_records.nc"))
+
+        names = np.array([c.var_name for c in cube_list])
+
+        loc, = np.where(names == "n34")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        n34 = utils.Timeseries(u"Niño 3.4", times, cube_list[loc].data)
+
+        fig, ax1 = plt.subplots(1, figsize=(8, 6))
+
+#        ax1.plot(n34.times, n34.data, c="k", ls="-", lw=2, label="Ni\~no 3.4")
+        ax1.fill_between(n34.times, n34.data, color="b", where=n34.data<0)
+        ax1.fill_between(n34.times, n34.data, color="r", where=n34.data>0)
+
+#        ax1.legend(loc="upper right", ncol=2, frameon=False, prop={'size':settings.FONTSIZE})
+        ax1.set_xlim([1978, int(settings.YEAR)+2])
+        ax1.set_ylabel(u"Niño 3.4", fontsize=settings.FONTSIZE)
+
+        for tick in ax1.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        utils.thicken_panel_border(ax1)
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"LTT_n34_ts{}".format(settings.OUTFMT))
+
+        plt.close()
+
+    #************************************************************************
+    # MEI & records combined
+    if True:
+
+        plt.clf()
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 8), sharex=True)
+
+        cubelist = iris.load(os.path.join(DATALOC, "dunn_records.nc"))
+
+        names = np.array([c.var_name for c in cube_list])
+
+        # N3.4
+        loc, = np.where(names == "n34")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        n34 = utils.Timeseries(u"Niño 3.4", times, cube_list[loc].data)
+
+        ax1.fill_between(n34.times, n34.data, color="b", where=n34.data<0)
+        ax1.fill_between(n34.times, n34.data, color="r", where=n34.data>0)
+
+        ax1.set_xlim([1978, int(settings.YEAR)+2])
+        ax1.set_ylabel(u"Niño 3.4 ("+r'$^{\circ}$'+"C)", fontsize=settings.FONTSIZE)
+
+        for tick in ax1.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax1.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        utils.thicken_panel_border(ax1)
+        ax1.text(0.02, 0.9, "(a)", transform=ax1.transAxes, fontsize=settings.FONTSIZE)
+        # Records
+
+        loc, = np.where(names == "rss_cold")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        low1 = utils.Timeseries("Coldest", times, cube_list[loc].data)
+        low1.lw = 1
+
+        loc, = np.where(names == "rss_hot")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        high1 = utils.Timeseries("Warmest", times, cube_list[loc].data)
+        high1.lw = 1
+
+        loc, = np.where(names == "uah_cold")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        low2 = utils.Timeseries("Coldest", times, cube_list[loc].data)
+
+        loc, = np.where(names == "uah_hot")[0]
+        times = get_times(cube_list[loc].coord("time"))
+        high2 = utils.Timeseries("Warmest", times, cube_list[loc].data)
+              
+        utils.plot_ts_panel(ax2, [high1, low1], "-", "temperature", loc="upper right")
+        ax2.fill_between(high1.times, high1.data, high2.data, color="r")
+        ax2.fill_between(low1.times, low1.data, low2.data, color="b")
+
+        # manually plot to avoid getting legend entries
+        ax2.plot(high2.times, high2.data, c=settings.COLOURS["temperature"][high2.name], lw=1)
+        ax2.plot(low2.times, low2.data, c=settings.COLOURS["temperature"][low2.name], lw=1)
+
+
+        for tick in ax2.yaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax2.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        ax2.set_ylabel("Global Area (%)", fontsize=settings.FONTSIZE)
+        ax2.text(0.02, 0.9, "(b)", transform=ax2.transAxes, fontsize=settings.FONTSIZE)
+
+
+        fig.subplots_adjust(right=0.98, top=0.98, bottom=0.05, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"LTT_n34_records_ts{}".format(settings.OUTFMT))
+
+        plt.close()
+   
     return # run_all_plots
 
 #************************************************************************

@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for River Discharge (and Runoff) (RDC) section.
@@ -6,15 +6,13 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-from __future__ import absolute_import
-from __future__ import print_function
-
+import netCDF4 as ncdf
 import numpy as np
 import iris
 
@@ -31,11 +29,11 @@ COORD_DICT = {"lats" : "latitude", "lons" : "longitude"}
 #************************************************************************
 def fix_coords(cube):
 
-    for coord in ["lats", "lons"]:
+    for coord in ["latitude", "longitude"]:
 
         cube.coord(coord).guess_bounds()
         cube.coord(coord).units = "degrees"  
-        cube.coord(coord).standard_name = COORD_DICT[coord]
+#        cube.coord(coord).standard_name = COORD_DICT[coord]
 
     return cube # fix_coords
 
@@ -44,31 +42,47 @@ def fix_coords(cube):
 #************************************************************************
 # Discharge Map
 
-cube_list = iris.load(data_loc + "discharge.{}.nc".format(settings.YEAR))
+#cube_list = iris.load(data_loc + "watflw_1981-2010_{}.nc".format(settings.YEAR))
+# cube = fix_coords(cube_list[0])[0]
+# cube.data = np.ma.masked_where(cube.data == 0, cube.data)
+# mask = cube.data.mask
 
-cube = fix_coords(cube_list[0])
+# 2020 build via netcdf as for some reason resetting the plot extent wiped the map
+ncfile = ncdf.Dataset(data_loc + "watflw_1981-2010_{}.nc".format(settings.YEAR))
 
-#cube.data = np.ma.masked_where(np.logical_and(cube.data < 20, cube.data > -20), cube.data)
-mask = cube.data.mask
+var=ncfile.variables["watflw"][:] # this is a masked array
+nlons = ncfile.variables["lon"][:]
+nlats = ncfile.variables["lat"][:]
+
+cube = utils.make_iris_cube_2d(var[0], nlats, nlons, "RDC", "m3/s")
 
 bounds = [-10000, -1000, -500, -100, -50, -25, 25, 50, 100, 500, 1000, 10000]
 
-utils.plot_smooth_map_iris(image_loc + "RDC_discharge_{}_jra55".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_discharge_{}_jra55".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (m".format(int(settings.YEAR)-1)+r'$^{3}$'+" s"+r'$^{-1}$'+")", figtext="(o) River Discharge")
+utils.plot_smooth_map_iris(image_loc + "RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (m"+r'$^{3}$'+" s"+r'$^{-1}$'+")")
+utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_discharge_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (m"+r'$^{3}$'+" s"+r'$^{-1}$'+")", figtext="(p) River Discharge")
+
 
 #************************************************************************
 # Runoff Map
 
-cube_list = iris.load(data_loc + "runoff.{}.nc".format(settings.YEAR))
+# cube_list = iris.load(data_loc + "runoffgw_1981-2010_{}.nc".format(settings.YEAR))
 
-cube = fix_coords(cube_list[0])
-cube.data = np.ma.array(cube.data)
-cube.data.mask = mask
+# cube = fix_coords(cube_list[0])
+# cube.data = np.ma.array(cube.data)
+# cube.data.mask = mask
 
+# 2020 build via netcdf as for some reason resetting the plot extent wiped the map
+ncfile = ncdf.Dataset(data_loc + "runoffgw_1981-2010_{}.nc".format(settings.YEAR))
+
+var=ncfile.variables["runoffgw"][:] # this is a masked array
+nlons = ncfile.variables["lon"][:]
+nlats = ncfile.variables["lat"][:]
+
+cube = utils.make_iris_cube_2d(var[0], nlats, nlons, "RDC", "mm/yr")
 bounds = [-10000, -500, -250, -100, -50, -25, 25, 50, 100, 250, 500, 10000]
 
-utils.plot_smooth_map_iris(image_loc + "RDC_runoff_{}_jra55".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")")
-utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_runoff_{}_jra55".format(settings.YEAR), cube[0], settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1958-{} (mm yr".format(int(settings.YEAR)-1)+r'$^{-1}$'+")", figtext="(p) Runoff")
+utils.plot_smooth_map_iris(image_loc + "RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm yr"+r'$^{-1}$'+")")
+utils.plot_smooth_map_iris(image_loc + "p2.1_RDC_runoff_{}_jra55".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm yr"+r'$^{-1}$'+")", figtext="(o) Runoff")
 
 
 #************************************************************************

@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 #************************************************************************
 #
 #  Plot figures and output numbers for Upper Air Winds (UAW) section.
@@ -9,9 +6,9 @@ from __future__ import print_function
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
@@ -142,7 +139,77 @@ def read_QBO(filename):
 
     return qbo # read_QBO
 
+#************************************************************************
+def read_singapore_qbo(year):
 
+    levels = []
+    data = []
+
+    with open(DATALOC + "singapore.dat", "r") as infile:
+        read = False
+        last_line = ""
+        for line in infile:
+            line = line.split()
+
+            if len(line) == 0:
+                # reset reading
+                read = False
+                continue
+
+            elif line[0] == "hPa":
+                continue
+                
+            if not read and line[0] == str(year):
+                read = True
+                continue
+
+            elif read:
+                if len(line) > 0:
+
+                    levels += [int(line[0])]
+                    data += [[float(l)*0.1 for l in line[1:]]]
+
+
+    # convert ot arrays and reorder
+    levels = np.array(levels)
+    levels = levels[::-1]
+    data = np.array(data)
+    data = data[::-1, :]
+
+    return levels, data # read_singapore_qbo
+
+#************************************************************************
+def read_berlin_qbo(levels):
+
+    times = []
+    dttimes = []
+    data = np.zeros((levels.shape[0], 13))
+    factor = 0.1
+    j = 0
+
+    with open(DATALOC + "qbo.dat", "r") as infile:
+
+        for line in infile:
+            line = line.split()
+
+            if len(line) > 0:
+
+                # get current year
+                try:
+                    if int(line[1][:2]) >= int(settings.YEAR[-2:]) and int(line[1][:2]) <= int(settings.YEAR[-2:])+1:
+                        month = int(line[1][-2:])
+                        times += [month]
+                        dttimes += [dt.datetime(int(settings.YEAR), month, 1)]
+                        data[:, j] = [float(i)*factor for i in line[2:]]
+                        j += 1
+                except ValueError:
+                    pass
+
+    data = np.array(data)
+    times = np.array(times)
+    times[-1] += 12
+
+    return times, data
 
 #************************************************************************
 def run_all_plots():
@@ -227,10 +294,10 @@ def run_all_plots():
 
         # Globe
     #    grasp, erai, cera, merra, jra55 = read_uaw_ts(DATALOC + "Globe850.nc", annual=True)
-        era5, erai, merra, jra55 = read_uaw_ts(DATALOC + "Globe850_v2.nc", annual=True)
+        era5, erai, merra, jra55 = read_uaw_ts(DATALOC + "Globe850.nc", annual=True)
         utils.plot_ts_panel(ax, [merra, erai, era5, jra55], "-", "circulation", \
                             loc=LEGEND_LOC, ncol=2, extra_labels=[" (0.03)", " (0.07)", \
-                                                                      " (0.03)", " (0.06)"])
+                                                                      " (0.03)", " (0.05)"])
 
         # sort formatting
         for tick in ax.xaxis.get_major_ticks():
@@ -240,7 +307,7 @@ def run_all_plots():
             tick.label.set_fontsize(settings.FONTSIZE) 
 
         # x + y limit
-        ax.set_xlim([1958, int(settings.YEAR)+0.9])
+        ax.set_xlim([1948, int(settings.YEAR)+2])
         ax.set_ylim([-0.39, 1.0])
         ax.yaxis.set_ticks_position('left')
         ax.set_ylabel("Wind Anomaly (m s"+r'$^{-1}$'+")", fontsize=settings.LABEL_FONTSIZE)
@@ -289,61 +356,35 @@ def run_all_plots():
         # Read in ERA5 anomalies
 
         # IRIS doesn't like the Conventions attribute
-        ncfile = ncdf.Dataset(DATALOC + "ERA5_850_u.nc", 'r')
+        ncfile = ncdf.Dataset(DATALOC + "ERA5_850_v.nc", 'r')
 
-        var = ncfile.variables["u"][:] # this is a masked array
+        var = ncfile.variables["v"][:] # this is a masked array
         lons = ncfile.variables["longitude"][:]
         lats = ncfile.variables["latitude"][:]
 
         ncfile.close()
 
         # monthly data, so take mean
-        print("not complete year used in 2019")
-        mean = np.mean(var[7:], axis=0)
+        print("not complete year used in 2020 - Sept-Dec")
+        mean = np.mean(var[8:], axis=0)
 
         cube = utils.make_iris_cube_2d(mean, lats, lons, "UAW_ANOM", "m/s")
 
         bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UAW_{}_anoms_era5".format(settings.YEAR), \
-                                       cube, settings.COLOURMAP_DICT["circulation"], bounds, \
+                                       cube, settings.COLOURMAP_DICT["circulation_r"], bounds, \
                                        "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")", \
-                                       figtext="(w) Upper Air (850-hPa) Eastward Winds (ASOND)")
+                                       figtext="(w) Upper Air (850-hPa) Northward Winds (SOND)")
         utils.plot_smooth_map_iris(settings.IMAGELOC + "UAW_{}_anoms_era5".format(settings.YEAR), \
-                                       cube, settings.COLOURMAP_DICT["circulation"], bounds, \
+                                       cube, settings.COLOURMAP_DICT["circulation_r"], bounds, \
                                        "Anomalies from 1981-2010 (m s"+r'$^{-1}$'+")")
 
     #************************************************************************
     # QBO plot - https://www.geo.fu-berlin.de/en/met/ag/strat/produkte/qbo/index.html
     if False:
         levels = np.array([70., 50., 40., 30., 20., 15., 10.])
-        times = []
-        dttimes = []
-        data = np.zeros((levels.shape[0], 13))
-        factor = 0.1
-        j = 0
-
-        with open(DATALOC + "qbo.dat", "r") as infile:
-
-            for line in infile:
-                line = line.split()
-
-                if len(line) > 0:
-
-                    # get current year
-                    try:
-                        if int(line[1][:2]) >= int(settings.YEAR[-2:]) and int(line[1][:2]) <= int(settings.YEAR[-2:])+1:
-                            month = int(line[1][-2:])
-                            times += [month]
-                            dttimes += [dt.datetime(int(settings.YEAR), month, 1)]
-                            data[:, j] = [float(i)*factor for i in line[2:]]
-                            j += 1
-                    except ValueError:
-                        pass
-
-        data = np.array(data)
-        times = np.array(times)
-        times[-1] += 12
+        times, data = read_berlin_qbo(levels)
 
         # And now plot
         cmap = settings.COLOURMAP_DICT["circulation"]
@@ -391,85 +432,62 @@ def run_all_plots():
 
 
     #************************************************************************
-    # https://www.geo.fu-berlin.de/met/ag/strat/produkte/qbo/singapore2019.dat
+    # https://www.geo.fu-berlin.de/met/ag/strat/produkte/qbo/singapore.dat
+
     if True:
-        levels = []
-        times = np.arange(1, 13, 1)
-        data = []
-        factor = 0.1
-        j = 0
 
-        with open(DATALOC + "singapore{}.dat".format(settings.YEAR), "r") as infile:
-            read = False
-            for line in infile:
-                line = line.split()
-                if len(line) == 0:
-                    continue
+        for year in [2016, 2020]:
+      
+            times = np.arange(1, 13, 1)
+            levels, data = read_singapore_qbo(year)
 
-                if line[0] == "hPa":
-                    read = True
-                    continue
-                elif read:
-                    
-                    if len(line) > 0:
+            # And now plot
+            cmap = settings.COLOURMAP_DICT["circulation"]
+            bounds = [-100., -45., -30., -15., -10., -5., 0., 5., 10., 15., 30., 45., 100]
+            norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-                        levels += [int(line[0])]
-                        data += [[float(l)*0.1 for l in line[1:]]]
-                        
-                else:
-                    continue
+            fig = plt.figure(figsize=(8, 8))
+            plt.clf()
+            ax = plt.axes([0.12, 0.07, 0.85, 0.9])
 
-        # convert ot arrays and reorder
-        levels = np.array(levels)
-        levels = levels[::-1]
-        data = np.array(data)
-        data = data[::-1, :]
+            times, levels = np.meshgrid(times, levels)
 
-        # And now plot
-        cmap = settings.COLOURMAP_DICT["circulation"]
-        bounds = [-100., -45., -30., -15., -10., -5., 0., 5., 10., 15., 30., 45., 100]
-        norm = mpl.cm.colors.BoundaryNorm(bounds, cmap.N)
+            # show 0-level as dark line
+            plt.contour(times, levels, data, levels=[0], colors=("k",), linestyles=("-",))
+            con = plt.contourf(times, levels, data, bounds, cmap=cmap, norm=norm, vmax=bounds[-1], vmin=bounds[1])
 
-        fig = plt.figure(figsize=(8, 8))
-        plt.clf()
-        ax = plt.axes([0.12, 0.07, 0.85, 0.9])
+            plt.ylabel("Pressure (hPa)", fontsize=settings.FONTSIZE)
+            plt.xlabel(year, fontsize=settings.FONTSIZE)
+            dttimes = [dt.datetime(int(year), m+1, 1) for m in range(12)]
+            plt.xticks(times[0], [dt.datetime.strftime(d, "%b") for d in dttimes], fontsize=settings.FONTSIZE)
 
-        times, levels = np.meshgrid(times, levels)
+            plt.xlim([1, 12])
+            plt.ylim([100, 10])
 
-        con = plt.contourf(times, levels, data, bounds, cmap=cmap, norm=norm, vmax=bounds[-1], vmin=bounds[1])
+            ax.set_yscale("log", subsy=[])
+            plt.gca().yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10))
+            plt.gca().yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+            plt.gca().yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
 
-        plt.ylabel("Pressure (hPa)", fontsize=settings.FONTSIZE)
-        plt.xlabel(settings.YEAR, fontsize=settings.FONTSIZE)
-        dttimes = [dt.datetime(int(settings.YEAR), m+1, 1) for m in range(12)]
-        plt.xticks(times[0], [dt.datetime.strftime(d, "%b") for d in dttimes], fontsize=settings.FONTSIZE)
+            plt.yticks(np.arange(100, 0, -10), ["{}".format(l) for l in np.arange(100, 0, -10)], fontsize=settings.FONTSIZE)
 
-        plt.xlim([1, 12])
-        plt.ylim([100, 10])
+            # colourbar and prettify
+            cb = plt.colorbar(con, orientation='horizontal', pad=0.1, fraction=0.05, aspect=30, \
+                                  ticks=bounds[1:-1], drawedges=True)
 
-        ax.set_yscale("log", subsy=[])
-        plt.gca().yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10))
-        plt.gca().yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-        plt.gca().yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+            cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
+            cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
+            cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in')
 
-        plt.yticks(np.arange(100, 0, -10), ["{}".format(l) for l in np.arange(100, 0, -10)], fontsize=settings.FONTSIZE)
+            cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
+        #    cb.outline.set_color('k')
+            cb.outline.set_linewidth(2)
+            cb.dividers.set_color('k')
+            cb.dividers.set_linewidth(2)
 
-        # colourbar and prettify
-        cb = plt.colorbar(con, orientation='horizontal', pad=0.1, fraction=0.05, aspect=30, \
-                              ticks=bounds[1:-1], drawedges=True)
+            utils.thicken_panel_border(ax)
 
-        cb.set_ticklabels(["{:g}".format(b) for b in bounds[1:-1]])
-        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
-        cb.ax.tick_params(axis='x', labelsize=settings.FONTSIZE, direction='in')
-
-        cb.set_label(label="zonal wind (m/s)", fontsize=settings.FONTSIZE)
-    #    cb.outline.set_color('k')
-        cb.outline.set_linewidth(2)
-        cb.dividers.set_color('k')
-        cb.dividers.set_linewidth(2)
-
-        utils.thicken_panel_border(ax)
-
-        plt.savefig(settings.IMAGELOC+"UAW_levels{}".format(settings.OUTFMT))    
+            plt.savefig(settings.IMAGELOC+"UAW_levels_{}{}".format(year, settings.OUTFMT))    
 
     #************************************************************************
     # 200hPa winds in 1980 and 2018    

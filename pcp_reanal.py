@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Sidebar on Reanalyses and Precip.

@@ -6,20 +6,17 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import datetime as dt
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 
 import utils # RJHD utilities
 import settings
@@ -32,7 +29,6 @@ image_loc = "{}/{}/images/".format(settings.ROOTLOC, settings.YEAR)
 LEGEND_LOC = 'lower left'
 
 START = dt.datetime(2002, 8, 1)
-END = dt.datetime(2017, 12, 1)
 MDI = -999.9
 
 NOGRACE = [dt.datetime(2002, 6, 15), dt.datetime(2002, 7, 15), dt.datetime(2003, 6, 15), dt.datetime(2011, 1, 15), \
@@ -122,6 +118,7 @@ def read_hovmuller_2015(data_loc):
 
     :returns: times, latitudes and data
     '''
+    END = dt.datetime(2017, 12, 1)
 
     # initialise the counters
     year = START.year
@@ -297,8 +294,8 @@ def read_map_data(filename):
     
     grace = np.genfromtxt(filename, dtype=(float))
 
-    lats = grace[:, 0]
-    lons = grace[:, 1]
+    lats = grace[:, 1]
+    lons = grace[:, 0]
     anoms = grace[:, 2]
 
     longitudes = np.unique(lons)
@@ -352,7 +349,6 @@ def run_all_plots():
         #*******************
         # prettify
         ax1.set_ylim([-5.2, 2.3])
-        ax1.set_xlim([2003, int(settings.YEAR)+1.3])
         ax1.set_ylabel("Anomaly (cm)", fontsize=settings.FONTSIZE)
 
         for tick in ax1.yaxis.get_major_ticks():
@@ -360,6 +356,11 @@ def run_all_plots():
         for tick in ax1.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
 
+        minorLocator = MultipleLocator(1)
+        ax1.xaxis.set_minor_locator(minorLocator)
+        majorLocator = MultipleLocator(5)
+        ax1.xaxis.set_major_locator(majorLocator)
+        ax1.set_xlim([2001, int(settings.YEAR)+2])
         plt.savefig(settings.IMAGELOC+"TWS_ts{}".format(settings.OUTFMT))
         plt.close()
 
@@ -386,7 +387,7 @@ def run_all_plots():
     #************************************************************************
     # Difference Map
     if True:
-        cube = read_map_data(DATALOC + "tws_changes_{}-{}_2.txt".format(settings.YEAR, int(settings.YEAR)-1))
+        cube = read_map_data(DATALOC + "JPLM06v2_{}-{}.txt".format(settings.YEAR, int(settings.YEAR)-1))
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TWS_{}_diffs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Difference between {} and {} Equivalent Depth of Water (cm)".format(settings.YEAR, int(settings.YEAR)-1), figtext="(q) Terrestrial Water Storage")
 

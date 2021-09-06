@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -85,6 +82,12 @@ def read_ncdf_ts(filename, domain="L"):
     loc, = np.where(names == "Time")[0]
     times = cube_list[loc].data
 
+    jra = utils.Timeseries("JRA-55", [], [])
+    merra2 = utils.Timeseries("MERRA-2", [], [])
+    era5 = utils.Timeseries("ERA5", [], [])
+    satellite = utils.Timeseries("Satellite RO", [], [])
+    obs = utils.Timeseries("RSS", [], [])
+
     for name in names:
         # skip wrong domains
         if domain == "L" and "Land" not in name:
@@ -104,14 +107,14 @@ def read_ncdf_ts(filename, domain="L"):
             merra2 = utils.Timeseries("MERRA-2", times, cube.data)
         elif "ERA" in name:
             era5 = utils.Timeseries("ERA5", times, cube.data)
-        elif "COSMIC" in name:
-             cosmic = utils.Timeseries("COSMIC RO", times, cube.data)
+        elif "Satellite" in name:
+            satellite = utils.Timeseries("Satellite RO", times, cube.data)
         elif "GNSS" in name:
-             obs = utils.Timeseries("GNSS", times, cube.data)
+            obs = utils.Timeseries("GNSS", times, cube.data)
         elif "RAD" in name:
-             obs = utils.Timeseries("RSS", times, cube.data)
+            obs = utils.Timeseries("RSS", times, cube.data)
         
-    return merra2, era5, jra, cosmic, obs  # read_ncdf_ts
+    return merra2, era5, jra, satellite, obs  # read_ncdf_ts
 
 
 #************************************************************************
@@ -152,22 +155,37 @@ def read_ncdf_hovmuller(filename):
 
     cube_list = iris.load(filename)
 
-    for cube in cube_list:
+    if len(cube_list) > 1:
+        for cube in cube_list:
 
-        if cube.var_name == "Latitude":
-            latitudes = cube.data
-        elif cube.var_name == "Time":
-            times = cube.data
-            # months since 1900
-            times = times/12.
-            times += START
-        else:
-            data = cube.data.T
+            if cube.var_name in ["Latitude", "latitude"]:
+                latitudes = cube.data
+            elif cube.var_name in ["Time", "time"]:
+                times = cube.data
+                # months since 1900
+                times = times/12.
+                times += START
+            else:
+                data = cube.data.T
 
+    else:
+        cube = cube_list[0]
+        try:
+            iris.util.promote_aux_coord_to_dim_coord(cube, "time")
+            iris.util.promote_aux_coord_to_dim_coord(cube, "latitude")
+        except:
+            input("stop")
+
+        times = cube.coord("time").points
+        times = times/12.
+        times += START
+        latitudes = cube.coord("latitude").points
+        data = cube.data.T  
+            
     return times, latitudes, data # read_ncdf_hovmuller
 
 #************************************************************************
-def read_map_data(filename):
+def read_map_data(filename, offset=1):
     '''
     Read data for maps and convert to cube.  Given as single list files
 
@@ -177,7 +195,7 @@ def read_map_data(filename):
     '''
     
 
-    anoms, lats, lons = read_scatter_data(filename)
+    anoms, lats, lons = read_scatter_data(filename, offset=offset)
 
     longitudes = np.unique(lons)
     latitudes = np.unique(lats)
@@ -238,7 +256,7 @@ def read_ncdf_scatter_data(filename):
     return anoms, lats, lons
 
 #************************************************************************
-def read_scatter_data(filename):
+def read_scatter_data(filename, offset=1):
     '''
     Read data for maps and return data, latitudes and longitudes
 
@@ -247,38 +265,64 @@ def read_scatter_data(filename):
     :returns: anomalies, latitudes, longitudes
     '''
 
-    all_jra = np.genfromtxt(filename, dtype=(float), skip_header=2)
+    all_data = np.genfromtxt(filename, dtype=(float))#, skip_header=2)
 
-    lats = all_jra[:, 0]
-    lons = all_jra[:, 1]
-    anoms = all_jra[:, 2]
+    lats = all_data[:, offset]
+    lons = all_data[:, offset+1]
+    anoms = all_data[:, offset+2]
 
     return anoms, lats, lons
 
-# #************************************************************************
-def read_COSMIC_late(filename, era, annual=True, do_era=False):
+#************************************************************************
+def read_satelliteRO(filename):
 
     all_data = np.genfromtxt(filename, dtype=(float))
 
     all_data = np.ma.masked_where(all_data == -99.9, all_data)
 
     # convert the years and months to give decimals
-    all_years = all_data[:, 0]
-    months = all_data[:, 1]
-    all_times = all_years + (months - 1)/12.
+    years = all_data[:, 0]
+    data = all_data[:, 1]
 
-    if annual:
-        years = all_years[::12]
-        yearly = utils.annual_average(all_data[:, 2])
+    return utils.Timeseries("Satellite RO", years, data) # read_satelliteRO
 
-        if do_era:
-            locs = np.in1d(era.times, years)
-            era_mean = np.ma.mean(era.data[locs])
-            input(era_mean)
-            return utils.Timeseries("COSMIC RO", years, yearly+era_mean) 
-        return utils.Timeseries("COSMIC RO", years, yearly) 
+#************************************************************************
+def read_GNSS():
+
+    monthly = False
+    annual = not(monthly)
+
+    if monthly:
+        filename = DATALOC + "GNSS_TCWV_monthly_anomalies_ref_2006_2014_205sta_1merge.txt"
+        
+        all_data = np.genfromtxt(filename, dtype=(float))
+        
+        all_data = np.ma.masked_where(all_data == -99.9, all_data)
+        
+        # convert the years and months to give decimals
+        all_years = all_data[:, 0]
+        months = all_data[:, 1]
+        all_times = all_years + (months - 1)/12.
+
+        monthly = all_data[:, 2]
+
+        return utils.Timeseries("GNSS (Ground Based)", months, monthly) 
+
+    elif annual:
+        filename = DATALOC + "GNSS_TCWV_yearly_anomalies_ref_2006_2014_205sta_1merge.txt"
+
+        all_data = np.genfromtxt(filename, dtype=(float))
+
+        all_data = np.ma.masked_where(all_data == -99.9, all_data)
+        
+        years = all_data[:, 0]
+
+        yearly = all_data[:, 1]
+
+        return utils.Timeseries("GNSS (Ground Based)", years, yearly) 
+
     else:
-        return utils.Timeseries("COSMIC RO", all_times, all_data[:, 2]) # read_COSMIC_late
+        return # read_GNSS
 
 #************************************************************************
 def run_all_plots():
@@ -288,46 +332,35 @@ def run_all_plots():
     if True:
         # land
 #        merra2_land, erai_land, era5_land, jra_land, cosmic_land, gnss_land=read_csv(DATALOC + "time_series_tpw_land.txt", domain="L")
-        merra2_land, era5_land, jra_land, cosmic_land, gnss_land = read_ncdf_ts(DATALOC + "TPW_2019_anom_TS.v2.nc", domain="L")
-        dummy, dummy, dummy, cosmic_land, dummy = read_ncdf_ts(DATALOC + "TPW_2019_anom_TS.COSMIC_WRONG.nc", domain="L")
-        gnss_land.name = "GNSS (Ground Based)"
-        
+        merra2_land, era5_land, jra_land, satellite_land, gnss_land = read_ncdf_ts(DATALOC + "TPW_{}_anom_TS_v2.nc".format(settings.YEAR), domain="L")
+
+        gnss_land = read_GNSS()
+        satellite_land = read_satelliteRO(DATALOC + "anom_RO_land.txt")
 
         # ocean
 #        merra2_ocean, erai_ocean, era5_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = read_csv(DATALOC + "time_series_tpw_ocean.txt", domain="O")
-        merra2_ocean, era5_ocean, jra_ocean, cosmic_ocean, radiometer_ocean = read_ncdf_ts(DATALOC + "TPW_2019_anom_TS.v2.nc", domain="O")
-        dummy, dummy, dummy, cosmic_ocean, dummy = read_ncdf_ts(DATALOC + "TPW_2019_anom_TS.COSMIC_WRONG.nc", domain="O")
+        merra2_ocean, era5_ocean, jra_ocean, satellite_ocean, radiometer_ocean = read_ncdf_ts(DATALOC + "TPW_{}_anom_TS_v2.nc".format(settings.YEAR), domain="O")
         radiometer_ocean.name = "RSS Satellite"
-
-
-        # updated file June 2020
-        print("remove this from June 2020")
-        alldata = np.genfromtxt(DATALOC + "TCWV_2020_ts_updated.dat")
-        alldata = np.ma.masked_where(alldata == 0.0, alldata)
-        cosmic_land = utils.Timeseries("COSMIC RO", alldata[:, 0], alldata[:, 7])
-        cosmic_ocean = utils.Timeseries("COSMIC RO", alldata[:, 0], alldata[:, 2])
-
+        satellite_ocean = read_satelliteRO(DATALOC + "anom_RO_ocean.txt")
 
         #************************************************************************
         # Timeseries figures
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=(8, 10), sharex=True)
 
         # Obs - ocean
-        utils.plot_ts_panel(ax1, [radiometer_ocean, cosmic_ocean], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
+        utils.plot_ts_panel(ax1, [radiometer_ocean, satellite_ocean], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
         # Reanalyses - ocean
         utils.plot_ts_panel(ax2, [era5_ocean, jra_ocean, merra2_ocean], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
         # Obs - land
-        utils.plot_ts_panel(ax3, [gnss_land, cosmic_land], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
+        utils.plot_ts_panel(ax3, [gnss_land, satellite_land], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
         # Reanalyses - land
         utils.plot_ts_panel(ax4, [era5_land, jra_land, merra2_land], "-", "hydrological", loc=LEGEND_LOC, bbox=BBOX)
 
 
         # prettify
-        fig.subplots_adjust(right=0.95, top=0.95, hspace=0.001)
-
         for tick in ax4.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
         for ax in [ax1, ax2, ax3, ax4]:
@@ -335,20 +368,23 @@ def run_all_plots():
             ax.yaxis.set_ticks([-1, -0.5, 0, 0.5, 1])
             for tick in ax.yaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE) 
-        plt.xlim([1979,int(settings.YEAR)+1])
+        plt.xlim([1979, int(settings.YEAR)+2])
 
         # sort labelling
-        ax1.text(0.02, 0.88, "(a) Observations Ocean", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
-        ax2.text(0.02, 0.88, "(b) Reanalyses Ocean", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
-        ax3.text(0.02, 0.88, "(c) Observations Land", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
-        ax4.text(0.02, 0.88, "(d) Reanalyses Land", transform=ax4.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax1.text(0.02, 0.86, "(a) Observations Ocean", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax2.text(0.02, 0.86, "(b) Reanalyses Ocean", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax3.text(0.02, 0.86, "(c) Observations Land", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax4.text(0.02, 0.86, "(d) Reanalyses Land", transform=ax4.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
         fig.text(0.03, 0.5, "Anomalies (mm)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
-        plt.savefig(settings.IMAGELOC+"TCW_ts_v3{}".format(settings.OUTFMT))
+        fig.subplots_adjust(right=0.98, top=0.985, bottom=0.05, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"TCW_ts{}".format(settings.OUTFMT))
         plt.close()
         
         if False:
+            # for SotC 2019 (in June 2020)
             with open("TCW_2020_ts.dat", "w") as outfile:
                 outfile.write("year \t RadiometerO \t CosmicO \t ERA5O   \t JRA555O \t MERRA2O \t GNSSL   \t CosmicL \t ERA5L   \t JRA55L \t MERRA2L\n")
                 for t, time in enumerate(era5_ocean.times):
@@ -368,41 +404,47 @@ def run_all_plots():
     # ERA5 Hovmuller figure
     if True:
 #        times, latitudes, data = read_hovmuller(DATALOC + "data_for_tpw_hofmueller_{}_ERA5.txt".format(settings.YEAR))
-        times, latitudes, data = read_ncdf_hovmuller(DATALOC + "TPW_2019_anom_time_lat.nc")
+        times, latitudes, data = read_ncdf_hovmuller(DATALOC + "TPW_{}_anom_time_lat.nc".format(settings.YEAR))
 
         bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
 
         utils.plot_hovmuller(settings.IMAGELOC + "TCW_hovmuller_era5", times, latitudes, data.T, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomaly (mm)")
 
     #************************************************************************
-    # Microwave, Cosmic and GNSS figure - plate 2.1
+    # RSS and satellites
     bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
     if True:
 #        cosmic = read_map_data(DATALOC + "rss_cosmic_data_for_tpw_map_{}.1981_2010.txt".format(settings.YEAR))
-        cosmic = read_ncdf_map_data(DATALOC + "TPW_2019_anom_maps.nc", "RSS_COSMIC")
+        cosmic = read_ncdf_map_data(DATALOC + "TPW_{}_anom_maps.nc".format(settings.YEAR), "RSS_COSMIC")
 
-#        gnss_anoms, gnss_lats, gnss_lons = read_scatter_data(DATALOC + "GNSS_ground_stations_tpw_{}.1981_2010.txt".format(settings.YEAR))
-        gnss_anoms, gnss_lats, gnss_lons = read_ncdf_scatter_data(DATALOC + "TPW_2019_anom_maps.nc")
 
-        # March 2020 - updated file
-        all_gnss = np.genfromtxt(DATALOC + "GNSS_TCWV_anomaly_2019_ref_2006_2014.txt")
-        gnss_lats = all_gnss[:, 1].astype(float)
-        gnss_lons = all_gnss[:, 2].astype(float)
-        gnss_anoms = all_gnss[:, 3].astype(float)
-        
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "TCW_{}_anoms_rss_satellite".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", title="RSS+Satellite RO")
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TCW_{}_anoms_cosmic".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", figtext="(r) Total Column Water Vapour", scatter=(gnss_lons, gnss_lats, gnss_anoms))
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "TCW_{}_anoms_cosmic".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+        gnss_anoms, gnss_lats, gnss_lons = read_scatter_data(DATALOC + "GNSS_TCWV_anomaly_{}_ref_2006_2014_236sta_1merge.txt".format(settings.YEAR))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "TCW_{}_anoms_rss_satellite_gnss".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", title="RSS+Satellite RO", scatter=(gnss_lons, gnss_lats, gnss_anoms))
 
+
+   #************************************************************************
+    # GNSS RO figure
+    bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
+    if False:
+        cosmic = read_map_data(DATALOC + "GNSSRO_TPW_{}_anom_maps_from_Ben.txt".format(settings.YEAR), offset=0)
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "TCW_{}_anoms_gnssro".format(settings.YEAR), cosmic, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)")
 
     #************************************************************************
     # ERA and GNSS figure
+    bounds = np.array([-100, -6, -3, -1.5, -0.5, 0, 0.5, 1.5, 3, 6, 100])
     if True:
 #        era5 = read_map_data(DATALOC + "ERA5_data_for_tpw_map_{}.1981_2010.txt".format(settings.YEAR))
-        era5 = read_ncdf_map_data(DATALOC + "TPW_2019_anom_maps.nc", "ERA5")
+        era5 = read_ncdf_map_data(DATALOC + "TPW_{}_anom_maps.nc".format(settings.YEAR), "ERA5")
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "TCW_{}_anoms_era5".format(settings.YEAR), era5, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", scatter=(gnss_lons, gnss_lats, gnss_anoms))
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TCW_{}_anoms_era5".format(settings.YEAR), era5, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", figtext="(i) Total Column Water Vapour", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+        gnss_anoms, gnss_lats, gnss_lons = read_scatter_data(DATALOC + "GNSS_TCWV_anomaly_{}_ref_2006_2014_236sta_1merge.txt".format(settings.YEAR))
+#        gnss_anoms, gnss_lats, gnss_lons = read_ncdf_scatter_data(DATALOC + "TPW_{}_anom_maps.nc".format(settings.YEAR))
+
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "TCW_{}_anoms_era5_gnss".format(settings.YEAR), era5, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_TCW_{}_anoms_era5_gnss".format(settings.YEAR), era5, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 1981-2010 (mm)", figtext="(i) Total Column Water Vapour", scatter=(gnss_lons, gnss_lats, gnss_anoms))
+
 
 
     #************************************************************************

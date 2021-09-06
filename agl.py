@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,14 +51,14 @@ def run_all_plots():
     #************************************************************************
     # Glaciers figure
 
-    balance, cumul_balance = read_glacier(DATALOC + "global_mass_balance_2019.csv")
+    balance, cumul_balance = read_glacier(DATALOC + "global_ba_{}.csv".format(settings.YEAR))
 
     fig = plt.figure(figsize=(8, 5.5))
     plt.clf()
     ax1 = plt.axes([0.165, 0.09, 0.7, 0.88])
 
     ax1.bar(balance.times[:-1], balance.data[:-1], color=COLOURS[balance.name], label=balance.name, align="center")
-    ax1.bar(balance.times[-1], balance.data[-1], color=COLOURS[balance.name], label=balance.name, align="center", alpha=0.5)
+    ax1.bar(balance.times[-1], balance.data[-1], color="lightcoral", label=balance.name, align="center") #  hard coded lighter color for current year
 
     ax2 = ax1.twinx()
 
@@ -74,7 +71,7 @@ def run_all_plots():
     ax1.set_xlim([1980, int(settings.YEAR)+2])
     ax1.set_ylim([-2, 0.2])
     ax1.set_ylabel("Mean Specific Annual\nBalance (1000mm w.e.)", fontsize=settings.FONTSIZE, color="r")
-    ax2.set_ylim([-22, 2])
+    ax2.set_ylim([-26, 2])
     ax2.set_ylabel("Cumulative Mean Specific\nAnnual Balance (1000mm w.e.)", fontsize=settings.FONTSIZE)
     minorLocator = MultipleLocator(1)
     ax1.xaxis.set_minor_locator(minorLocator)

@@ -49,6 +49,17 @@ def read_column_csv(filename, era=True):
     return on, off, duration # read_column_csv
 
 #************************************************************************
+def read_separate_csv(filename, era=True):
+
+    raw_data = np.genfromtxt(filename, dtype=(float), skip_header=1, delimiter=",", encoding="latin-1")
+
+    times = raw_data[:, 0]
+    insitu = utils.Timeseries("In Situ", times, raw_data[:, 1])
+    era = utils.Timeseries("ERA5", times, raw_data[:, 2])
+
+    return insitu, era # read_separate_csv
+
+#************************************************************************
 def read_continuous_csv(filename):
 
     all_data = []
@@ -60,7 +71,7 @@ def read_continuous_csv(filename):
         name = ""
         for line in infile:
             sline = line.split(",")
-            if sline[0] == "Year":
+            if sline[0].lower() == "year":
                 continue
             else:
                 if name != "" and name != sline[1]:
@@ -77,9 +88,33 @@ def read_continuous_csv(filename):
     return all_data # read_continuous_csv
 
 #************************************************************************
+def read_greatlakes_csv(filename, era=True):
+
+    raw_data = np.genfromtxt(filename, dtype=(str), delimiter=",", encoding="latin-1")
+
+    times = raw_data[1:, 0].astype(int)
+    timeseries = []
+    for col in range(raw_data.shape[1]):
+        if col == 0:
+            continue
+        # if wanting to autogenerate lake names 
+        ts = utils.Timeseries(raw_data[0, col], times, raw_data[1:, col].astype(float))
+        if raw_data[0, col] == "Average":
+            ts.lw=3
+        else:
+            ts.lw=2
+        timeseries += [ts]
+        # if raw_data[0, col] != "Average":
+        #     timeseries += [utils.Timeseries("Lake", times, raw_data[1:, col].astype(float))]
+        # else:
+        #     timeseries += [utils.Timeseries("All", times, raw_data[1:, col].astype(float))]
+            
+    return timeseries # read_greatlakes_csv
+
+#************************************************************************
 def run_all_plots():
 
-    cubelist = iris.load(os.path.join(DATALOC, "era5_lic_anom_1979_2019_NH.nc".format(settings.YEAR)))
+    cubelist = iris.load(os.path.join(DATALOC, "Fig1a-c.nc"))
     names = np.array([c.name() for c in cubelist])
 
     LABELS = {"Ice Start" : "(a) Ice On", "Ice End" : "(b) Ice Off", "Ice Duration" : "(c) Ice Duration"}
@@ -151,7 +186,7 @@ def run_all_plots():
     #************************************************************************
     # and temperatures
     BOUNDS =  [-100, -4, -3, -2, -1, 0, 1, 2, 3, 4, 100]
-    cubelist = iris.load(os.path.join(DATALOC, "amaps.nc"))
+    cubelist = iris.load(os.path.join(DATALOC, "Fig1d.nc"))
 
     cube = cubelist[0]
 
@@ -209,8 +244,12 @@ def run_all_plots():
 
     #************************************************************************
     # Timeseries
-    era_start, era_end, era_length = read_column_csv(os.path.join(DATALOC, "era5_lic_anom_1979_{}_NH.csv".format(settings.YEAR)))
-    situ_start, situ_end, situ_length = read_column_csv(os.path.join(DATALOC, "situ_lic_anom_1979_{}_NH.csv".format(settings.YEAR)), era=False)
+#    era_start, era_end, era_length = read_column_csv(os.path.join(DATALOC, "era5_lic_anom_1979_{}_NH.csv".format(settings.YEAR)))
+#    situ_start, situ_end, situ_length = read_column_csv(os.path.join(DATALOC, "situ_lic_anom_1979_{}_NH.csv".format(settings.YEAR)), era=False)
+    
+    situ_start, era_start = read_separate_csv(os.path.join(DATALOC, "Fig2a.csv"))
+    situ_end, era_end = read_separate_csv(os.path.join(DATALOC, "Fig2b.csv"))
+    situ_length, era_length = read_separate_csv(os.path.join(DATALOC, "Fig2c.csv"))
     
 
     plt.clf()
@@ -242,20 +281,21 @@ def run_all_plots():
     ax2.text(0.02, 0.9, "(b) End of Ice Cover", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
     ax3.text(0.02, 0.9, "(c) Duration of Ice Cover", transform=ax3.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
-    fig.subplots_adjust(bottom=0.05, right=0.95, top=0.95, hspace=0.001)
+    fig.subplots_adjust(bottom=0.05, right=0.99, top=0.99, hspace=0.001)
   
 
     plt.savefig(settings.IMAGELOC + "LIC_ts_{}{}".format(settings.YEAR, settings.OUTFMT))
 
     #************************************************************************
     # Timeseries
-    indata = read_continuous_csv(os.path.join(DATALOC, "great_lakes_anom.csv"))
+#    indata = read_continuous_csv(os.path.join(DATALOC, "Fig3.csv"))
+    indata = read_greatlakes_csv(os.path.join(DATALOC, "Fig3.csv"))
 
     fig = plt.figure(figsize=(8, 6))
     plt.clf()
     ax = plt.axes([0.1, 0.05, 0.88, 0.9])
 
-    utils.plot_ts_panel(ax, indata, "-", "cryosphere", loc="")
+    utils.plot_ts_panel(ax, indata, "-", "cryosphere", loc="lower left")
 
     fig.text(0.02, 0.5, "Maximum ice cover (anomaly, %)", va='center', rotation='vertical', ha="center", fontsize=settings.FONTSIZE)
 

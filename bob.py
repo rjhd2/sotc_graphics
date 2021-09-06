@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
@@ -55,22 +52,26 @@ def read_data(filename, mdi):
     return cube # read_data
 
 #************************************************************************
-def read_csv(filenameroot, name, make_annual=False):
+def read_csv(filenameroot, name, make_annual=False, suffix=""):
     """
     Read user supplied CSV for LST into Timeseries object
     """
 
-    indata = np.genfromtxt("{}_{}.dat".format(filenameroot, name), delimiter=' ', dtype=(str), skip_header=1)
+    indata = np.genfromtxt("{}_{}{}.dat".format(filenameroot, name, suffix), delimiter=' ', dtype=(str), skip_header=1)
    
-    years = np.array([i[:4] for i in indata[:, 0]]).astype(int)
-    months = np.array([i[-2:] for i in indata[:, 0]]).astype(int)
-
-    times = years + (months - 1)/12.
+    if len(indata[0, 0]) == 4:
+        times = np.array([i for i in indata[:, 0]]).astype(int) + 0.5
+    else:
+        years = np.array([i[:4] for i in indata[:, 0]]).astype(int)
+        months = np.array([i[-2:] for i in indata[:, 0]]).astype(int)
+        times = years + (months - 1)/12.
 
     if name == "GFAS1p4":
         name = "GFASv1.4"
     elif name == "GFAS1p0":
         name = "GFASv1.0"
+    elif name == "":
+        name = ""
 
     if make_annual:
 
@@ -228,7 +229,7 @@ def run_all_plots():
         ax.set_ylim([0, 840])
 
         # sort formatting
-        plt.xlim([1997, int(settings.YEAR) + 2])
+        plt.xlim([1996, int(settings.YEAR) + 2])
 
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
@@ -236,7 +237,7 @@ def run_all_plots():
             tick.label.set_fontsize(settings.FONTSIZE) 
 
         # sort labelling
-        ax.text(0.02, 0.9, "Global", transform=ax.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax.text(0.08, 0.9, "Global", transform=ax.transAxes, fontsize=settings.LABEL_FONTSIZE)
 
         plt.savefig(settings.IMAGELOC+"BOB_ts{}".format(settings.OUTFMT))
         plt.close()
@@ -247,29 +248,37 @@ def run_all_plots():
         majorLocator = MultipleLocator(5)
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize = (8, 10), sharex=True)
 
-        data = read_csv(DATALOC + "timeseries_TAsi", "GFAS1p4")
-        utils.plot_ts_panel(ax1, [data], "-", "land_surface", loc = "")
-        ax1.text(0.02, 0.9, "(a) Tropical Asia", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
-        ax1.set_ylim([0,160])
-
         data = read_csv(DATALOC + "timeseries_Arct", "GFAS1p4")
-        utils.plot_ts_panel(ax2, [data], "-", "land_surface", loc = "")
-        ax2.text(0.02, 0.9, "(b) Arctic", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
-        ax2.set_ylim([0,12])
+        utils.plot_ts_panel(ax1, [data], "-", "land_surface", loc = "")
+        data = read_csv(DATALOC + "timeseries_Arct", "GFAS1p4", suffix="_annual")
+        ax1.plot(data.times, data.data, "rs", ms=10)
+        ax1.text(0.02, 0.85, "(a) Arctic", transform = ax1.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax1.set_ylim([0, 39])
  
         data = read_csv(DATALOC + "timeseries_SEAu", "GFAS1p4")
-        utils.plot_ts_panel(ax3, [data], "-", "land_surface", loc = "")
-        ax3.text(0.02, 0.9, "(c) NSW & Victoria", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
-        ax3.set_ylim([0,16])
+        utils.plot_ts_panel(ax2, [data], "-", "land_surface", loc = "")
+        data = read_csv(DATALOC + "timeseries_SEAu", "GFAS1p4", suffix="_annual")
+        ax2.plot(data.times, data.data, "rs", ms=10)
+        ax2.text(0.02, 0.85, "(b) NSW & Victoria", transform = ax2.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax2.set_ylim([0, 32])
 
-        data = read_csv(DATALOC + "timeseries_SAme", "GFAS1p4")
+        data = read_csv(DATALOC + "timeseries_WeUS", "GFAS1p4")
+        utils.plot_ts_panel(ax3, [data], "-", "land_surface", loc = "")
+        data = read_csv(DATALOC + "timeseries_WeUS", "GFAS1p4", suffix="_annual")
+        ax3.plot(data.times, data.data, "rs", ms=10)
+        ax3.text(0.02, 0.85, "(c) Western US", transform = ax3.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax3.set_ylim([0, 45])
+
+        data = read_csv(DATALOC + "timeseries_SAm+", "GFAS1p4")
         utils.plot_ts_panel(ax4, [data], "-", "land_surface", loc = "")
-        ax4.text(0.02, 0.9, "(d) Southern America", transform = ax4.transAxes, fontsize = settings.LABEL_FONTSIZE)
-        ax4.set_ylim([0,160])
+        data = read_csv(DATALOC + "timeseries_SAm+", "GFAS1p4", suffix="_annual")
+        ax4.plot(data.times, data.data, "rs", ms=10)
+        ax4.text(0.02, 0.85, "(d) South America", transform = ax4.transAxes, fontsize = settings.LABEL_FONTSIZE)
+        ax4.set_ylim([0, 630])
 
         # sort formatting
         plt.xlim([2003, int(settings.YEAR)+2])
-        fig.text(0.03, 0.5, "Tg(C) per month", fontsize = settings.FONTSIZE, rotation="vertical")
+        fig.text(0.03, 0.5, "Tg(C) per month/year", fontsize = settings.FONTSIZE, rotation="vertical")
         ax4.xaxis.set_major_locator(majorLocator)
         for tick in ax4.xaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE) 
@@ -303,7 +312,7 @@ def run_all_plots():
         bounds = [-1000, -100, -40, -10, -5, -1, 1, 5, 10, 40, 100, 1000]
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "BOB_anomalies{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface"], bounds, "Anomalies from 2003-{} (g C m".format(2010)+r'$^{-2}$'+" yr"+r'$^{-1}$'+")")
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_BOB_anomalies{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface"], bounds, "Anomalies from 2003-{} (g C m".format(2010)+r'$^{-2}$'+" yr"+r'$^{-1}$'+")", figtext="(af) Carbon Emissions from Biomass Burning")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_BOB_anomalies{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["land_surface"], bounds, "Anomalies from 2003-{} (g C m".format(2010)+r'$^{-2}$'+" yr"+r'$^{-1}$'+")", figtext="(ag) Carbon Emissions from Biomass Burning")
 
     #************************************************************************
     # Global actuals

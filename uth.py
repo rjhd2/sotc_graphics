@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 31                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-09-06 09:52:46 +0100 (Mon, 06 Sep #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-from __future__ import absolute_import
-from __future__ import print_function
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,7 +23,7 @@ DATALOC = "{}/{}/data/UTH/".format(settings.ROOTLOC, settings.YEAR)
 
 DECIMAL_MONTHS = np.arange(12)/12.
 
-LEGEND_LOC = 'upper left'
+LEGEND_LOC = 'lower left'
 
 #************************************************************************
 def read_ts(filename, start, name, smooth=False):
@@ -129,10 +126,10 @@ def run_all_plots():
         #*******************
         # prettify
 
-        fig.text(0.01, 0.5, "Anomalies (% rh)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
+        fig.text(0.01, 0.5, "Anomalies (%rh)", va='center', rotation='vertical', fontsize=settings.FONTSIZE)
 
         plt.ylim([-2.0, 2.0])
-        plt.xlim([1979, int(settings.YEAR)+1.5])
+        plt.xlim([1978, int(settings.YEAR)+2])
 
         for tick in ax.yaxis.get_major_ticks():
             tick.label.set_fontsize(settings.FONTSIZE)
@@ -140,6 +137,56 @@ def run_all_plots():
             tick.label.set_fontsize(settings.FONTSIZE)
 
         plt.savefig(settings.IMAGELOC+"UTH_ts{}".format(settings.OUTFMT))
+        plt.close()
+
+     #************************************************************************
+    # Upper Tropospheric Humidity 2-panel timeseries figure
+    if True:
+        HIRSSTART = 1979
+        MWSTART = 1999
+        ERASTART = 1979
+        TMTSTART = 1979
+
+        # smooth by 3 months
+        hirs = read_ts(DATALOC + "hirs_data.aa", HIRSSTART, "HIRS", smooth=3)
+        mw = read_ts(DATALOC + "mw_data.aa", MWSTART, "Microwave", smooth=3)
+        era5 = read_ts(DATALOC + "era5_data.aa", ERASTART, "ERA5", smooth=3)
+        tmt = read_ts(DATALOC + "tmt-hirs_data.aa", TMTSTART, "MSU-HIRS", smooth=3)
+
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 8), sharex=True)
+
+        hirs.lw=2
+        mw.lw=2
+        era5.lw=2
+        tmt.lw=2
+
+        utils.plot_ts_panel(ax1, [hirs, mw, era5], "-", "hydrological", loc=LEGEND_LOC, ncol=3)
+        utils.plot_ts_panel(ax2, [tmt], "-", "hydrological", loc=LEGEND_LOC, ncol=1)
+
+        #*******************
+        # prettify
+
+        ax1.set_ylim([-2.09, 2.0])
+        ax2.set_ylim([-1.0, 0.98])
+    
+        ax1.set_ylabel("Anomalies (%rh)", fontsize=settings.FONTSIZE)
+        ax2.set_ylabel("T2-T12 Anomaly (K)", fontsize=settings.FONTSIZE)
+        
+        
+        for ax in [ax1, ax2]:
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(settings.FONTSIZE)
+        for tick in ax2.xaxis.get_major_ticks():
+            tick.label.set_fontsize(settings.FONTSIZE)
+        plt.xlim([1978, int(settings.YEAR)+2])
+
+        # sort labelling
+        ax1.text(0.02, 0.86, "(a) UTH", transform=ax1.transAxes, fontsize=settings.LABEL_FONTSIZE)
+        ax2.text(0.02, 0.86, "(b) T2-T12 difference", transform=ax2.transAxes, fontsize=settings.LABEL_FONTSIZE)
+
+        fig.subplots_adjust(left=0.13, right=0.98, top=0.985, bottom=0.05, hspace=0.001)
+
+        plt.savefig(settings.IMAGELOC+"UTH_2panel_ts{}".format(settings.OUTFMT))
         plt.close()
 
     #************************************************************************
@@ -150,7 +197,7 @@ def run_all_plots():
         bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
     #    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext = "(n) Upper Tropospheric Humidity")
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "UTH_{}_anoms_hirs".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (%rh)")
 
 
     #************************************************************************
@@ -160,8 +207,8 @@ def run_all_plots():
 
         bounds = [-100, -4, -2, -1, -0.5, 0, 0.5, 1, 2, 4, 100]
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)")
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (% rh)", figtext="(j) Upper Tropospheric Humidity")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (%rh)")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_UTH_{}_anoms_mw".format(settings.YEAR), cube, settings.COLOURMAP_DICT["hydrological"], bounds, "Anomalies from 2001-2010 (%rh)", figtext="(j) Upper Tropospheric Humidity")
 
     return # run_all_plots
 

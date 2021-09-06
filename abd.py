@@ -1,4 +1,4 @@
-#!/usr/env/bin python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Surface Albedo (ABD) section.
@@ -6,15 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
 import datetime as dt
 import struct
 import numpy as np
@@ -30,21 +27,24 @@ DATALOC = "{}/{}/data/ABD/".format(settings.ROOTLOC, settings.YEAR)
 
 LEGEND_LOC = "lower left"
 minor_tick_interval = 1
+major_tick_interval = 5
 minorLocator = MultipleLocator(minor_tick_interval)
+majorLocator = MultipleLocator(major_tick_interval)
 
 # http://modis-atmos.gsfc.nasa.gov/ALBEDO/
 
 start = dt.datetime(2003, 1, 1)
-# get difference in days, 10 day period, and add a few.
-PERIOD = 10.
+# get difference in days, 10.15 day period (36 points per year)
+PERIOD = 10.15
 print("faking time axis - {} day period".format(PERIOD))
 print("Built-in round() might cause issues in Python3")
-DURATION = int(round(((dt.datetime(int(settings.YEAR), 12, 31) - start).days)/PERIOD))-9
+DURATION = int(round(((dt.datetime(int(settings.YEAR), 12, 31) - start).days)/PERIOD))
 
 dates = [start + dt.timedelta(days=i*PERIOD) for i in range(DURATION)]
 
 times = np.ma.array([(d - start).days/365.  for d in dates]) + 2003
 times.mask = np.zeros(times.shape)
+
 
 #************************************************************************
 def read_binary(filename):
@@ -142,6 +142,7 @@ def run_all_plots():
             for tick in ax.yaxis.get_major_ticks():
                 tick.label.set_fontsize(settings.FONTSIZE)
             ax.xaxis.set_minor_locator(minorLocator)
+            ax.xaxis.set_major_locator(majorLocator)
             ax.set_yticks(ax.get_yticks()[1:-1])
             ax.yaxis.set_ticks_position('left')
         for tick in ax2.xaxis.get_major_ticks():
@@ -207,10 +208,10 @@ def run_all_plots():
 
         bounds = [-100, -20, -15, -10, -5, 0, 5, 10, 15, 20, 100]
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010), figtext="(ac) Land Surface Albedo in the Visible")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010), figtext="(ad) Land Surface Albedo in the Visible")
         utils.plot_smooth_map_iris(settings.IMAGELOC + "ABD_V_{}".format(settings.YEAR), v_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010))
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010), figtext="(ad) Land Surface Albedo in the Near Infrared")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010), figtext="(ae) Land Surface Albedo in the Near Infrared")
         utils.plot_smooth_map_iris(settings.IMAGELOC + "ABD_NIR_{}".format(settings.YEAR), ir_cube, settings.COLOURMAP_DICT["land_surface_r"], bounds, "Anomalies from 2003-{} (%)".format(2010))
 
     return # run_all_plots

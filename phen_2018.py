@@ -1,7 +1,4 @@
-#!/usr/local/sci/python
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Phenology (PHEN) section.

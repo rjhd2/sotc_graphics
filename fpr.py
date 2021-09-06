@@ -1,4 +1,4 @@
-#!/usr/local/sci/python
+#!/usr/bin/env python
 #************************************************************************
 #
 #  Plot figures and output numbers for Fraction of Absorbed Photosynthetic Radiation (FPR) section.
@@ -6,16 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 28                                       $:  Revision of last commit
+# $Rev:: 30                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-04-09 11:37:08 +0100 (Thu, 09 Apr #$:  Date of last commit
+# $Date:: 2021-06-15 10:41:02 +0100 (Tue, 15 Jun #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-# python 3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import struct
 import numpy as np
 
@@ -88,19 +84,21 @@ def run_all_plots():
     #************************************************************************
     # Timeseries
 
-    data = read_binary_ts(DATALOC + "TimeSeries_faparanomaliesglobal_bams_v{}_C6_2020.bin".format(int(settings.YEAR)-1))
+    data = read_binary_ts(DATALOC + "TimeSeries_faparanomaliesglobal_bams_v2018_C6_{}.bin".format(int(settings.YEAR)+1))
 
     fig = plt.figure(figsize=(8, 6))
-    ax = plt.axes([0.13, 0.07, 0.8, 0.86])
+    ax = plt.axes([0.16, 0.07, 0.82, 0.88])
 
     COLOURS = settings.COLOURS["land_surface"]
 
     for dataset in data:
         print(dataset.name)
-        ls = "--"
+        ls = "-."
+        lw = 1
         if dataset.name.split(" ")[-1] == "Smoothed":
             ls = "-"
-        ax.plot(dataset.times, dataset.data, c=COLOURS[dataset.name], ls=ls, label=dataset.name, lw=LW)
+            lw = LW
+        ax.plot(dataset.times, dataset.data, c=COLOURS[dataset.name], ls=ls, label=dataset.name, lw=lw)
 
     ax.axhline(0, c='0.5', ls='--')
     utils.thicken_panel_border(ax)
@@ -141,7 +139,7 @@ def run_all_plots():
 
     #************************************************************************
     # Anomalies
-    data = read_binary(DATALOC + "DataXFigure1fapar1998_2010_bams_trois_C6_v2.eps_v2020.bin")
+    data = read_binary(DATALOC + "DataXFigure1fapar1998_2010_bams_trois_C6_v2.eps_v{}.bin".format(int(settings.YEAR)+1))
     data = data.reshape(360, 720)
 
     data = np.ma.masked_where(data == -100, data) # land/ocean mask
@@ -154,7 +152,7 @@ def run_all_plots():
     cube = utils.make_iris_cube_2d(data, lats, lons, "FAPAR", "%")
 
     bounds = [-20, -0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 20]
-    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["phenological"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010), figtext="(ae) Fraction of Absorbed Photosynthetically Active Radiation")
+    utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["phenological"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010), figtext="(af) Fraction of Absorbed Photosynthetically Active Radiation")
     utils.plot_smooth_map_iris(settings.IMAGELOC + "FPR_{}".format(settings.YEAR), cube, settings.COLOURMAP_DICT["phenological"], bounds, "Anomalies from 1998-{} (FAPAR)".format(2010))
 
 

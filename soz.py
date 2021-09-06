@@ -6,17 +6,12 @@
 #
 #************************************************************************
 #                    SVN Info
-# $Rev:: 29                                       $:  Revision of last commit
+# $Rev:: 31                                       $:  Revision of last commit
 # $Author:: rdunn                                 $:  Author of last commit
-# $Date:: 2020-08-05 12:12:39 +0100 (Wed, 05 Aug #$:  Date of last commit
+# $Date:: 2021-09-06 09:52:46 +0100 (Mon, 06 Sep #$:  Date of last commit
 #************************************************************************
 #                                 START
 #************************************************************************
-
-# python3
-from __future__ import absolute_import
-from __future__ import print_function
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -74,6 +69,67 @@ def read_ts(filename):
 
     return ts
 
+#************************************************************************
+def read_multi_ts(filename):
+
+    all_series = []
+    years = []
+    values = []
+
+    with open(filename, "r") as infile:
+        for line in (infile):
+            line = line.split()
+
+            # skip comments
+            if line[0] == "#":
+                # move on if nothing to process
+                if len(years) == 0:
+                    continue
+
+                try:
+                    # mask bad values
+                    values = np.ma.masked_where(np.array(values) < 100, np.array(values))
+                    years = np.array(years)
+
+                    # expand years to full range
+                    all_years = np.arange(years[0], years[-1]+1)
+                    all_values = np.ma.zeros(all_years.shape)
+                    all_values.mask = np.ones(all_years.shape)
+                    locs = np.in1d(all_years, years)
+
+                    all_values[locs] = values
+                    all_values.mask[locs] = False
+
+                    all_series += [utils.Timeseries("SOZ", all_years, all_values)]
+                except TypeError:
+                    pass
+
+                years = []
+                values = []
+            else:
+                years += [int(line[0])]
+                values += [float(line[1])]    
+                
+        try:
+            # mask bad values
+            values = np.ma.masked_where(np.array(values) < 100, np.array(values))
+            years = np.array(years)
+
+            # expand years to full range
+            all_years = np.arange(years[0], years[-1]+1)
+            all_values = np.ma.zeros(all_years.shape)
+            all_values.mask = np.ones(all_years.shape)
+            locs = np.in1d(all_years, years)
+
+            all_values[locs] = values
+            all_values.mask[locs] = False
+
+            all_series += [utils.Timeseries("SOZ", all_years, all_values)]
+        except TypeError:
+            pass
+
+    return all_series # read_multi_ts
+
 
 
 #************************************************************************
@@ -90,7 +146,7 @@ def run_all_plots():
 
         utils.plot_smooth_map_iris(settings.IMAGELOC + "SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)")
 
-        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext="(z) Stratospheric (Total Column) Ozone")
+        utils.plot_smooth_map_iris(settings.IMAGELOC + "p2.1_SOZ_{}_anoms".format(settings.YEAR), cube, settings.COLOURMAP_DICT["composition"], bounds, "Anomalies from 1998-2008 (DU)", figtext="(aa) Stratospheric (Total Column) Ozone")
 
 
     #************************************************************************
@@ -99,14 +155,19 @@ def run_all_plots():
     #    nh = read_ts(DATALOC + "tozave_60N_90N_3_3.dat")
     #    sh = read_ts(DATALOC + "tozave_90S_60S_10_10.dat")
 
-        nh = read_ts(DATALOC + "NH_polar_ozone.txt")
-        sh = read_ts(DATALOC + "SH_polar_ozone.txt")
+    #    nh = read_ts(DATALOC + "polar_ozone_NH.dat")
+    #    sh = read_ts(DATALOC + "polar_ozone_SH.dat")
+
+        nh_series = read_multi_ts(DATALOC + "polar_ozone_NH.dat")
+        sh_series = read_multi_ts(DATALOC + "polar_ozone_SH.dat")
 
         fig = plt.figure(figsize=(8, 6))
         plt.clf()
 
-        plt.plot(nh.times, nh.data, "b-", label="March NH")
-        plt.plot(sh.times, sh.data, "r-", label="October SH")
+        for nh in nh_series:
+            plt.plot(nh.times, nh.data, "b-", label="March NH")
+        for sh in sh_series:
+            plt.plot(sh.times, sh.data, "r-", label="October SH")
 
         plt.ylabel("total Ozone (DU")
         plt.title("Polar Ozone")
